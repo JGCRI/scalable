@@ -153,10 +153,10 @@ done
 rsync -aP --include '*.tar' containers $user@$host:~/$work_dir
 check_exit_code $?
 
-ssh $user@$host "mkdir -p /scratch/lamb678"
+ssh $user@$host "mkdir -p /scratch/$user"
 check_exit_code $?
-APPTAINER_TMPDIR="/scratch/lamb678"
-ssh $user@$host "rm ~/.local/share/containers/cache/blob-info-cache-v1.boltdb"
+APPTAINER_TMPDIR="/scratch/$user"
+ssh $user@$host "rm -f ~/.local/share/containers/cache/blob-info-cache-v1.boltdb"
 
 for target in "${build[@]}"
 do
@@ -164,7 +164,7 @@ do
     "{
         export APPTAINER_TMPDIR=$APPTAINER_TMPDIR &&
         export APPTAINER_CACHEDIR=$APPTAINER_TMPDIR &&
-        cd $work_dir/containers && 
+        cd $work_dir/containers &&  
         apptainer build --force $target\_container.sif docker-archive:$target\_container.tar
     }"
     check_exit_code $?
