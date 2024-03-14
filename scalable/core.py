@@ -427,6 +427,8 @@ class JobQueueCluster(SpecCluster):
     ):
         self.status = Status.created
 
+        self.specifications = {}
+
         default_job_cls = getattr(type(self), "job_cls", None)
         self.job_cls = default_job_cls
         if job_cls is not None:
@@ -506,6 +508,7 @@ class JobQueueCluster(SpecCluster):
             )
             warnings.warn(warn, FutureWarning)
 
+        self.containers = {}
 
         super().__init__(
             scheduler=scheduler,
@@ -543,12 +546,22 @@ class JobQueueCluster(SpecCluster):
         --------
         scale
         """
+        if tag not in self.specifications:
+            self.specifications[tag] = copy.deepcopy(self.new_spec)
+            if tag not in self.containers:
+                logger.error(f"The tag ({tag}) given is not a recognized tag for any of the containers."
+                            "Please add a container with this tag to the cluster by using"
+                            "add_container() and try again. User error at this point shouldn't happen."
+                            "Likely a bug.")
+                raise ValueError()
+            self.specifications[tag]["options"]["container"] = self.containers[tag]
+            self.specifications[tag]["options"]["tag"] = tag
         new_worker_name = f"{self._new_worker_name(self._i)}-{tag}"
         while new_worker_name in self.worker_spec:
             self._i += 1
             new_worker_name = f"{self._new_worker_name(self._i)}-{tag}"
 
-        return {new_worker_name: self.new_spec}
+        return {new_worker_name: self.specifications[tag]}
 
     def _get_worker_security(self, security):
         """Dump temporary parts of the security object into a shared_temp_directory"""

@@ -74,7 +74,8 @@ class SlurmJob(Job):
         self.logs_file = None
 
         if logger:
-            self.logs_file = f"{logs_location}/{self.name}-{self.tag}-logs"
+            self.logs_file = os.path.abspath(os.path.join(os.getcwd(), logs_location, f"{self.name}-{self.tag}.log"))
+            print(f"{self.name=} {self.tag=}")
 
         if hardware is None:
             raise ValueError(
@@ -201,7 +202,6 @@ class SlurmCluster(JobQueueCluster):
         interface=None,
         protocol=None,
         # Job keywords
-        containers=None,
         comm_port=None,
         path_overwrite=True,
         **job_kwargs
@@ -214,9 +214,6 @@ class SlurmCluster(JobQueueCluster):
         self.comm_port = comm_port
         self.resource_dict = get_resource_dict()
         self.hardware = HardwareResources()
-        if containers is None:
-            containers = {}
-        self.containers = containers
         self.shared_lock = asyncio.Lock()
         self.launched = []
         self.logs_location = create_logs_folder("SlurmCluster")
@@ -262,11 +259,10 @@ class SlurmCluster(JobQueueCluster):
             asyncio.run(self.remove_launched_worker(worker))
         if self.status not in (Status.closing, Status.closed):
             for _ in range(n):
-                new_worker = list(self.new_worker_spec(tag).items())
-                new_worker[0][1]["options"]["tag"] = tag
-                new_worker[0][1]["options"]["container"] = self.containers[tag]
-                new_worker = dict(new_worker)
-                self.worker_spec.update(new_worker)
+                print(f"BEFORE GENERATE SPEC {self.worker_spec}")
+                new_worker = self.new_worker_spec(tag)
+                self.worker_spec.update(dict(new_worker))
+                print(f"INSIDE ADD CONT AFTER SELF SPEC UPDATE {self.worker_spec=}")
         self.loop.add_callback(self._correct_state)
         if self.asynchronous:
             return NoOpAwaitable() 
@@ -287,12 +283,3 @@ class SlurmCluster(JobQueueCluster):
         global DEFAULT_REQUEST_QUANTITY
         DEFAULT_REQUEST_QUANTITY = nodes
     
-
-
-
-
-
-
-
-
-
