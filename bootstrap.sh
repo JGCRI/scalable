@@ -18,9 +18,15 @@ prompt() {
     read input
 }
 
+flush() {
+    read -t 0.1 -n 10000 discard
+}
+
 echo -e "${RED}Connection to HPC/Cloud...${NC}"
+flush
 prompt "$RED" "Hostname: "
 host=$input
+flush
 prompt "$RED" "Username: "
 user=$input
 if [[ $* == *"-i"* ]]; then
@@ -50,6 +56,7 @@ DOWNLOAD_LINK="${GO_DOWNLOAD_LINK//\*/$GO_VERSION}"
 FILENAME=$(basename $DOWNLOAD_LINK)
 check_exit_code $?
 
+flush
 prompt "$RED" "Enter Work Directory Name \
 (created in home directory of remote system or if it already exists): "
 work_dir=$input
@@ -57,6 +64,7 @@ work_dir=$input
 echo -e "${YELLOW}To reinstall any directory or file already on remote, \
 please delete it from remote and run this script again${NC}"
 
+flush
 ssh $user@$host \
 "{
     [[ -d \"$work_dir\" ]] && 
@@ -67,7 +75,7 @@ ssh $user@$host \
 }"
 check_exit_code $?
 
-
+flush
 ssh -t $user@$host \
 "{
     [[ -d \"$work_dir/go\" ]] && 
@@ -79,6 +87,7 @@ ssh -t $user@$host \
 }"
 check_exit_code $?
 
+flush
 ssh $user@$host \
 "{
     [[ -d \"$work_dir/scalable\" ]] && 
@@ -91,6 +100,7 @@ check_exit_code $?
 
 GO_PATH=$(ssh $user@$host "cd $work_dir/go/bin/ && pwd")
 GO_PATH="$GO_PATH/go"
+flush
 ssh -t $user@$host \
 "{ 
     [[ -f \"$work_dir/scalable/communicator/communicator\" ]] && 
@@ -105,9 +115,11 @@ ssh -t $user@$host \
 }"
 check_exit_code $?
 
+flush
 ssh $user@$host "cp $work_dir/scalable/communicator/communicator $work_dir/."
 check_exit_code $?
 
+flush
 echo 'Creating container directory locally...'
 mkdir -p containers
 check_exit_code $?
@@ -123,6 +135,7 @@ NO_PROXY="*.pnl.gov,*.pnnl.gov,127.0.0.1"
 echo -e "${RED}Please enter the containers you'd like to build and \
 upload to the remote system (separated by spaces): ${NC}"
 
+flush
 read -r -a targets
 check_exit_code $?
 
@@ -135,15 +148,18 @@ do
     TARGET_EXISTS=$?
     if [ "$TARGET_EXISTS" -eq 0 ]; then
         echo -e "${YELLOW}$check.sif already exists in $work_dir/containers.${NC}"
+        flush
         prompt "$RED" "Do you want to overwrite $check.sif & $check.tar? (Y/n): "
         choice=$input
         if [[ "$choice" =~ [Nn]|^[Nn][Oo]$ ]]; then
             continue
         fi
     fi
+    flush
     docker build --target $target --build-arg https_proxy=$HTTPS_PROXY \
     --build-arg no_proxy=$NO_PROXY -t $target\_container .
     check_exit_code $?
+    flush
     IMAGE_ID=$(docker images | grep $target\_container | sed 's/[\t ][\t ]*/ /g' | cut -d ' ' -f 3)
     docker save $IMAGE_ID -o containers/$target\_container.tar
     check_exit_code $?
