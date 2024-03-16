@@ -1,14 +1,7 @@
-import logging
-import warnings
-import dask
 import os
-import asyncio
 
 from .core import Job, JobQueueCluster, job_parameters, cluster_parameters
 from distributed.deploy.spec import ProcessInterface
-from distributed.scheduler import Scheduler
-from distributed.core import Status
-from distributed.utils import NoOpAwaitable
 from .support import *
 
 from .utilities import *
@@ -26,7 +19,6 @@ class SlurmJob(Job):
         scheduler=None,
         name=None,
         queue=None,
-        project=None,
         account=None,
         walltime=None,
         log_directory=None,
@@ -36,7 +28,7 @@ class SlurmJob(Job):
         hardware=None,
         logs_location=None,
         logger=True,
-        shared_lock=asyncio.Lock(),
+        shared_lock=None,
         **base_class_kwargs
     ):
         super().__init__(
@@ -44,28 +36,7 @@ class SlurmJob(Job):
             container=container, tag=tag, **base_class_kwargs
         )
 
-        self.scheduler = scheduler
-        self.job_id = None
         self.shared_lock = shared_lock
-
-        self.log_directory = log_directory
-        if self.log_directory is not None:
-            if not os.path.exists(self.log_directory):
-                os.makedirs(self.log_directory)
-        
-        if project is not None:
-            warn = (
-                "project has been renamed to account as this kwarg was used wit -A option. "
-                "You are still using it (please also check config files). "
-                "If you did not set account yet, project will be respected for now, "
-                "but it will be removed in a future release. "
-                "If you already set account, project is ignored and you can remove it."
-            )
-            warnings.warn(warn, FutureWarning)
-            if not account:
-                account = project
-
-        self.name = name
 
         job_name = f"{self.name}-job"
 
@@ -75,15 +46,6 @@ class SlurmJob(Job):
 
         if logger:
             self.logs_file = os.path.abspath(os.path.join(os.getcwd(), logs_location, f"{self.name}-{self.tag}.log"))
-            print(f"{self.name=} {self.tag=}")
-
-        if hardware is None:
-            raise ValueError(
-                "Hardware resources not specified. These are needed for the workers to know"
-                "when to request more hardware resources. Please try again"
-            )
-
-        self.hardware = hardware
         
         # All the wanted commands should be set here
         self.send_command = self.container.get_command()
@@ -178,105 +140,6 @@ class SlurmCluster(JobQueueCluster):
         job=job_parameters, cluster=cluster_parameters
     )
     job_cls = SlurmJob
-    
-    def __init__(
-        self,
-        job_cls: Job = SlurmJob,
-        # Cluster keywords
-        loop=None,
-        security=None,
-        shared_temp_directory=None,
-        silence_logs="error",
-        name=None,
-        asynchronous=False,
-        # Slurm options
-        account=None,
-        queue=None,
-        walltime=None,
-        # Scheduler-only keywords
-        dashboard_address=None,
-        host=None,
-        scheduler_options={},
-        scheduler_cls=Scheduler,  # Use local scheduler for now
-        # Options for both scheduler and workers
-        interface=None,
-        protocol=None,
-        # Job keywords
-        comm_port=None,
-        path_overwrite=True,
-        **job_kwargs
-    ):
-        if comm_port is None:
-            raise ValueError(
-                "Communicator port not given. You must specify the communicator port"
-                "for the workers to be launched. Please try again"
-            )
-        self.comm_port = comm_port
-        self.resource_dict = get_resource_dict()
-        self.hardware = HardwareResources()
-        self.shared_lock = asyncio.Lock()
-        self.launched = []
-        self.logs_location = create_logs_folder("SlurmCluster")
-        
-        super().__init__( 
-            job_cls=job_cls, 
-            loop=loop, 
-            security=security, 
-            shared_temp_directory=shared_temp_directory, 
-            silence_logs=silence_logs, 
-            name=name, 
-            asynchronous=asynchronous, 
-            dashboard_address=dashboard_address, 
-            host=host, 
-            scheduler_options=scheduler_options, 
-            scheduler_cls=scheduler_cls, 
-            interface=interface, 
-            protocol=protocol, 
-            account=account,
-            queue=queue,
-            hardware=self.hardware,
-            path_overwrite=path_overwrite,
-            comm_port=comm_port,
-            shared_lock=self.shared_lock,
-            walltime=walltime,
-            launched=self.launched,
-            logs_location=self.logs_location,
-            **job_kwargs)
-        
-    async def remove_launched_worker(self, worker):
-        async with self.shared_lock:
-            self.launched.remove(worker)
-
-    def add_worker(self, tag, n=0):
-        if tag not in self.containers:
-            logger.error(f"The tag ({tag}) given is not a recognized tag for any of the containers."
-                         "Please add a container with this tag to the cluster by using"
-                         "add_container() and try again.")
-            return
-        to_close = set(self.launched) - set(self.workers)
-        for worker in to_close:
-            del self.worker_spec[worker]
-            asyncio.run(self.remove_launched_worker(worker))
-        if self.status not in (Status.closing, Status.closed):
-            for _ in range(n):
-                print(f"BEFORE GENERATE SPEC {self.worker_spec}")
-                new_worker = self.new_worker_spec(tag)
-                self.worker_spec.update(dict(new_worker))
-                print(f"INSIDE ADD CONT AFTER SELF SPEC UPDATE {self.worker_spec=}")
-        self.loop.add_callback(self._correct_state)
-        if self.asynchronous:
-            return NoOpAwaitable() 
-
-    def add_container(self, tag, dirs, path=None, cpus=None, memory=None):
-        tag = tag.lower()
-        self.model_configs.update_dict(tag, 'Dirs', dirs)
-        if path:
-            self.model_configs.update_dict(tag, 'Path', path)
-        if cpus:
-            self.model_configs.update_dict(tag, 'CPUs', cpus)
-        if memory:
-            self.model_configs.update_dict(tag, 'Memory', memory)
-        self.containers[tag] = Container(name=tag, spec_dict=self.model_configs.config_dict[tag])
     
     @staticmethod
     def set_default_request_quantity(nodes):

@@ -125,9 +125,9 @@ mkdir -p containers
 check_exit_code $?
 
 echo -e "${YELLOW}Available container targets: ${NC}"
-avail=$(sed -n 's/^FROM[[:space:]]\+[^ ]\+[[:space:]]\+AS[[:space:]]\+\([^ ]\+\)$/\1/p' Dockerfile)
+avail=$(sed -n -E 's/^FROM[[:space:]]{1,}[^ ]{1,}[[:space:]]{1,}AS[[:space:]]{1,}([^ ]{1,})$/\1/p' Dockerfile)
 check_exit_code $?
-avail=$(sed '/build_env/d ; /scalable/d' <<< "$avail")
+avail=$(sed -E '/build_env/d ; /scalable/d' <<< "$avail")
 check_exit_code $?
 echo -e "${GREEN}$avail${NC}"
 HTTPS_PROXY="http://proxy01.pnl.gov:3128"
@@ -160,7 +160,7 @@ do
     --build-arg no_proxy=$NO_PROXY -t $target\_container .
     check_exit_code $?
     flush
-    IMAGE_ID=$(docker images | grep $target\_container | sed 's/[\t ][\t ]*/ /g' | cut -d ' ' -f 3)
+    IMAGE_ID=$(docker images | grep $target\_container | sed -E 's/[\t ][\t ]*/ /g' | cut -d ' ' -f 3)
     docker save $IMAGE_ID -o containers/$target\_container.tar
     check_exit_code $?
     build+=("$target")

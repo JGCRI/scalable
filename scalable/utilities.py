@@ -9,24 +9,6 @@ from .common import logger
 
 comm_port_regex = r'0\.0\.0\.0:(\d{1,5})'
 
-def send_command(command, port, communicator_path=None):
-    if communicator_path is None:
-        communicator_path = "./communicator"
-    if not os.path.isfile(communicator_path):
-        raise FileNotFoundError("The communicator file does not exist at the given path" +
-                                "(default current directory). Please try again.")
-    communicator_command = []
-    communicator_command.append(communicator_path)
-    communicator_command.append("-c")
-    communicator_command.append(str(port))
-    command += "\n"
-    process = subprocess.Popen(args=communicator_command, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-    input = bytes(command, encoding='utf-8')
-    out, _ = process.communicate(input=input)
-    result = str(out, encoding='utf-8')
-    result = result.strip()
-    return result
-
 async def get_cmd_comm(port, communicator_path=None):
     if communicator_path is None:
         communicator_path = "./communicator"
@@ -57,6 +39,7 @@ def get_comm_port(logpath=None):
                     ret = port
                     break
     return ret
+
 
 
 class ModelConfig:
@@ -116,85 +99,6 @@ class ModelConfig:
         config['CPUs'] = 4
         config['Memory'] = "8G"
         return config
-            
-
-        
-def make_resource_dict():
-    if not os.path.isfile('resource_list.yaml'):
-        open('resource_list.yaml', 'a').close()
-    return True
-
-def add_extras(**kwargs):
-    ret = True
-    if os.path.isfile('resource_list.yaml'):
-        with open('resource_list.yaml', 'r') as file:
-            resource_dict = yaml.safe_load(file)
-            if resource_dict is None:
-                resource_dict = {}
-            for k, v in kwargs.items():
-                resource_dict[k] = v
-            with open('resource_list.yaml', 'w') as file:
-                yaml.dump(resource_dict, file, default_flow_style=False)
-    else:
-        ret = False
-    return ret
-
-def set_container_runtime(runtime):
-    ret = True
-    if os.path.isfile('resource_list.yaml'):
-        with open('resource_list.yaml', 'r') as file:
-            resource_dict = yaml.safe_load(file)
-            if resource_dict is None:
-                resource_dict = {}
-            resource_dict["Runtime"] = runtime
-            with open('resource_list.yaml', 'w') as file:
-                yaml.dump(resource_dict, file, default_flow_style=False)
-    else:
-        ret = False
-    return ret
-
-# LOG ERRORS WHEN RESOURCE DICT IS NOT FOUND
-
-def add_resource(model, cpus=None, memory=None, path=None, extras=None):
-    ret = True
-    insert = {}
-    if cpus:
-        insert["CPUs"] = cpus
-    if memory:
-        memory_parsed = parse_bytes(memory)
-        memory_parsed //= 10**9
-        insert["Memory"] = memory_parsed
-    if path:
-        insert["Path"] = path
-    if extras:
-        insert.update(extras)
-    if os.path.isfile('resource_list.yaml'):
-        with open('resource_list.yaml', 'r') as file:
-            resource_dict = yaml.safe_load(file)
-            if resource_dict is None:
-                resource_dict = {}
-            if model in resource_dict.keys():
-                resource_dict[model].update(insert)
-            else:
-                resource_dict[model] = insert
-        with open('resource_list.yaml', 'w') as file:
-            yaml.dump(resource_dict, file, default_flow_style=False)
-    else:
-        ret = False
-    return ret
-
-def delete_resource_dict():
-    if os.path.isfile('resource_list.yaml'):
-        os.remove('resource_list.yaml')
-    return True
-
-def get_resource_dict():
-    ret = None
-    if os.path.isfile('resource_list.yaml'):
-        with open('resource_list.yaml', 'r') as file:
-            resource_dict = yaml.safe_load(file)
-            ret = resource_dict
-    return ret
 
 
 class HardwareResources:
@@ -284,6 +188,8 @@ class HardwareResources:
     @staticmethod
     def set_min_free_memory(memory):
         HardwareResources.MIN_MEMORY = memory
+
+
 
 class Container:
 

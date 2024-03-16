@@ -3,70 +3,6 @@ import os
 import re
 import shlex
 
-
-def launch_command(python=None, worker_cls=None, scheduler=None, memory=0, worker_name=None, timeout=None, 
-                  interface=None, tls_ca_file=None, tls_cert=None, tls_key=None, worker_port=None, nanny=True, 
-                  listen_address=None, contact_address=None, nworkers=None, nthreads=None, resources=None,
-                  nanny_port=None, dashboard=True, protocol=None, pid_file=None, local_dir=None, scheduler_file=None,
-                  dashboard_prefix=None):
-    command = []
-    if not python:
-        python = "python3"        
-    command.append(python)
-    if not worker_cls:
-        worker_cls = "distributed.cli.dask_worker"
-    command += ["-m", worker_cls]
-    if not scheduler:
-        raise ValueError("You must specify the scheduler")
-    command.append(scheduler)
-    if not nthreads:
-        nthreads = 1
-    command += ["--nthreads", nthreads]
-    if not nworkers:
-        raise ValueError("You must specify the number of workers")
-    command += ["--nworkers", nworkers]
-    if memory:
-       command += ["--memory-limit", memory]
-    if worker_name:
-        command += ["--name", worker_name]
-    if timeout:
-        command += ["--death-timeout", timeout]
-    if nanny:
-        command += ["--nanny"]
-    if not interface:
-        raise ValueError("You must specify an interface")
-    command += ["--interface", interface]
-    if nanny_port:
-        command += ["--nanny-port", nanny_port]
-    if resources:
-        command += ["--resources", resources]
-    if tls_ca_file:
-        command += ["--tls-ca-file", tls_ca_file]
-    if tls_cert:
-        command += ["--tls-cert", tls_cert]
-    if tls_key:
-        command += ["--tls-key", tls_key]
-    if worker_port:
-        command += ["--worker-port", worker_port]
-    if listen_address:
-        command += ["--listen-address", listen_address]
-    if contact_address:
-        command += ["--contact-address", listen_address]
-    if not dashboard:
-        command.append("--no-dashboard")
-    if protocol:
-        command += ["--protocol", protocol]
-    if pid_file:
-        command += ["--pid-file", pid_file]
-    if local_dir:
-        command += ["--local-directory", local_dir]
-    if scheduler_file:
-        command += ["--scheduler-file", scheduler_file]
-    if dashboard_prefix:
-        command += ["--dashboard-prefix", dashboard_prefix]
-    return " ".join(map(str, command))
-
-
 def salloc_command(account=None, chdir=None, clusters=None, exclusive=True, gpus=None, name=None, memory=None, 
                    nodes=None, partition=None, time=None, extras=None):
     command = ["salloc"]
@@ -101,7 +37,6 @@ def memory_command():
 
 def core_command():
     return ["nproc", "--all"]
-
 
 # Handle what to do if name is null or invalid
 def jobid_command(name):

@@ -1,5 +1,4 @@
 from contextlib import contextmanager, suppress
-import logging
 import os
 import re
 import shlex
@@ -16,6 +15,7 @@ from distributed.core import Status
 from distributed.deploy.spec import ProcessInterface, SpecCluster
 from distributed.scheduler import Scheduler
 from distributed.security import Security
+from distributed.utils import NoOpAwaitable
 
 from .utilities import *
 from .support import *
@@ -130,16 +130,7 @@ class Job(ProcessInterface, abc.ABC):
         job_parameters=job_parameters
     )
 
-    _script_template = """
-%(shebang)s
-
-%(job_header)s
-%(job_script_prologue)s
-%(worker_command)s
-""".lstrip()
-
     # Following class attributes should be overridden by extending classes.
-    submit_command = None
     cancel_command = None
     job_id_regexp = r"(?P<job_id>\d+)"
 
@@ -150,32 +141,23 @@ class Job(ProcessInterface, abc.ABC):
         name=None,
         cpus=None,
         memory=None,
-        processes=None,
         nanny=True,
         protocol=None,
         security=None,
         interface=None,
         death_timeout=None,
         local_directory=None,
-        extra=None,
         worker_command=DEFAULT_WORKER_COMMAND,
         worker_extra_args=[],
         log_directory=None,
         python=sys.executable,
-        job_name=None,
         comm_port=None,
         hardware=None, 
         tag=None,
         container=None,
         launched=None,
     ):
-        self.scheduler = scheduler
-        self.job_id = None
-
-        self.launched = False
-
-        super().__init__()
-
+        
         if container is None:
             raise ValueError(
                 "Container cannot be None. The information about launching the worker\
@@ -187,46 +169,17 @@ class Job(ProcessInterface, abc.ABC):
                 "Launched list is None. Every worker needs a launched list for the cluster\
                     to be able to monitor the workers effectively. Please try again."
             )
-        
-        self.launched = launched
-        
-        self.container = container
 
         if tag is None:
             raise ValueError(
                 "Each worker is required to have a tag. Please try again."
             )
         
-        self.tag = tag
-
         if hardware is None:
             raise ValueError(
                 "No hardware resources object. Please try again."
             )
         
-        self.hardware = hardware
-
-        container_info = self.container.get_info_dict()
-
-        if cpus is None:
-            cpus = container_info['CPUs']
-        if memory is None:
-            memory = container_info['Memory']
-        self.cpus = cpus
-        self.memory = memory
-        processes = 1
-        if extra is not None:
-            warn = (
-                "extra has been renamed to worker_extra_args. "
-                "You are still using it (even if only set to []; please also check config files). "
-                "If you did not set worker_extra_args yet, extra will be respected for now, "
-                "but it will be removed in a future release. "
-                "If you already set worker_extra_args, extra is ignored and you can remove it."
-            )
-            warnings.warn(warn, FutureWarning)
-            if not worker_extra_args:
-                worker_extra_args = extra        
-
         if comm_port is None:
             raise ValueError(
                 "Communicator port not given. You must specify the communicator port \
@@ -234,7 +187,25 @@ class Job(ProcessInterface, abc.ABC):
             )
         
         self.comm_port = comm_port
-        # This attribute should be set in the derived class
+        self.tag = tag
+        self.launched = launched
+        self.container = container
+        self.scheduler = scheduler
+        self.hardware = hardware
+        self.name = name
+        self.job_id = None
+
+        super().__init__()
+
+        container_info = self.container.get_info_dict()
+        
+        if cpus is None:
+            cpus = container_info['CPUs']
+        if memory is None:
+            memory = container_info['Memory']
+        self.cpus = cpus
+        self.memory = memory
+        processes = 1        
 
         if interface:
             worker_extra_args = worker_extra_args + ["--interface", interface]
@@ -253,12 +224,7 @@ class Job(ProcessInterface, abc.ABC):
 
         # Keep information on process, cores, and memory, for use in subclasses
         self.worker_memory = parse_bytes(self.memory) if self.memory is not None else None
-        self.worker_processes = processes
-        #self.worker_cores = cores
-        self.name = name
-        self.job_name = job_name
-
-
+        
         # dask-worker command line build
         dask_worker_command = "%(python)s -m %(worker_command)s" % dict(
             python="python3",
@@ -294,9 +260,6 @@ class Job(ProcessInterface, abc.ABC):
         if self.log_directory is not None:
             if not os.path.exists(self.log_directory):
                 os.makedirs(self.log_directory)
-
-    async def _submit_job(self, script_filename):
-        return await self._call(shlex.split(self.submit_command) + [script_filename])
     
     async def _run_command(self, command):
         out = await self._call(command, self.comm_port)
@@ -421,16 +384,18 @@ class JobQueueCluster(SpecCluster):
         # Options for both scheduler and workers
         interface=None,
         protocol=None,
-        # Job keywords
+        # Custom keywords
         path_overwrite=True,
+        comm_port=None,
         **job_kwargs
     ):
-        self.status = Status.created
+        
+        if comm_port is None:
+            raise ValueError(
+                "Communicator port not given. You must specify the communicator port"
+                "for the workers to be launched. Please try again"
+            )
 
-        self.specifications = {}
-
-        default_job_cls = getattr(type(self), "job_cls", None)
-        self.job_cls = default_job_cls
         if job_cls is not None:
             self.job_cls = job_cls
 
@@ -472,13 +437,22 @@ class JobQueueCluster(SpecCluster):
                     "In order to use TLS without pregenerated certificates `cryptography` is required,"
                     "please install it using either pip or conda"
                 )
-            
+        
+        self.comm_port = comm_port
+        self.hardware = HardwareResources()
+        self.shared_lock = asyncio.Lock()
+        self.launched = []
+        self.logs_location = create_logs_folder("SlurmCluster")
+        self.status = Status.created
+        self.specifications = {}
         self.model_configs = ModelConfig(path_overwrite=path_overwrite)
+        
         default_scheduler_options = {
             "protocol": protocol,
             "dashboard_address": ":8787",
             "security": security,
         }
+
         # scheduler_options overrides parameters common to both workers and scheduler
         scheduler_options = dict(default_scheduler_options, **scheduler_options)
 
@@ -493,20 +467,17 @@ class JobQueueCluster(SpecCluster):
         }
 
         self.shared_temp_directory = shared_temp_directory
-
+        
         job_kwargs["interface"] = interface
         job_kwargs["protocol"] = protocol
         job_kwargs["security"] = self._get_worker_security(security)
-
+        job_kwargs["comm_port"] = self.comm_port
+        job_kwargs["hardware"] = self.hardware
+        job_kwargs["shared_lock"] = self.shared_lock
+        job_kwargs["logs_location"] = self.logs_location
         self._job_kwargs = job_kwargs
 
         worker = {"cls": self.job_cls, "options": self._job_kwargs}
-        if "processes" in self._job_kwargs and self._job_kwargs["processes"] > 1:
-            warn = (
-                "Processes are not supposed to be defined or specified when launching the cluster."
-                "The value for processes is being ignored as it is set internally."
-            )
-            warnings.warn(warn, FutureWarning)
 
         self.containers = {}
 
@@ -519,6 +490,39 @@ class JobQueueCluster(SpecCluster):
             asynchronous=asynchronous,
             name=name,
         )
+
+    async def remove_launched_worker(self, worker):
+        async with self.shared_lock:
+            self.launched.remove(worker)
+
+    def add_worker(self, tag, n=0):
+        if tag not in self.containers:
+            logger.error(f"The tag ({tag}) given is not a recognized tag for any of the containers."
+                         "Please add a container with this tag to the cluster by using"
+                         "add_container() and try again.")
+            return
+        to_close = set(self.launched) - set(self.workers)
+        for worker in to_close:
+            del self.worker_spec[worker]
+            asyncio.run(self.remove_launched_worker(worker))
+        if self.status not in (Status.closing, Status.closed):
+            for _ in range(n):
+                new_worker = self.new_worker_spec(tag)
+                self.worker_spec.update(dict(new_worker))
+        self.loop.add_callback(self._correct_state)
+        if self.asynchronous:
+            return NoOpAwaitable() 
+
+    def add_container(self, tag, dirs, path=None, cpus=None, memory=None):
+        tag = tag.lower()
+        self.model_configs.update_dict(tag, 'Dirs', dirs)
+        if path:
+            self.model_configs.update_dict(tag, 'Path', path)
+        if cpus:
+            self.model_configs.update_dict(tag, 'CPUs', cpus)
+        if memory:
+            self.model_configs.update_dict(tag, 'Memory', memory)
+        self.containers[tag] = Container(name=tag, spec_dict=self.model_configs.config_dict[tag])
 
     def _new_worker_name(self, worker_number):
         """Returns new worker name.
@@ -549,13 +553,13 @@ class JobQueueCluster(SpecCluster):
         if tag not in self.specifications:
             self.specifications[tag] = copy.deepcopy(self.new_spec)
             if tag not in self.containers:
-                logger.error(f"The tag ({tag}) given is not a recognized tag for any of the containers."
-                            "Please add a container with this tag to the cluster by using"
-                            "add_container() and try again. User error at this point shouldn't happen."
-                            "Likely a bug.")
-                raise ValueError()
+                raise ValueError(f"The tag ({tag}) given is not a recognized tag for any of the containers."
+                                "Please add a container with this tag to the cluster by using"
+                                "add_container() and try again. User error at this point shouldn't happen."
+                                "Likely a bug.")
             self.specifications[tag]["options"]["container"] = self.containers[tag]
             self.specifications[tag]["options"]["tag"] = tag
+            self.specifications[tag]["options"]["launched"] = self.launched
         new_worker_name = f"{self._new_worker_name(self._i)}-{tag}"
         while new_worker_name in self.worker_spec:
             self._i += 1
@@ -649,36 +653,5 @@ or by setting this value in the config file found in `~/.config/dask/jobqueue.ya
         """
 
         return super().scale(jobs, memory=memory, cores=cores)
-
-    def adapt(
-        self, *args, minimum_jobs: int = None, maximum_jobs: int = None, **kwargs
-    ):
-        """Scale Dask cluster automatically based on scheduler activity.
-
-        Parameters
-        ----------
-        minimum : int
-           Minimum number of workers to keep around for the cluster
-        maximum : int
-           Maximum number of workers to keep around for the cluster
-        minimum_memory : str
-           Minimum amount of memory for the cluster
-        maximum_memory : str
-           Maximum amount of memory for the cluster
-        minimum_jobs : int
-           Minimum number of jobs
-        maximum_jobs : int
-           Maximum number of jobs
-        **kwargs :
-           Extra parameters to pass to dask.distributed.Adaptive
-
-        See Also
-        --------
-        dask.distributed.Adaptive : for more keyword arguments
-        """
-
-        if minimum_jobs is not None:
-            kwargs["minimum"] = minimum_jobs * self._dummy_job.worker_processes
-        if maximum_jobs is not None:
-            kwargs["maximum"] = maximum_jobs * self._dummy_job.worker_processes
-        return super().adapt(*args, **kwargs)
+    
+    
