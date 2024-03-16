@@ -21,7 +21,6 @@ class SlurmJob(Job):
         queue=None,
         account=None,
         walltime=None,
-        log_directory=None,
         container=None,
         comm_port=None,
         tag=None,
