@@ -9,9 +9,9 @@ libboost-numpy-dev
 RUN apt-get -y update && apt -y upgrade
 RUN apt-get -y update && DEBIAN_FRONTEND=noninteractive apt-get install -y ssh nano locate curl net-tools netcat git \
 python3 python3-pip python3-numpy libboost-python1.74 libboost-numpy1.74 openjdk-11-jre-headless libtbb12
-RUN python3 -m pip install dask[complete] dask-jobqueue --upgrade dask_mpi pyyaml
+RUN python3 -m pip install dask[complete] dask-jobqueue --upgrade dask_mpi pyyaml joblib
 
-FROM build_env AS scalable
+FROM build_env as scalable
 ADD "https://api.github.com/repos/JGCRI/scalable/commits?per_page=1" latest_commit
 RUN git clone https://github.com/JGCRI/scalable.git /scalable
 RUN pip3 install /scalable/.
@@ -23,6 +23,8 @@ RUN mkdir /demeter
 RUN echo "import demeter" >> /demeter/install_script.py && \
 echo "demeter.get_package_data(\"/demeter\")" >> /demeter/install_script.py
 RUN python3 /demeter/install_script.py
+COPY --from=scalable /scalable /scalable
+RUN pip3 install /scalable/.
 
 FROM build_env AS stitches
 RUN apt-get -y update && apt -y upgrade
@@ -31,6 +33,8 @@ RUN mkdir /stitches
 RUN echo "import stitches" >> /stitches/install_script.py && \
 echo "stitches.install_package_data()" >> /stitches/install_script.py
 RUN python3 /stitches/install_script.py
+COPY --from=scalable /scalable /scalable
+RUN pip3 install /scalable/.
 
 FROM build_env AS tethys
 RUN apt-get -y update && apt -y upgrade
@@ -39,6 +43,8 @@ RUN mkdir /tethys
 RUN echo "import tethys" >> /tethys/install_script.py && \
 echo "tethys.get_example_data()" >> /tethys/install_script.py
 RUN python3 /tethys/install_script.py
+COPY --from=scalable /scalable /scalable
+RUN pip3 install /scalable/.
 
 FROM build_env AS xanthos
 RUN apt-get -y update && apt -y upgrade
@@ -49,10 +55,14 @@ RUN pip install /xanthos
 RUN echo "import xanthos" >> /xanthos/install_script.py && \
 echo "xanthos.get_package_data(\"/xanthos\")" >> /xanthos/install_script.py
 RUN python3 /xanthos/install_script.py
+COPY --from=scalable /scalable /scalable
+RUN pip3 install /scalable/.
 
 FROM build_env AS hector
 RUN apt-get -y update && apt -y upgrade
 RUN python3 -m pip install pyhector
+COPY --from=scalable /scalable /scalable
+RUN pip3 install /scalable/.
 
 FROM build_env AS gcam
 RUN apt-get -y update && apt -y upgrade
@@ -62,7 +72,7 @@ RUN mkdir gcam-core/libs
 RUN wget https://gitlab.com/libeigen/eigen/-/archive/${EIGEN_VERSION}/eigen-${EIGEN_VERSION}.tar.gz -P /gcam-core/libs/.
 RUN cd /gcam-core/libs && tar -xvf eigen-${EIGEN_VERSION}.tar.gz && mv eigen-${EIGEN_VERSION} eigen
 ARG JARS_LINK=https://github.com/JGCRI/modelinterface/releases/download/v5.4/jars.zip
-RUN wget ${JARS_LINK} -P /gcam-core && unzip /gcam-core/jars.zip && rm /gcam-core/jars.zip
+RUN wget ${JARS_LINK} -P /gcam-core && cd /gcam-core && unzip jars.zip && rm /gcam-core/jars.zip
 ENV CXX='g++ -fPIC' \
     EIGEN_INCLUDE=/gcam-core/libs/eigen \
     BOOST_INCLUDE=/usr/include \
@@ -83,7 +93,8 @@ ENV GCAM_INCLUDE=/gcam-core/cvs/objects \
     GCAM_LIB=/gcam-core/cvs/objects/build/linux
 RUN git clone --branch GIL_Changes https://github.com/JGCRI/gcamwrapper.git /gcamwrapper
 RUN cd /gcamwrapper && pip3 install .
-
+COPY --from=scalable /scalable /scalable
+RUN pip3 install /scalable/.
 
 
 FROM golang:1.22.1-alpine3.19 as builder
@@ -106,6 +117,7 @@ RUN apk add --no-cache \
 ARG APPTAINER_COMMITISH="main"
 ARG MCONFIG_OPTIONS="--with-suid"
 WORKDIR $GOPATH/src/github.com/apptainer
+ADD "https://api.github.com/repos/apptainer/apptainer/commits?per_page=1" latest_commit
 RUN git clone https://github.com/apptainer/apptainer.git \
     && cd apptainer \
     && git checkout "$APPTAINER_COMMITISH" \
