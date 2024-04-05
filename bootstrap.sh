@@ -154,7 +154,7 @@ if [[ "$build" =~ [Yy]|^[Yy][Ee]|^[Yy][Ee][Ss]$ ]]; then
         if [ "$?" -eq 0 ]; then
             echo -e "${YELLOW}$check.sif already exists in $work_dir/containers.${NC}"
             flush
-            prompt "$RED" "Do you want to overwrite $check.sif & $check.tar? (Y/n): "
+            prompt "$RED" "Do you want to overwrite $check.sif? (Y/n): "
             choice=$input
             if [[ "$choice" =~ [Nn]|^[Nn][Oo]$ ]]; then
                 continue
@@ -172,7 +172,7 @@ if [[ "$build" =~ [Yy]|^[Yy][Ee]|^[Yy][Ee][Ss]$ ]]; then
     if [ "$?" -ne 0 ]; then
         flush
         docker build --target apptainer --build-arg https_proxy=$HTTPS_PROXY \
-        --build-arg no_proxy=$NO_PROXY -t container_container .
+        --build-arg no_proxy=$NO_PROXY -t apptainer_container .
         check_exit_code $?
     fi
 
@@ -183,7 +183,7 @@ if [[ "$build" =~ [Yy]|^[Yy][Ee]|^[Yy][Ee][Ss]$ ]]; then
         IMAGE_TAG=$(docker images | grep $target\_container | sed -E 's/[\t ][\t ]*/ /g' | cut -d ' ' -f 2)
         flush
         docker run --rm -v //var/run/docker.sock:/var/run/docker.sock -v /$(pwd):/work \
-        apptainer_container build containers/$target\_container.sif docker-daemon://$IMAGE_NAME:$IMAGE_TAG
+        apptainer_container build --force containers/$target\_container.sif docker-daemon://$IMAGE_NAME:$IMAGE_TAG
         check_exit_code $?
     done
 
@@ -198,5 +198,5 @@ ssh -L 8787:deception.pnl.gov:8787 -t $user@$host \
     ./communicator -s > communicator.log & 
     module load apptainer && 
     cd $work_dir &&
-    apptainer exec containers/scalable_container.sif python3
+    apptainer exec --userns containers/scalable_container.sif python3
 }"
