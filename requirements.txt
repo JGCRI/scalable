@@ -1,2 +1,3 @@
 dask>=2022.02.0
 distributed>=2022.02.0
+joblib>=1.3.2
