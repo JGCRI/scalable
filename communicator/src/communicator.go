@@ -29,6 +29,9 @@ func main() {
 	listen_port := DEFAULT_PORT
 	if len(arguments) > 1 {
 		listen_port = arguments[1]
+	} else {
+		fmt.Println("Either -s or -c option needed")
+		gracefulExit()
 	}
 	if arguments[0] == "-s" {
 		loop := 0
