@@ -3,3 +3,5 @@ __pycache__/
 scalable.egg-info/
 scalable/__pycache__/
 communicator/communicator
+containers/
+config_dict.yaml
