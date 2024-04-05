@@ -26,7 +26,7 @@ class SlurmJob(Job):
         tag=None,
         hardware=None,
         logs_location=None,
-        logger=True,
+        log=True,
         shared_lock=None,
         **base_class_kwargs
     ):
@@ -41,10 +41,9 @@ class SlurmJob(Job):
 
         self.slurm_cmd = salloc_command(account=account, name=job_name, nodes=DEFAULT_REQUEST_QUANTITY, 
                                         partition=queue, time=walltime)
-        self.logs_file = None
-
-        if logger:
-            self.logs_file = os.path.abspath(os.path.join(os.getcwd(), logs_location, f"{self.name}-{self.tag}.log"))
+        
+        if log:
+            self.log_file = os.path.abspath(os.path.join(logs_location, f"{self.name}-{self.tag}.log"))
         
         # All the wanted commands should be set here
         self.send_command = self.container.get_command()
@@ -62,8 +61,8 @@ class SlurmJob(Job):
     
     async def _ssh_command(self, command):
         prefix = ["ssh", self.job_node]
-        if self.logs_file:
-            suffix = [f">{self.logs_file}", "2>&1", "&"]
+        if self.log_file:
+            suffix = [f">{self.log_file}", "2>&1", "&"]
             command = command + suffix
         command = list(map(str, command))
         command_str = " ".join(command)

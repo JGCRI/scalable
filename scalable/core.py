@@ -149,7 +149,6 @@ class Job(ProcessInterface, abc.ABC):
         local_directory=None,
         worker_command=DEFAULT_WORKER_COMMAND,
         worker_extra_args=[],
-        log_directory=None,
         python=sys.executable,
         comm_port=None,
         hardware=None, 
@@ -255,11 +254,6 @@ class Job(ProcessInterface, abc.ABC):
         self.command_args = command_args
 
         self._command_template = " ".join(map(str, command_args))
-
-        self.log_directory = log_directory
-        if self.log_directory is not None:
-            if not os.path.exists(self.log_directory):
-                os.makedirs(self.log_directory)
     
     async def _run_command(self, command):
         out = await self._call(command, self.comm_port)
@@ -387,6 +381,7 @@ class JobQueueCluster(SpecCluster):
         # Custom keywords
         path_overwrite=True,
         comm_port=None,
+        logs_location=None,
         **job_kwargs
     ):
         
@@ -442,7 +437,6 @@ class JobQueueCluster(SpecCluster):
         self.hardware = HardwareResources()
         self.shared_lock = asyncio.Lock()
         self.launched = []
-        self.logs_location = create_logs_folder("SlurmCluster")
         self.status = Status.created
         self.specifications = {}
         self.model_configs = ModelConfig(path_overwrite=path_overwrite)
@@ -465,6 +459,11 @@ class JobQueueCluster(SpecCluster):
             "cls": scheduler_cls,
             "options": scheduler_options,
         }
+
+        
+        self.logs_location = logs_location
+        if self.logs_location is None:
+            self.logs_location = create_logs_folder("logs", "SlurmCluster")
 
         self.shared_temp_directory = shared_temp_directory
         
