@@ -237,6 +237,7 @@ class Container:
         command = []
         command.append(Container.get_runtime())
         command.append(Container.get_runtime__directive())
+        command.append("--userns")
         for src, dst in self.directories.items():
             if dst is None or dst == "":
                 dst = src
