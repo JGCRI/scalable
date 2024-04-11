@@ -1,6 +1,8 @@
 import functools
-from .support import hash_function
+from .support import hash_function, filename_to_file
 import joblib.memory as jm
+import joblib.hashing as jh
+import joblib.func_inspect as jf
 
 class ModifiedMemorizedFunc(jm.MemorizedFunc):
 
@@ -15,6 +17,11 @@ class ModifiedMemorizedFunc(jm.MemorizedFunc):
         if self._func_code_info is None:
             self._func_code_info = hash_function(self.func)
         return self._func_code_info
+    
+    def _get_argument_hash(self, *args, **kwargs):
+        return jh.hash(filename_to_file(jf.filter_args(self.func, self.ignore, args, kwargs)),
+                            coerce_mmap=(self.mmap_mode is not None))
+
 
 class ModifiedMemory(jm.Memory):
 

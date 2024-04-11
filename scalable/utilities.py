@@ -196,17 +196,6 @@ class Container:
     _runtime_directives = {"apptainer": "exec", "docker": "run"}
 
     _runtime = "apptainer"
-
-    def __init__(self, name, cpus, memory, path, directories=None) -> None:
-        self.name = name
-        self.cpus = cpus
-        memory_parsed = parse_bytes(memory)
-        memory_parsed //= 10**9
-        self.memory = memory_parsed
-        self.path = path
-        if  directories is None:
-            directories = {}
-        self.directories = directories
     
     def __init__(self, name, spec_dict):
         self.name = name
@@ -236,7 +225,7 @@ class Container:
     def get_command(self):
         command = []
         command.append(Container.get_runtime())
-        command.append(Container.get_runtime__directive())
+        command.append(Container.get_runtime_directive())
         command.append("--userns")
         for src, dst in self.directories.items():
             if dst is None or dst == "":
@@ -255,7 +244,7 @@ class Container:
         return Container._runtime
 
     @staticmethod
-    def get_runtime__directive():
+    def get_runtime_directive():
         if Container._runtime not in Container._runtime_directives:
             raise ValueError(
                 "Runtime has not been set. Please set it using \
