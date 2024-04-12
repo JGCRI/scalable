@@ -19,8 +19,12 @@ class ModifiedMemorizedFunc(jm.MemorizedFunc):
         return self._func_code_info
     
     def _get_argument_hash(self, *args, **kwargs):
-        return jh.hash(filename_to_file(jf.filter_args(self.func, self.ignore, args, kwargs)),
-                            coerce_mmap=(self.mmap_mode is not None))
+        print(args)
+        args_to_hash = filename_to_file(jf.filter_args(self.func, self.ignore, args, kwargs))
+        print(args_to_hash)
+        args_hash = jh.hash(args_to_hash, coerce_mmap=(self.mmap_mode is not None))
+        print(args_hash)
+        return args_hash
 
 
 class ModifiedMemory(jm.Memory):

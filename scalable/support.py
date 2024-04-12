@@ -95,8 +95,10 @@ def hash_function(func):
         return repr(func), source_file, -1
     
 def filename_to_file(args):
+    print(args)
     for arg_name, arg_value in args.items():
         if os.path.exists(arg_value):
             with open(arg_value, 'rb') as file:
                 args[arg_name] = file.read()
+    print(args)
     return args
