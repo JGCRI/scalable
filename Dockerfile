@@ -8,7 +8,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y python3 python3-pip python
 libboost-numpy-dev
 RUN apt-get -y update && apt -y upgrade
 RUN apt-get -y update && DEBIAN_FRONTEND=noninteractive apt-get install -y ssh nano locate curl net-tools netcat git \
-python3 python3-pip python3-numpy libboost-python1.74 libboost-numpy1.74 openjdk-11-jre-headless libtbb12
+python3 python3-pip python3-numpy python-dev gcc libboost-python1.74 libboost-numpy1.74 openjdk-11-jre-headless libtbb12
 RUN python3 -m pip install dask[complete] dask-jobqueue --upgrade dask_mpi pyyaml joblib
 
 FROM build_env as scalable
