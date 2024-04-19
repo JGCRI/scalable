@@ -1,85 +1,106 @@
-import functools
-from .support import hash_function, filename_to_file
-import joblib.memory as jm
-import joblib.hashing as jh
-import joblib.func_inspect as jf
+import os
+import pickle
+from .common import logger
+from diskcache import Cache
+from xxhash import xxh32
 
-class ModifiedMemorizedFunc(jm.MemorizedFunc):
+SEED = 987654321
 
-    @property
-    def func_code_info(self):
-        if hasattr(self.func, '__code__'):
-            if self._func_code_id is None:
-                self._func_code_id = id(self.func.__code__)
-            elif id(self.func.__code__) != self._func_code_id:
-                self._func_code_info = None
+class GenericType:
+    def __init__(self, value):
+        self.value = value
 
-        if self._func_code_info is None:
-            self._func_code_info = hash_function(self.func)
-        return self._func_code_info
-    
-    def _get_argument_hash(self, *args, **kwargs):
-        print(args)
-        args_to_hash = filename_to_file(jf.filter_args(self.func, self.ignore, args, kwargs))
-        print(args_to_hash)
-        args_hash = jh.hash(args_to_hash, coerce_mmap=(self.mmap_mode is not None))
-        print(args_hash)
-        return args_hash
+class FileType(GenericType):
+    def __hash__(self) -> int:
+        digest = 0
+        if os.path.exists(self.value):
+            with open(self.value, 'rb') as file:
+                x = xxh32(seed=SEED)
+                x.update(str(self.value).encode('utf-8'))
+                x.update(file.read())
+                digest = x.intdigest()
+        else:
+            raise ValueError("File does not exist..")
+        return digest
+
+class DirType(GenericType):
+    def __hash__(self) -> int:
+        digest = 0
+        x = xxh32(seed=SEED)
+        x.update(str(self.value).encode('utf-8'))
+        if os.path.exists(self.value):
+            for filename in os.listdir(self.value):
+                x.update(filename.encode('utf-8'))
+                path = os.path.join(self.value, filename)
+                with open(path, 'rb') as file:
+                    x.update(file.read())
+            digest = x.intdigest()
+        else:
+            raise ValueError("Directory does not exist..")
+        return digest
+
+class ValueType(GenericType):
+    def __hash__(self) -> int:
+        digest = 0
+        x = xxh32(seed=SEED)
+        x.update(str(self.value).encode('utf-8'))
+        digest = x.intdigest()
+        return digest
+
+class ObjectType(GenericType):
+    def __hash__(self) -> int:
+        digest = 0
+        x = xxh32(seed=SEED)
+        x.update(str(self.value).encode('utf-8'))
+        x.update(pickle.dumps(self.value))
+        digest = x.intdigest()
+        return digest
+
+        
 
 
-class ModifiedMemory(jm.Memory):
+cachedir = "/tmp"
 
-    def cache(self, func=None, ignore=None, verbose=None, mmap_mode=False,
-              cache_validation_callback=None):
-        if (cache_validation_callback is not None and
-                not callable(cache_validation_callback)):
-            raise ValueError(
-                "cache_validation_callback needs to be callable. "
-                f"Got {cache_validation_callback}."
-            )
-        if func is None:
-            return functools.partial(
-                self.cache, ignore=ignore,
-                mmap_mode=mmap_mode,
-                verbose=verbose,
-                cache_validation_callback=cache_validation_callback
-            )
-        if self.store_backend is None:
-            return jm.NotMemorizedFunc(func)
-        if verbose is None:
-            verbose = self._verbose
-        if mmap_mode is False:
-            mmap_mode = self.mmap_mode
-        if isinstance(func, ModifiedMemorizedFunc):
-            func = func.func
-        return ModifiedMemorizedFunc(
-            func, location=self.store_backend, backend=self.backend,
-            ignore=ignore, mmap_mode=mmap_mode, compress=self.compress,
-            verbose=verbose, timestamp=self.timestamp,
-            cache_validation_callback=cache_validation_callback
-        )
-
-cachedir = "./cache"
-disk = ModifiedMemory(location=cachedir, verbose=0, mmap_mode='r')
-
-MODULE = "caching"
-
-def cache_submit(client, func, *args, **kwargs):
-    func.__module__ = MODULE
-    func.__qualname__ = func.__name__
-    func = disk.cache(func)
-    return client.submit(func, *args, **kwargs)
-
-def cache_map(client, func, *args, **kwargs):
-    func.__module__ = MODULE
-    func.__qualname__ = func.__name__
-    func = disk.cache(func)
-    return client.map(func, *args, **kwargs)
-
-def cache_run(client, func, *args, **kwargs):
-    func.__module__ = MODULE
-    func.__qualname__ = func.__name__
-    func = disk.cache(func)
-    return client.run(func, *args, **kwargs)
-
+def cacheable(return_type, recompute=False, store=True):
+    def decorator(func):
+        def inner(*args, **kwargs):
+            key = 0
+            new_args = []
+            new_kwargs = {}
+            x = xxh32(seed=SEED)
+            x.update(func.__code__.co_code)
+            key += x.intdigest()
+            for arg in args:
+                key += hash(arg)
+                new_args.append(arg.value)
+            for keyword, arg in kwargs.items():
+                kw = ValueType(keyword)
+                key += hash(kw)
+                key += hash(arg)
+                new_kwargs[keyword] = arg.value
+            ret = None
+            disk = Cache(directory=cachedir)
+            if key in disk and not recompute:
+                value = disk.get(key)
+                if value is None:
+                    raise KeyError(f"Key for function {func.__name__} could not be found.")
+                stored_digest = value[0]
+                new_digest = hash(return_type(value[1]))
+                if new_digest == stored_digest:
+                    ret = value[1]
+            print(f"key is {key}")
+            if ret is None:
+                ret = func(*new_args, **new_kwargs)
+                if store:
+                    value = [hash(return_type(ret)), ret]
+                    print(value)
+                    if not disk.add(key=key, value=value, retry=True):
+                        logger.warn(f"{func.__name__} could not be added to cache.")
+            disk.close()
+            return ret
+        ret = inner
+        if return_type is None:
+            ret = func
+        return ret
+    return decorator
 
