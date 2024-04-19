@@ -463,7 +463,8 @@ class JobQueueCluster(SpecCluster):
         
         self.logs_location = logs_location
         if self.logs_location is None:
-            self.logs_location = create_logs_folder("logs", "SlurmCluster")
+            directory_name = self.job_cls.__name__.replace("Job", "") + "Cluster"
+            self.logs_location = create_logs_folder("logs", directory_name)
 
         self.shared_temp_directory = shared_temp_directory
         

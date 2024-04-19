@@ -122,8 +122,8 @@ class HardwareResources:
                 self.active[jobid] = set()
         else:
             raise ValueError(
-                "The node already exists. New resources to an existing node \
-                cannot be assigned. Please try again.\n"
+                "The node already exists. New resources to an existing node"
+                " cannot be assigned. Please try again.\n"
             )
     
     def remove_jobid_nodes(self, jobid):
@@ -247,8 +247,8 @@ class Container:
     def get_runtime_directive():
         if Container._runtime not in Container._runtime_directives:
             raise ValueError(
-                "Runtime has not been set. Please set it using \
-                set_runtime_directive()s."
+                "Runtime has not been set. Please set it using"
+                "set_runtime_directive()"
             )
         return Container._runtime_directives[Container._runtime]
     
