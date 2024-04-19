@@ -4,6 +4,7 @@ from .common import logger
 from diskcache import Cache
 from xxhash import xxh32
 
+cachedir = "./cache"
 SEED = 987654321
 
 class GenericType:
@@ -52,33 +53,69 @@ class ObjectType(GenericType):
         digest = 0
         x = xxh32(seed=SEED)
         x.update(str(self.value).encode('utf-8'))
-        x.update(pickle.dumps(self.value))
+        if isinstance(self.value, list):
+            value_list = self.value
+            if all(isinstance(element, str) for element in self.value):
+                value_list = sorted(self.value)
+            for element in value_list:
+                type_object = convert_to_type(element)
+                element_hash = hash(type_object)
+                x.update(element_hash.to_bytes((element_hash.bit_length() + 7) // 8, 'big'))
+        else:
+            x.update(pickle.dumps(self.value))
         digest = x.intdigest()
         return digest
+    
 
-        
+def convert_to_type(arg):
+    ret = None
+    if isinstance(arg, str):
+        if os.path.isfile(arg):
+            ret = FileType(ret)
+        elif os.path.isdir(arg):
+            ret = DirType(arg)
+        else:
+            ret = ValueType(arg)
+    elif isinstance(arg, (int, float, bool, bytes)):
+        ret = ValueType(arg)
+    else:
+        ret = ObjectType(arg)
+    return ret
 
+def get_wrapped(arg, arg_name, arg_types):
+    wrapped_arg = None
+    if arg_name in arg_types:
+        arg_type = arg_types[arg_type]
+        wrapped_arg = arg_type(arg)
+    else:
+        wrapped_arg = convert_to_type(arg)
+    return wrapped_arg
 
-cachedir = "/tmp"
-
-def cacheable(return_type, recompute=False, store=True):
+def cacheable(return_type, recompute=False, store=True, **arg_types):
     def decorator(func):
         def inner(*args, **kwargs):
-            key = 0
-            new_args = []
-            new_kwargs = {}
+            keys = []
             x = xxh32(seed=SEED)
             x.update(func.__code__.co_code)
-            key += x.intdigest()
-            for arg in args:
-                key += hash(arg)
-                new_args.append(arg.value)
+            keys.append(x.intdigest())
+            arg_names = func.__code__.co_varnames[:func.__code__.co_argcount]
+            default_values = dict(zip(arg_names[-len(func.__defaults__):], func.__defaults__))
+            final_args = {}
+            for index in range(len(args)):
+                arg = args[index]
+                arg_name = arg_names[index]
+                final_args[arg_name] = arg
             for keyword, arg in kwargs.items():
-                kw = ValueType(keyword)
-                key += hash(kw)
-                key += hash(arg)
-                new_kwargs[keyword] = arg.value
+                final_args[keyword] = arg
+            for keyword, arg in default_values.items():
+                if keyword not in final_args:
+                    final_args[keyword] = arg
+            for keyword, arg in final_args.items():
+                wrapped_arg = get_wrapped(arg, keyword, arg_types)
+                keys.append(hash(ValueType(keyword)))
+                keys.append(hash(wrapped_arg))
             ret = None
+            key = hash(ObjectType(sorted(keys)))
             disk = Cache(directory=cachedir)
             if key in disk and not recompute:
                 value = disk.get(key)
@@ -88,9 +125,8 @@ def cacheable(return_type, recompute=False, store=True):
                 new_digest = hash(return_type(value[1]))
                 if new_digest == stored_digest:
                     ret = value[1]
-            print(f"key is {key}")
             if ret is None:
-                ret = func(*new_args, **new_kwargs)
+                ret = func(*args, **kwargs)
                 if store:
                     value = [hash(return_type(ret)), ret]
                     print(value)
