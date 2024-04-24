@@ -99,7 +99,9 @@ def cacheable(return_type, recompute=False, store=True, **arg_types):
             x.update(func.__code__.co_code)
             keys.append(x.intdigest())
             arg_names = func.__code__.co_varnames[:func.__code__.co_argcount]
-            default_values = dict(zip(arg_names[-len(func.__defaults__):], func.__defaults__))
+            default_values = {}
+            if func.__defaults__:
+                default_values = dict(zip(arg_names[-len(func.__defaults__):], func.__defaults__))
             final_args = {}
             for index in range(len(args)):
                 arg = args[index]
