@@ -33,8 +33,11 @@ class DirType(GenericType):
             for filename in os.listdir(self.value):
                 x.update(filename.encode('utf-8'))
                 path = os.path.join(self.value, filename)
-                with open(path, 'rb') as file:
-                    x.update(file.read())
+                if os.path.isfile(path):
+                    with open(path, 'rb') as file:
+                        x.update(file.read())
+                elif os.path.isdir(path):
+                    x.update(hash(DirType(path)))
             digest = x.intdigest()
         else:
             raise ValueError("Directory does not exist..")
