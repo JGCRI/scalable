@@ -30,7 +30,9 @@ class DirType(GenericType):
         x = xxh32(seed=SEED)
         x.update(str(self.value).encode('utf-8'))
         if os.path.exists(self.value):
-            for filename in os.listdir(self.value):
+            filenames = os.listdir(self.value)
+            filesnames = sorted(filenames)
+            for filename in filenames:
                 x.update(filename.encode('utf-8'))
                 path = os.path.join(self.value, filename)
                 if os.path.isfile(path):
