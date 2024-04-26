@@ -31,7 +31,7 @@ class DirType(GenericType):
         x.update(str(self.value).encode('utf-8'))
         if os.path.exists(self.value):
             filenames = os.listdir(self.value)
-            filesnames = sorted(filenames)
+            filenames = sorted(filenames)
             for filename in filenames:
                 x.update(filename.encode('utf-8'))
                 path = os.path.join(self.value, filename)
