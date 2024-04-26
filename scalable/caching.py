@@ -71,7 +71,7 @@ def convert_to_type(arg):
     ret = None
     if isinstance(arg, str):
         if os.path.isfile(arg):
-            ret = FileType(ret)
+            ret = FileType(arg)
         elif os.path.isdir(arg):
             ret = DirType(arg)
         else:
