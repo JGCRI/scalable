@@ -1,11 +1,12 @@
 import os
 import pickle
-from .common import logger
 from diskcache import Cache
 from xxhash import xxh32
 
-cachedir = "./cache"
-SEED = 987654321
+from .common import logger, cachedir, SEED
+
+def hash_to_bytes(hash):
+    return hash.to_bytes((hash.bit_length() + 7) // 8, 'big')
 
 class GenericType:
     def __init__(self, value):
@@ -39,7 +40,7 @@ class DirType(GenericType):
                     with open(path, 'rb') as file:
                         x.update(file.read())
                 elif os.path.isdir(path):
-                    x.update(hash(DirType(path)))
+                    x.update(hash_to_bytes(hash(DirType(path))))
             digest = x.intdigest()
         else:
             raise ValueError("Directory does not exist..")
@@ -64,8 +65,7 @@ class ObjectType(GenericType):
                 value_list = sorted(self.value)
             for element in value_list:
                 type_object = convert_to_type(element)
-                element_hash = hash(type_object)
-                x.update(element_hash.to_bytes((element_hash.bit_length() + 7) // 8, 'big'))
+                x.update(hash_to_bytes(hash(type_object)))
         else:
             x.update(pickle.dumps(self.value))
         digest = x.intdigest()
