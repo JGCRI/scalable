@@ -18,7 +18,7 @@ class FileType(GenericType):
         if os.path.exists(self.value):
             with open(self.value, 'rb') as file:
                 x = xxh32(seed=SEED)
-                x.update(str(self.value).encode('utf-8'))
+                x.update(str(os.path.basename(self.value)).encode('utf-8'))
                 x.update(file.read())
                 digest = x.intdigest()
         else:
@@ -29,7 +29,7 @@ class DirType(GenericType):
     def __hash__(self) -> int:
         digest = 0
         x = xxh32(seed=SEED)
-        x.update(str(self.value).encode('utf-8'))
+        x.update(str(os.path.basename(self.value)).encode('utf-8'))
         if os.path.exists(self.value):
             filenames = os.listdir(self.value)
             filenames = sorted(filenames)
