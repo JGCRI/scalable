@@ -5,3 +5,4 @@ scalable/__pycache__/
 communicator/communicator
 containers/
 config_dict.yaml
+cache/

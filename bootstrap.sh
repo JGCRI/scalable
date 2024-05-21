@@ -3,6 +3,7 @@
 GO_VERSION_LINK="https://go.dev/VERSION?m=text"
 GO_DOWNLOAD_LINK="https://go.dev/dl/*.linux-amd64.tar.gz"
 SCALABLE_REPO="https://github.com/JGCRI/scalable.git"
+APPTAINER_VERSION="1.3.0"
 
 # set -x
 
@@ -171,8 +172,10 @@ if [[ "$build" =~ [Yy]|^[Yy][Ee]|^[Yy][Ee][Ss]$ ]]; then
     docker images | grep apptainer_container
     if [ "$?" -ne 0 ]; then
         flush
+        APPTAINER_COMMITISH="v$APPTAINER_VERSION"
         docker build --target apptainer --build-arg https_proxy=$HTTPS_PROXY \
-        --build-arg no_proxy=$NO_PROXY -t apptainer_container .
+        --build-arg no_proxy=$NO_PROXY --build-arg APPTAINER_COMMITISH=$APPTAINER_COMMITISH \
+        -t apptainer_container .
         check_exit_code $?
     fi
 
@@ -196,7 +199,7 @@ ssh -L 8787:deception.pnl.gov:8787 -t $user@$host \
 "{
     cd $work_dir && 
     ./communicator -s > communicator.log & 
-    module load apptainer && 
+    module load apptainer/$APPTAINER_VERSION && 
     cd $work_dir &&
     apptainer exec --userns containers/scalable_container.sif python3
 }"

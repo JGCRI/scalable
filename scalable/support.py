@@ -2,11 +2,7 @@ from datetime import datetime
 import os
 import re
 import shlex
-import inspect
 import hashlib
-
-from itertools import islice
-from tokenize import open as open_py_source
 
 def salloc_command(account=None, chdir=None, clusters=None, exclusive=True, gpus=None, name=None, memory=None, 
                    nodes=None, partition=None, time=None, extras=None):
@@ -90,27 +86,19 @@ def create_logs_folder(folder, cluster_name):
 
 def hash_function(func):
     source_file = None
-    try:
-        code = func.__code__
-        source_file = code.co_filename
-        if not os.path.exists(source_file):
-            source_code = ''.join(inspect.getsourcelines(func)[0])
-            line_no = 1
-            if source_file.startswith('<doctest '):
-                source_file, line_no = re.match(
-                    r'\<doctest (.*\.rst)\[(.*)\]\>', source_file).groups()
-                line_no = int(line_no)
-                source_file = '<doctest %s>' % source_file
-            return source_code, source_file, line_no
-        with open_py_source(source_file) as source_file_obj:
-            first_line = code.co_firstlineno
-            source_lines = list(islice(source_file_obj, first_line - 1, None))
-        return ''.join(inspect.getblock(source_lines)), source_file, first_line
-    except:
-        if hasattr(func, '__code__'):
-            obj = hashlib.sha256()
-            obj.update(func.__code__.co_code)
-            hash = int(obj.hexdigest()[:16], 16) - (1 << 63)
-            return str(hash), source_file, -1
-        else:
-            return repr(func), source_file, -1
+    if hasattr(func, '__code__'):
+        obj = hashlib.sha256()
+        obj.update(func.__code__.co_code)
+        hash = int(obj.hexdigest()[:16], 16) - (1 << 63)
+        return str(hash), source_file, -1
+    else:
+        return repr(func), source_file, -1
+    
+def filename_to_file(args):
+    print(args)
+    for arg_name, arg_value in args.items():
+        if os.path.exists(arg_value):
+            with open(arg_value, 'rb') as file:
+                args[arg_name] = file.read()
+    print(args)
+    return args
