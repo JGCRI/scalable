@@ -5,6 +5,8 @@ import shlex
 import sys
 import abc
 import tempfile
+import threading
+import time
 import copy
 import warnings
 
@@ -24,22 +26,15 @@ from .common import logger
 
 DEFAULT_WORKER_COMMAND = "distributed.cli.dask_worker"
 
+# The length of the period (in mins) to check and account for dead workers
+CHECK_DEAD_WORKER_PERIOD = 5
+
 job_parameters = """
-    cores : int
-        DEPRECATED - Not recommended to specify this
-        ~~ Total number of cores per job ~~
-        DEPRECATED - Specifying this may change expected behaviour in unknown ways
-    memory: str
-        DEPRECATED - Not recommended to specify this
-        ~~ Total amount of memory per job ~~
-        DEPRECATED - Specifying this may change expected behaviour in unknown ways
-    processes : int
-        DEPRECATED - Not recommended to specify this
-        ~~ Cut the job up into this many processes. Good for GIL workloads or for
-        nodes with many cores.
-        By default, ``process ~= sqrt(cores)`` so that the number of processes
-        and the number of threads per process is roughly the same. ~~
-        DEPRECATED - Specifying this may change expected behaviour in unknown ways
+    cpus : int
+        Akin to the number of cores the curren job should have available
+    memory : str
+        Amount of memory the current job should have available
+    
     interface : str
         Network interface like 'eth0' or 'ib0'. This will be used both for the
         Dask scheduler and the Dask workers interface. If you need a different
@@ -52,8 +47,6 @@ job_parameters = """
         Dask worker local directory for file spilling.
     death_timeout : float
         Seconds to wait for a scheduler before closing workers
-    extra : list
-        Deprecated: use ``worker_extra_args`` instead. This parameter will be removed in future.
     worker_command : list
         Command to run when launching a worker.  Defaults to "distributed.cli.dask_worker"
     worker_extra_args : list
@@ -63,10 +56,8 @@ job_parameters = """
     python : str
         Python executable used to launch Dask workers.
         Defaults to the Python that is submitting these jobs
-    config_name : str
-        Section to use from jobqueue.yaml configuration file.
     name : str
-        Name of Dask worker.  This is typically set by the Cluster
+        Name of Dask worker. This is typically set by the Cluster.
 """.strip()
 
 
@@ -91,6 +82,8 @@ cluster_parameters = """
     shared_temp_directory : str
         Shared directory between scheduler and worker (used for example by temporary
         security certificates) defaults to current working directory if not set.
+    comm_port : int
+        The network port on which the cluster can contact the host 
 """.strip()
 
 
@@ -103,17 +96,9 @@ class Job(ProcessInterface, abc.ABC):
     Parameters
     ----------
     {job_parameters}
-    job_extra : list or dict
-        Deprecated: use ``job_extra_directives`` instead. This parameter will be removed in a future version.
-    job_extra_directives : list or dict
-        Unused in this base class:
-        List or dict of other options for the queueing system. See derived classes for specific descriptions.
 
     Attributes
     ----------
-    submit_command: str
-        Abstract attribute for job scheduler submit command,
-        should be overridden
     cancel_command: str
         Abstract attribute for job scheduler cancel command,
         should be overridden
@@ -491,27 +476,42 @@ class JobQueueCluster(SpecCluster):
             name=name,
         )
 
-    async def remove_launched_worker(self, worker):
-        async with self.shared_lock:
-            self.launched.remove(worker)
+        timerThread = threading.Thread(target=self.check_dead_workers)
+        timerThread.daemon = True
+        timerThread.start()
 
-    def add_worker(self, tag, n=0):
-        if tag not in self.containers:
+    async def remove_launched_worker(self, name):
+        async with self.shared_lock:
+            self.launched = [worker for worker in self.launched if worker[0] != name]
+
+    def add_worker(self, tag=None, n=0):
+        if tag is not None and tag not in self.containers:
             logger.error(f"The tag ({tag}) given is not a recognized tag for any of the containers."
                          "Please add a container with this tag to the cluster by using"
                          "add_container() and try again.")
             return
-        to_close = set(self.launched) - set(self.workers)
-        for worker in to_close:
-            del self.worker_spec[worker]
-            asyncio.run(self.remove_launched_worker(worker))
+        tags = [tag for _ in range(n)]
+        names = [worker[0] for worker in self.launched]
+        to_relaunch = names - set(self.workers)
+        new_tags = [worker[1] for worker in self.launched if worker[0] in to_relaunch]
+        for name in to_relaunch:
+            del self.worker_spec[name]
+            asyncio.run(self.remove_launched_worker(name))
+        tags.extend(new_tags)
         if self.status not in (Status.closing, Status.closed):
-            for _ in range(n):
+            for tag in tags:
                 new_worker = self.new_worker_spec(tag)
                 self.worker_spec.update(dict(new_worker))
-        self.loop.add_callback(self._correct_state)
+            self.loop.add_callback(self._correct_state)
         if self.asynchronous:
             return NoOpAwaitable() 
+        
+    def check_dead_workers(self):
+        next_call = time.time()
+        while True:
+            self.add_worker()
+            next_call = next_call + (60 * CHECK_DEAD_WORKER_PERIOD)
+            time.sleep(next_call - time.time())
 
     def add_container(self, tag, dirs, path=None, cpus=None, memory=None):
         tag = tag.lower()
@@ -651,7 +651,10 @@ or by setting this value in the config file found in `~/.config/dask/jobqueue.ya
            Target number of cores
 
         """
-
+        logger.warn("This function must only be called internally on exit. " +
+                    "Any calls made explicity or during execution can result " +
+                    "in undefined behavior. " + "If called accidentally, an " +
+                    "immediate shutdown and restart of the cluster is recommended.")
         return super().scale(jobs, memory=memory, cores=cores)
     
     
