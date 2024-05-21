@@ -90,7 +90,7 @@ def convert_to_type(arg):
 def get_wrapped(arg, arg_name, arg_types):
     wrapped_arg = None
     if arg_name in arg_types:
-        arg_type = arg_types[arg_type]
+        arg_type = arg_types[arg_name]
         wrapped_arg = arg_type(arg)
     else:
         wrapped_arg = convert_to_type(arg)
