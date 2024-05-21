@@ -78,11 +78,18 @@ if [[ "$build" =~ [Yy]|^[Yy][Ee]|^[Yy][Ee][Ss]$ ]]; then
     check_exit_code $?
 fi
 
+echo -e "${RED}Checking if entered container names are valid... ${NC}"
+for target in "${targets[@]}"
+do
+    echo "$avail" | grep "$target"
+    check_exit_code $?
+done
+
 echo -e "${YELLOW}To reinstall any directory or file already on remote, \
 please delete it from remote and run this script again${NC}"
 
 flush
-ssh $user@$host \
+ssh -t $user@$host \
 "{
     [[ -d \"$work_dir\" ]] && 
     echo '$work_dir already exists on remote'
@@ -105,7 +112,7 @@ ssh -t $user@$host \
 check_exit_code $?
 
 flush
-ssh $user@$host \
+ssh -t $user@$host \
 "{
     [[ -d \"$work_dir/scalable\" ]] && 
     echo '$work_dir/scalable already exists on remote'
@@ -120,9 +127,13 @@ GO_PATH="$GO_PATH/go"
 flush
 ssh -t $user@$host \
 "{ 
-    [[ -f \"$work_dir/scalable/communicator/communicator\" ]] && 
-    echo '$work_dir/scalable/communicator/communicator file already exists on remote' 
+    [[ -f \"$work_dir/communicator\" ]] && 
+    echo '$work_dir/communicator file already exists on remote' 
 } || 
+{
+    [[ -f \"$work_dir/scalable/communicator/communicator\" ]] && 
+    cp $work_dir/scalable/communicator/communicator $work_dir/.
+} ||
 {
     cd $work_dir/scalable/communicator && 
     $GO_PATH mod init communicator && 
@@ -132,18 +143,19 @@ ssh -t $user@$host \
 }"
 check_exit_code $?
 
-flush
-ssh $user@$host "cp $work_dir/scalable/communicator/communicator $work_dir/."
-check_exit_code $?
-
 HTTPS_PROXY="http://proxy01.pnl.gov:3128"
 NO_PROXY="*.pnl.gov,*.pnnl.gov,127.0.0.1"
+# leaving these in; but local apptainer does NOT utilize a cache/tmp directory for now
+APPTAINER_TMPDIR="/tmp-apptainer"
+APPTAINER_CACHEDIR=$APPTAINER_TMPDIR
 
 if [[ "$build" =~ [Yy]|^[Yy][Ee]|^[Yy][Ee][Ss]$ ]]; then
 
     flush
-    echo 'Creating container directory locally...'
+    echo 'Creating container & cache directory locally...'
     mkdir -p containers
+    check_exit_code $?
+    mkdir -p cache
     check_exit_code $?
 
     targets+=('scalable')
@@ -195,11 +207,16 @@ if [[ "$build" =~ [Yy]|^[Yy][Ee]|^[Yy][Ee][Ss]$ ]]; then
     
 fi
 
+SHELL="bash"
+RC_FILE="~/.bashrc"
+
 ssh -L 8787:deception.pnl.gov:8787 -t $user@$host \
 "{
     cd $work_dir && 
     ./communicator -s > communicator.log & 
     module load apptainer/$APPTAINER_VERSION && 
     cd $work_dir &&
-    apptainer exec --userns containers/scalable_container.sif python3
+    $SHELL --rcfile <(echo \". $RC_FILE; 
+    alias python3='apptainer exec --userns ~/$work_dir/containers/scalable_container.sif python3'\")
 }"
+
