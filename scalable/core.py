@@ -27,7 +27,7 @@ from .common import logger
 DEFAULT_WORKER_COMMAND = "distributed.cli.dask_worker"
 
 # The length of the period (in mins) to check and account for dead workers
-CHECK_DEAD_WORKER_PERIOD = 5
+CHECK_DEAD_WORKER_PERIOD = 1
 
 job_parameters = """
     cpus : int
@@ -480,9 +480,9 @@ class JobQueueCluster(SpecCluster):
         timerThread.daemon = True
         timerThread.start()
 
-    async def remove_launched_worker(self, name):
+    async def remove_launched_worker(self, worker):
         async with self.shared_lock:
-            self.launched = [worker for worker in self.launched if worker[0] != name]
+            self.launched.remove(worker)
 
     def add_worker(self, tag=None, n=0):
         if tag is not None and tag not in self.containers:
@@ -491,16 +491,18 @@ class JobQueueCluster(SpecCluster):
                          "add_container() and try again.")
             return
         tags = [tag for _ in range(n)]
-        names = [worker[0] for worker in self.launched]
-        to_relaunch = names - set(self.workers)
-        new_tags = [worker[1] for worker in self.launched if worker[0] in to_relaunch]
-        for name in to_relaunch:
-            del self.worker_spec[name]
-            asyncio.run(self.remove_launched_worker(name))
-        tags.extend(new_tags)
+        current_workers = [worker for worker in self.workers.keys()]
+        to_relaunch = [worker for worker in self.launched if worker[0] in current_workers]
+        print(f"{current_workers=} and {to_relaunch=}")
+        for worker in to_relaunch:
+            del self.worker_spec[worker[0]]
+            asyncio.run(self.remove_launched_worker(worker))
+        tags.extend([worker[1] for worker in to_relaunch])
+        print(f"{tags=}")
         if self.status not in (Status.closing, Status.closed):
             for tag in tags:
                 new_worker = self.new_worker_spec(tag)
+                print(f"{new_worker=}")
                 self.worker_spec.update(dict(new_worker))
             self.loop.add_callback(self._correct_state)
         if self.asynchronous:
@@ -560,6 +562,7 @@ class JobQueueCluster(SpecCluster):
             self.specifications[tag]["options"]["container"] = self.containers[tag]
             self.specifications[tag]["options"]["tag"] = tag
             self.specifications[tag]["options"]["launched"] = self.launched
+        self._i += 1
         new_worker_name = f"{self._new_worker_name(self._i)}-{tag}"
         while new_worker_name in self.worker_spec:
             self._i += 1
