@@ -478,6 +478,7 @@ class JobQueueCluster(SpecCluster):
 
         timerThread = threading.Thread(target=self.check_dead_workers)
         timerThread.daemon = True
+        self.thread_lock = threading.Lock()
         timerThread.start()
 
     async def remove_launched_worker(self, worker):
@@ -485,26 +486,24 @@ class JobQueueCluster(SpecCluster):
             self.launched.remove(worker)
 
     def add_worker(self, tag=None, n=0):
-        if tag is not None and tag not in self.containers:
-            logger.error(f"The tag ({tag}) given is not a recognized tag for any of the containers."
-                         "Please add a container with this tag to the cluster by using"
-                         "add_container() and try again.")
-            return
-        tags = [tag for _ in range(n)]
-        current_workers = [worker for worker in self.workers.keys()]
-        to_relaunch = [worker for worker in self.launched if worker[0] in current_workers]
-        print(f"{current_workers=} and {to_relaunch=}")
-        for worker in to_relaunch:
-            del self.worker_spec[worker[0]]
-            asyncio.run(self.remove_launched_worker(worker))
-        tags.extend([worker[1] for worker in to_relaunch])
-        print(f"{tags=}")
-        if self.status not in (Status.closing, Status.closed):
-            for tag in tags:
-                new_worker = self.new_worker_spec(tag)
-                print(f"{new_worker=}")
-                self.worker_spec.update(dict(new_worker))
-            self.loop.add_callback(self._correct_state)
+        with self.thread_lock:
+            if tag is not None and tag not in self.containers:
+                logger.error(f"The tag ({tag}) given is not a recognized tag for any of the containers."
+                            "Please add a container with this tag to the cluster by using"
+                            "add_container() and try again.")
+                return
+            tags = [tag for _ in range(n)]
+            current_workers = [worker for worker in self.workers.keys()]
+            to_relaunch = [worker for worker in self.launched if worker[0] in current_workers]
+            for worker in to_relaunch:
+                del self.worker_spec[worker[0]]
+                asyncio.run(self.remove_launched_worker(worker))
+            tags.extend([worker[1] for worker in to_relaunch])
+            if self.status not in (Status.closing, Status.closed):
+                for tag in tags:
+                    new_worker = self.new_worker_spec(tag)
+                    self.worker_spec.update(dict(new_worker))
+                self.loop.add_callback(self._correct_state)
         if self.asynchronous:
             return NoOpAwaitable() 
         
