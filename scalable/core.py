@@ -494,7 +494,7 @@ class JobQueueCluster(SpecCluster):
                 return
             tags = [tag for _ in range(n)]
             current_workers = [worker for worker in self.workers.keys()]
-            to_relaunch = [worker for worker in self.launched if worker[0] in current_workers]
+            to_relaunch = [worker for worker in self.launched if worker[0] not in current_workers]
             for worker in to_relaunch:
                 del self.worker_spec[worker[0]]
                 asyncio.run(self.remove_launched_worker(worker))
