@@ -158,8 +158,8 @@ class HardwareResources:
     def utilize_resources(self, node, cpus, memory, jobid):
         if node not in self.available or self.available[node]['jobid'] != jobid:
             raise ValueError (
-                "There are not enough hardware resources available. Please \
-                allocate more hardware resources and try again.\n"
+                "There are not enough hardware resources available. Please "
+                "allocate more hardware resources and try again.\n"
             )
         self.available[node]['cpus'] -= cpus
         self.available[node]['memory'] -= memory

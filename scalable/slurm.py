@@ -104,7 +104,7 @@ class SlurmJob(Job):
                 self.job_node = self.hardware.check_availability(self.cpus, self.memory)
             _ = await self._ssh_command(self.send_command)
             self.hardware.utilize_resources(self.job_node, self.cpus, self.memory, self.job_id)
-            self.launched.append(self.name)
+            self.launched.append((self.name, self.tag))
 
         logger.debug("Starting job: %s", self.job_id)
         await ProcessInterface.start(self)

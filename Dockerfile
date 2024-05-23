@@ -115,6 +115,8 @@ RUN apk add --no-cache \
         util-linux-dev
 
 ARG APPTAINER_COMMITISH="main"
+ARG APPTAINER_TMPDIR="/tmp-apptainer"
+ARG APPTAINER_CACHEDIR="/tmp-apptainer"
 ARG MCONFIG_OPTIONS="--with-suid"
 WORKDIR $GOPATH/src/github.com/apptainer
 ADD "https://api.github.com/repos/apptainer/apptainer/commits?per_page=1" latest_commit
@@ -129,7 +131,8 @@ RUN git clone https://github.com/apptainer/apptainer.git \
 FROM alpine:latest AS apptainer
 COPY --from=builder /usr/local/apptainer /usr/local/apptainer
 ENV PATH="/usr/local/apptainer/bin:$PATH" \
-    APPTAINER_TMPDIR="/tmp-apptainer"
+    APPTAINER_TMPDIR=${APPTAINER_TMPDIR} \
+    APPTAINER_CACHEDIR=${APPTAINER_CACHEDIR}
 RUN apk add --no-cache ca-certificates libseccomp squashfs-tools tzdata \
     && mkdir -p $APPTAINER_TMPDIR \
     && cp /usr/share/zoneinfo/UTC /etc/localtime \
