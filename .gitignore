@@ -4,6 +4,7 @@ scalable.egg-info/
 scalable/__pycache__/
 scalable/custom_types.py
 communicator/communicator
+communicator/src/communicator
 containers/
 config_dict.yaml
 cache/

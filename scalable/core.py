@@ -1,4 +1,4 @@
-from contextlib import contextmanager, suppress
+from contextlib import suppress
 import os
 import re
 import shlex
@@ -9,7 +9,7 @@ import threading
 import time
 import copy
 import warnings
-
+import asyncio
 
 from dask.utils import parse_bytes
 
@@ -31,33 +31,41 @@ CHECK_DEAD_WORKER_PERIOD = 1
 
 job_parameters = """
     cpus : int
-        Akin to the number of cores the curren job should have available
+        Akin to the number of cores the current job should have available.
     memory : str
-        Amount of memory the current job should have available
-    
+        Amount of memory the current job should have available.
+    nanny : bool
+        Whether or not to start a nanny process.
     interface : str
         Network interface like 'eth0' or 'ib0'. This will be used both for the
         Dask scheduler and the Dask workers interface. If you need a different
         interface for the Dask scheduler you can pass it through
-        the ``scheduler_options`` argument:
-        ``interface=your_worker_interface, scheduler_options={'interface': your_scheduler_interface}``.
-    nanny : bool
-        Whether or not to start a nanny process
-    local_directory : str
-        Dask worker local directory for file spilling.
+        the ``scheduler_options`` argument: ``interface=your_worker_interface, 
+        scheduler_options={'interface': your_scheduler_interface}``.
     death_timeout : float
         Seconds to wait for a scheduler before closing workers
+    local_directory : str
+        Dask worker local directory for file spilling.
     worker_command : list
-        Command to run when launching a worker.  Defaults to "distributed.cli.dask_worker"
+        Command to run when launching a worker. Defaults to 
+        "distributed.cli.dask_worker"
     worker_extra_args : list
         Additional arguments to pass to `dask-worker`
-    log_directory : str
-        Directory to use for job scheduler logs.
     python : str
         Python executable used to launch Dask workers.
         Defaults to the Python that is submitting these jobs
-    name : str
-        Name of Dask worker. This is typically set by the Cluster.
+    hardware : HardwareResources
+        A shared object containing the hardware resources available to the
+        cluster.
+    tag : str
+        The tag or the container type of the worker to be launched.
+    container : Container
+        The container object containing the information about launching the 
+        worker.
+    launched : list
+        A list of launched workers which is shared across all workers and the 
+        cluster object to keep track of the workers that have been launched.
+    
 """.strip()
 
 
@@ -70,20 +78,32 @@ cluster_parameters = """
     security : Security or Bool
         A dask.distributed security object if you're using TLS/SSL.  If True,
         temporary self-signed credentials will be created automatically.
+    name : str
+        The name of the cluster, which would also be used to name workers. 
+        Defaults to class name. 
     scheduler_options : dict
         Used to pass additional arguments to Dask Scheduler. For example use
         ``scheduler_options={'dashboard_address': ':12435'}`` to specify which
-        port the web dashboard should use or ``scheduler_options={'host': 'your-host'}``
-        to specify the host the Dask scheduler should run on. See
-        :class:`distributed.Scheduler` for more details.
+        port the web dashboard should use or 
+        ``scheduler_options={'host': 'your-host'}`` to specify the host the Dask 
+        scheduler should run on. See :class:`distributed.Scheduler` for more 
+        details.
     scheduler_cls : type
         Changes the class of the used Dask Scheduler. Defaults to  Dask's
         :class:`distributed.Scheduler`.
     shared_temp_directory : str
-        Shared directory between scheduler and worker (used for example by temporary
-        security certificates) defaults to current working directory if not set.
+        Shared directory between scheduler and worker (used for example by 
+        temporary security certificates) defaults to current working directory 
+        if not set.
     comm_port : int
         The network port on which the cluster can contact the host 
+    config_overwrite : bool
+        Remake model config_dict with available containers and their paths only. 
+        Defaults to False.
+    logs_location : str
+        The location to store worker logs. Default to the logs folder in the 
+        current directory.
+
 """.strip()
 
 
@@ -103,17 +123,15 @@ class Job(ProcessInterface, abc.ABC):
         Abstract attribute for job scheduler cancel command,
         should be overridden
 
+    Methods
+    -------
+    close()
+        Close the current worker
+
     See Also
     --------
-    PBSCluster
     SLURMCluster
-    SGECluster
-    OARCluster
-    LSFCluster
-    MoabCluster
-    """.format(
-        job_parameters=job_parameters
-    )
+    """.format(job_parameters=job_parameters)
 
     # Following class attributes should be overridden by extending classes.
     cancel_command = None
@@ -141,17 +159,22 @@ class Job(ProcessInterface, abc.ABC):
         container=None,
         launched=None,
     ):
+        """
+        Parameters
+        ----------
+        {job_parameters}
+        """.format(job_parameters=job_parameters)
         
         if container is None:
             raise ValueError(
-                "Container cannot be None. The information about launching the worker\
-                    is located inside the container object."
+                "Container cannot be None. The information about launching the worker "
+                "is located inside the container object."
             )
         
         if launched is None:
             raise ValueError(
-                "Launched list is None. Every worker needs a launched list for the cluster\
-                    to be able to monitor the workers effectively. Please try again."
+                "Launched list is None. Every worker needs a launched list for the cluster "
+                "to be able to monitor the workers effectively. Please try again."
             )
 
         if tag is None:
@@ -166,8 +189,8 @@ class Job(ProcessInterface, abc.ABC):
         
         if comm_port is None:
             raise ValueError(
-                "Communicator port not given. You must specify the communicator port \
-                for the workers to be launched. Please try again"
+                "Communicator port not given. You must specify the communicator port "
+                "for the workers to be launched. Please try again"
             )
         
         self.comm_port = comm_port
@@ -192,9 +215,9 @@ class Job(ProcessInterface, abc.ABC):
         processes = 1        
 
         if interface:
-            worker_extra_args = worker_extra_args + ["--interface", interface]
+            worker_extra_args.extend(["--interface", interface])
         if protocol:
-            worker_extra_args = worker_extra_args + ["--protocol", protocol]
+            worker_extra_args.extend(["--protocol", protocol])
         if security:
             worker_security_dict = security.get_tls_config_for_role("worker")
             security_command_line_list = [
@@ -218,23 +241,23 @@ class Job(ProcessInterface, abc.ABC):
         command_args = [dask_worker_command, self.scheduler]
 
         # common
-        command_args += ["--name", self.name]
-        command_args += ["--nthreads", self.cpus]
-        command_args += ["--memory-limit", f"{self.worker_memory}GB"]
+        command_args.extend(["--name", self.name])
+        command_args.extend(["--nthreads", self.cpus])
+        command_args.extend(["--memory-limit", f"{self.worker_memory}GB"])
 
         #  distributed.cli.dask_worker specific
         if worker_command == "distributed.cli.dask_worker":
-            command_args += ["--nworkers", processes]
-            command_args += ["--nanny" if nanny else "--no-nanny"]
+            command_args.extend(["--nworkers", processes])
+            command_args.extend(["--nanny" if nanny else "--no-nanny"])
 
         if death_timeout is not None:
-            command_args += ["--death-timeout", death_timeout]
+            command_args.extend(["--death-timeout", death_timeout])
         if local_directory is not None:
-            command_args += ["--local-directory", local_directory]
+            command_args.extend(["--local-directory", local_directory])
         if tag is not None:
-            command_args += ["--resources", f"\'{tag}\'=1"]
+            command_args.extend(["--resources", f"\'{tag}\'=1"])
         if worker_extra_args is not None:
-            command_args += worker_extra_args
+            command_args.extend(worker_extra_args)
         
         self.command_args = command_args
 
@@ -266,6 +289,9 @@ class Job(ProcessInterface, abc.ABC):
         return job_id
 
     async def close(self):
+        """
+        Close the current worker. 
+        """
         logger.debug("Stopping worker: %s job: %s", self.name, self.job_id)
         await self._close_job(self.job_id, self.cancel_command, self.comm_port)
 
@@ -284,7 +310,7 @@ class Job(ProcessInterface, abc.ABC):
 
         Parameters
         ----------
-        cmd: List(str))
+        cmd: List(str)
             A command, each of which is a list of strings to hand to
             asyncio.create_subprocess_exec
         port: int
@@ -327,7 +353,8 @@ class Job(ProcessInterface, abc.ABC):
 
 
 class JobQueueCluster(SpecCluster):
-    __doc__ = """ Deploy Dask on a Job queuing system
+    __doc__ = """
+    Deploy Dask on a Job queuing system
 
     This is a superclass, and is rarely used directly.  It is more common to
     use an object like SLURMCluster others.
@@ -338,7 +365,7 @@ class JobQueueCluster(SpecCluster):
 
     Parameters
     ----------
-    Job : Job
+    job_cls : Job
         A class that can be awaited to ask for a single Job
     {cluster_parameters}
     """.format(
@@ -364,7 +391,7 @@ class JobQueueCluster(SpecCluster):
         interface=None,
         protocol=None,
         # Custom keywords
-        path_overwrite=True,
+        config_overwrite=True,
         comm_port=None,
         logs_location=None,
         **job_kwargs
@@ -372,7 +399,7 @@ class JobQueueCluster(SpecCluster):
         
         if comm_port is None:
             raise ValueError(
-                "Communicator port not given. You must specify the communicator port"
+                "Communicator port not given. You must specify the communicator port "
                 "for the workers to be launched. Please try again"
             )
 
@@ -424,7 +451,7 @@ class JobQueueCluster(SpecCluster):
         self.launched = []
         self.status = Status.created
         self.specifications = {}
-        self.model_configs = ModelConfig(path_overwrite=path_overwrite)
+        self.model_configs = ModelConfig(path_overwrite=config_overwrite)
         
         default_scheduler_options = {
             "protocol": protocol,
@@ -476,7 +503,7 @@ class JobQueueCluster(SpecCluster):
             name=name,
         )
 
-        timerThread = threading.Thread(target=self.check_dead_workers)
+        timerThread = threading.Thread(target=self._check_dead_workers)
         timerThread.daemon = True
         self.thread_lock = threading.Lock()
         timerThread.start()
@@ -486,6 +513,28 @@ class JobQueueCluster(SpecCluster):
             self.launched.remove(worker)
 
     def add_worker(self, tag=None, n=0):
+        """Add workers to the cluster. 
+        
+        This is also the function which syncs the cluster to recognize any 
+        dead, expired, or revoked workers. Cleaning up such workers and 
+        relaunching them is done here. Only cleanup and replacement of dead 
+        workers is performed when called with no or defalt arguments. 
+
+        Parameters
+        ----------
+        tag: str
+            The tag or the container type of the worker to be launched 
+            usually associated with the programs stored in the container.
+            Examples could include "gcam" for the gcam container and 
+            "stitches" for the stitches container.
+        n: int
+            The number of workers desired to be launched with the given tag. 
+
+        Examples
+        --------
+        >>> cluster.add_worker("gcam", 4)
+        
+        """
         with self.thread_lock:
             if tag is not None and tag not in self.containers:
                 logger.error(f"The tag ({tag}) given is not a recognized tag for any of the containers."
@@ -507,7 +556,13 @@ class JobQueueCluster(SpecCluster):
         if self.asynchronous:
             return NoOpAwaitable() 
         
-    def check_dead_workers(self):
+    def _check_dead_workers(self):
+        """Periodically check for dead workers. 
+        
+        This function essentially calls self.add_worker() with default 
+        parameters which only syncs the cluster to the current state of 
+        the workers. Any dead workers may be relaunched. 
+        """
         next_call = time.time()
         while True:
             self.add_worker()
@@ -515,6 +570,31 @@ class JobQueueCluster(SpecCluster):
             time.sleep(next_call - time.time())
 
     def add_container(self, tag, dirs, path=None, cpus=None, memory=None):
+        """Add containers to enable them launching as workers. 
+        
+        The required dependencies for the workers are assumed to be in the 
+        container at the given (or stored) path. The informaton given about the 
+        container will be written to the config_dict. 
+
+        Parameters
+        ----------
+        tag : str
+            The tag or the container type of the worker to be launched. 
+            Example could include "gcam" for the gcam container and "stitches" 
+            for the stitches container.
+        dirs : dict
+            A dictionary of path-on-worker:path-on-host pairs where 
+            path-on-worker is a path mounted to path-on-host. When the worker
+            tries to access path-on-worker, it essentially accesssing 
+            path-on-work. List of volume/bind mounts.
+        path : str
+            The path at which the container is located at
+        cpus : int
+            The number of cpus/processor cores to be reserved for this container
+        memory : str
+            The amount of memory to be reserved for this container
+
+        """
         tag = tag.lower()
         self.model_configs.update_dict(tag, 'Dirs', dirs)
         if path:

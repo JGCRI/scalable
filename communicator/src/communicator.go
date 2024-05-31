@@ -29,7 +29,7 @@ func main() {
 	listen_port := DEFAULT_PORT
 	if len(arguments) > 1 {
 		listen_port = arguments[1]
-	} else {
+	} else if arguments[0] != "-s" {
 		fmt.Println("Either -s or -c option needed")
 		gracefulExit()
 	}
@@ -142,7 +142,7 @@ func handleRequest(client net.Conn) {
 	received := 0
 	flag := 0
 	for received < len(lenBuffer) {
-		read, err := client.Read(lenBuffer)
+		read, err := client.Read(lenBuffer[received:])
 		if err != nil {
 			clientClose(err, client)
 			flag = 1
@@ -158,13 +158,13 @@ func handleRequest(client net.Conn) {
 	received = 0
 	var output strings.Builder
 	for received < int(commandLen) {
-		read, err := client.Read(buffer)
+		read, err := client.Read(buffer[received:])
 		if err != nil {
 			clientClose(err, client)
 			flag = 1
 			break
 		}
-		recievedBuffer := bytes.Trim(buffer, "\x00")
+		recievedBuffer := bytes.Trim(buffer[received:], "\x00")
 		output.Write(recievedBuffer)
 		received += read
 	}
@@ -218,7 +218,7 @@ func handleRequest(client net.Conn) {
 	binary.BigEndian.PutUint64(lenBuffer, uint64(len(lastOutput.String())))
 	sent := 0
 	for sent < len(lenBuffer) {
-		wrote, err := client.Write(lenBuffer)
+		wrote, err := client.Write(lenBuffer[sent:])
 		if err != nil {
 			clientClose(err, client)
 			flag = 1
@@ -231,7 +231,7 @@ func handleRequest(client net.Conn) {
 	}
 	sent = 0
 	for sent < len(lastOutput.String()) {
-		wrote, err := client.Write([]byte(lastOutput.String()))
+		wrote, err := client.Write(([]byte(lastOutput.String()))[sent:])
 		if err != nil {
 			clientClose(err, client)
 			flag = 1
