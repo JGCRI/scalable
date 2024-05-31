@@ -314,6 +314,10 @@ class HardwareResources:
             The number of cpu cores needed.  
         memory : int
             The amount of memory (in bytes) needed. 
+
+        Returns
+        -------
+        
         """
         ret = None
         for node in self.available.keys():
@@ -539,7 +543,7 @@ class Container:
                 dst = src
             command.append("--bind")
             command.append(f"{src}:{dst}")
-        command.append("--cwd")
+        command.append("--home")
         command.append(os.getcwd())
         command.append(self.path)
         return command
