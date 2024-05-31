@@ -380,8 +380,7 @@ class HardwareResources:
         ValueError
             If the given node doesn't exist. 
         """
-
-        if node in self.assigned and self.available[node]['jobid'] != jobid:
+        if node in self.assigned and self.available[node]['jobid'] == jobid:
             self.available[node]['cpus'] += cpus
             self.available[node]['memory'] += memory
             if self.available[node]['cpus'] ==  self.assigned[node]['cpus'] and \

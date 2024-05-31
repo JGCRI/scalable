@@ -29,7 +29,7 @@ func main() {
 	listen_port := DEFAULT_PORT
 	if len(arguments) > 1 {
 		listen_port = arguments[1]
-	} else if arguments[0] != "-s" {
+	} else if len(arguments) == 0 {
 		fmt.Println("Either -s or -c option needed")
 		gracefulExit()
 	}
@@ -58,7 +58,6 @@ func main() {
 	} else if arguments[0] == "-c" {
 		client, err := net.Dial(CONNECTION_TYPE, DEFAULT_HOST+":"+listen_port)
 		if err != nil {
-			clientClose(err, client)
 			gracefulExit()
 		}
 		defer client.Close()

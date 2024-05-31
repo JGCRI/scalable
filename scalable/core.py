@@ -537,8 +537,8 @@ class JobQueueCluster(SpecCluster):
         """
         with self.thread_lock:
             if tag is not None and tag not in self.containers:
-                logger.error(f"The tag ({tag}) given is not a recognized tag for any of the containers."
-                            "Please add a container with this tag to the cluster by using"
+                logger.error(f"The tag ({tag}) given is not a recognized tag for any of the containers. "
+                            "Please add a container with this tag to the cluster by using "
                             "add_container() and try again.")
                 return
             tags = [tag for _ in range(n)]
