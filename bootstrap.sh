@@ -202,8 +202,8 @@ if [[ "$build" =~ [Yy]|^[Yy][Ee]|^[Yy][Ee][Ss]$ ]]; then
         check_exit_code $?
     done
 
-    docker run --rm -v /$(pwd)/containers:/containers scalable_container \
-    rsync -aP --include '*.sif' containers $user@$host:~/$work_dir
+    docker run --rm -v /$(pwd)/containers:/containers -v /$HOME/.ssh:/root/.ssh scalable_container \
+    bash -c "chmod 700 /root/.ssh && chmod 600 ~/.ssh/* && rsync -aP --include '*.sif' containers $user@$host:~/$work_dir"
     check_exit_code $?
     
 fi
