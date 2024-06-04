@@ -347,6 +347,7 @@ class Job(ProcessInterface, abc.ABC):
             )
         send = bytes(cmd_str, encoding='utf-8')
         out, _ = await proc.communicate(input=send)
+        await proc.wait()
         out = out.decode()
         out = out.strip()
         return out
