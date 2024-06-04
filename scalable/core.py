@@ -214,9 +214,9 @@ class Job(ProcessInterface, abc.ABC):
         self.memory = memory
         processes = 1        
 
-        if interface:
+        if interface and "--interface" not in worker_extra_args:
             worker_extra_args.extend(["--interface", interface])
-        if protocol:
+        if protocol and "--protocol" not in worker_extra_args:
             worker_extra_args.extend(["--protocol", protocol])
         if security:
             worker_security_dict = security.get_tls_config_for_role("worker")
