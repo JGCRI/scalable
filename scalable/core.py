@@ -507,6 +507,7 @@ class JobQueueCluster(SpecCluster):
         timerThread.daemon = True
         self.thread_lock = threading.Lock()
         timerThread.start()
+        self.exited = False
 
     async def remove_launched_worker(self, worker):
         async with self.shared_lock:
@@ -536,6 +537,8 @@ class JobQueueCluster(SpecCluster):
         
         """
         with self.thread_lock:
+            if self.exited:
+                return
             if tag is not None and tag not in self.containers:
                 logger.error(f"The tag ({tag}) given is not a recognized tag for any of the containers. "
                             "Please add a container with this tag to the cluster by using "
@@ -737,6 +740,7 @@ or by setting this value in the config file found in `~/.config/dask/jobqueue.ya
                     "Any calls made explicity or during execution can result " +
                     "in undefined behavior. " + "If called accidentally, an " +
                     "immediate shutdown and restart of the cluster is recommended.")
+        self.exited = True
         return super().scale(jobs, memory=memory, cores=cores)
     
     
