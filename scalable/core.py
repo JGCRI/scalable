@@ -452,6 +452,7 @@ class JobQueueCluster(SpecCluster):
         self.status = Status.created
         self.specifications = {}
         self.model_configs = ModelConfig(path_overwrite=config_overwrite)
+        self.exited = False
         
         default_scheduler_options = {
             "protocol": protocol,
@@ -507,7 +508,7 @@ class JobQueueCluster(SpecCluster):
         timerThread.daemon = True
         self.thread_lock = threading.Lock()
         timerThread.start()
-        self.exited = False
+        
 
     async def remove_launched_worker(self, worker):
         async with self.shared_lock:
