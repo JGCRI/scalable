@@ -646,6 +646,7 @@ class JobQueueCluster(SpecCluster):
             self.specifications[tag]["options"]["container"] = self.containers[tag]
             self.specifications[tag]["options"]["tag"] = tag
             self.specifications[tag]["options"]["launched"] = self.launched
+            self.specifications[tag]["options"]["hardware"] = self.hardware
         self._i += 1
         new_worker_name = f"{self._new_worker_name(self._i)}-{tag}"
         while new_worker_name in self.worker_spec:
