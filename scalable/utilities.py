@@ -542,8 +542,11 @@ class Container:
                 dst = src
             command.append("--bind")
             command.append(f"{src}:{dst}")
+        curr_dir = os.getcwd()
         command.append("--home")
-        command.append(os.getcwd())
+        command.append(curr_dir)
+        command.append("--cwd")
+        command.append(curr_dir)
         command.append(self.path)
         return command
 
