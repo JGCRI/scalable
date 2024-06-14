@@ -2,6 +2,7 @@ import os
 import pickle
 from diskcache import Cache
 from xxhash import xxh32
+import types
 
 from .common import logger, cachedir, SEED
 
@@ -188,6 +189,10 @@ def cacheable(return_type=None, void=False, recompute=False, store=True, **arg_t
         def func(arg1, arg2):
             ...
     """
+    func = None
+    if isinstance(return_type, types.FunctionType):
+        func = return_type
+        return_type = None
     def decorator(func):
         def inner(*args, **kwargs):
             keys = []
@@ -241,7 +246,6 @@ def cacheable(return_type=None, void=False, recompute=False, store=True, **arg_t
                     else:
                         new_digest = hash(return_type(ret))
                     value = [new_digest, ret]
-                    print(value)
                     if not disk.add(key=key, value=value, retry=True):
                         logger.warn(f"{func.__name__} could not be added to cache.")
             disk.close()
@@ -250,5 +254,8 @@ def cacheable(return_type=None, void=False, recompute=False, store=True, **arg_t
         if void:
             ret = func
         return ret
-    return decorator
+    ret = decorator
+    if func is not None:
+        ret = decorator(func)
+    return ret
 
