@@ -219,6 +219,7 @@ ssh -L 8787:deception.pnl.gov:8787 -t $user@$host \
     module load apptainer/$APPTAINER_VERSION && 
     cd $work_dir &&
     $SHELL --rcfile <(echo \". $RC_FILE; 
-    alias python3='apptainer exec --userns ~/$work_dir/containers/scalable_container.sif python3'\")
+    alias python3='apptainer exec --userns ~/$work_dir/containers/scalable_container.sif python3'\"); 
+    exit
 }"
 
