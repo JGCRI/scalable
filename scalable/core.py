@@ -297,7 +297,8 @@ class Job(ProcessInterface, abc.ABC):
         with suppress(RuntimeError):  # deleting job when job already gone
             await cls._call(shlex.split(cancel_command) + [job_id], port)
         logger.debug("Closed job %s", job_id)
-            
+
+    @staticmethod
     async def _call(cmd, port):
         """Call a command using asyncio.create_subprocess_exec.
 
