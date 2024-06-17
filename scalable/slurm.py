@@ -34,10 +34,8 @@ class SlurmJob(Job):
     ):
         super().__init__(
             scheduler=scheduler, name=name, hardware=hardware, comm_port=comm_port, \
-            container=container, tag=tag, **base_class_kwargs
+            container=container, tag=tag, shared_lock=shared_lock, **base_class_kwargs
         )
-
-        self.shared_lock = shared_lock
 
         job_name = f"{self.name}-job"
 

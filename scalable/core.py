@@ -75,9 +75,6 @@ cluster_parameters = """
         scheduler is started locally
     asynchronous : bool
         Whether or not to run this cluster object with the async/await syntax
-    security : Security or Bool
-        A dask.distributed security object if you're using TLS/SSL.  If True,
-        temporary self-signed credentials will be created automatically.
     name : str
         The name of the cluster, which would also be used to name workers. 
         Defaults to class name. 
@@ -158,6 +155,7 @@ class Job(ProcessInterface, abc.ABC):
         tag=None,
         container=None,
         launched=None,
+        shared_lock=None,
     ):
         """
         Parameters
@@ -198,6 +196,9 @@ class Job(ProcessInterface, abc.ABC):
                 "Security is not supported. Please try again."
             )
         
+        if shared_lock is None:
+            logger.warning("No shared async lock provided. This could lead to race conditions.")
+        
         self.comm_port = comm_port
         self.tag = tag
         self.launched = launched
@@ -205,6 +206,7 @@ class Job(ProcessInterface, abc.ABC):
         self.scheduler = scheduler
         self.hardware = hardware
         self.name = name
+        self.shared_lock = shared_lock
         self.job_id = None
 
         super().__init__()
@@ -296,8 +298,7 @@ class Job(ProcessInterface, abc.ABC):
             await cls._call(shlex.split(cancel_command) + [job_id], port)
         logger.debug("Closed job %s", job_id)
             
-    @staticmethod
-    async def _call(cmd, port):
+    async def _call(self, cmd, port):
         """Call a command using asyncio.create_subprocess_exec.
 
         This centralizes calls out to the command line, providing consistent
@@ -318,33 +319,36 @@ class Job(ProcessInterface, abc.ABC):
 
         Returns
         -------
-        The stdout produced by the command, as string.
+        str
+            The stdout produced by the command, as string.
 
         Raises
         ------
         RuntimeError if the command exits with a non-zero exit code
         """
-        cmd = list(map(str, cmd))
-        cmd += "\n"
-        cmd_str = " ".join(cmd)
-        logger.debug(
-            "Executing the following command to command line\n{}".format(cmd_str)
-        )
-
-        proc = await get_cmd_comm(port=port)
-        if proc.returncode is not None:
-            raise RuntimeError(
-                "Communicator exited prematurely.\n"
-                "Exit code: {}\n"
-                "Command:\n{}\n"
-                "stdout:\n{}\n"
-                "stderr:\n{}\n".format(proc.returncode, cmd_str, proc.stdout, proc.stderr)
+        out = "Error running command..."
+        async with self.shared_lock:
+            cmd = list(map(str, cmd))
+            cmd += "\n"
+            cmd_str = " ".join(cmd)
+            logger.debug(
+                "Executing the following command to command line\n{}".format(cmd_str)
             )
-        send = bytes(cmd_str, encoding='utf-8')
-        out, _ = await proc.communicate(input=send)
-        await proc.wait()
-        out = out.decode()
-        out = out.strip()
+
+            proc = await get_cmd_comm(port=port)
+            if proc.returncode is not None:
+                raise RuntimeError(
+                    "Communicator exited prematurely.\n"
+                    "Exit code: {}\n"
+                    "Command:\n{}\n"
+                    "stdout:\n{}\n"
+                    "stderr:\n{}\n".format(proc.returncode, cmd_str, proc.stdout, proc.stderr)
+                )
+            send = bytes(cmd_str, encoding='utf-8')
+            out, _ = await proc.communicate(input=send)
+            await proc.wait()
+            out = out.decode()
+            out = out.strip()
         return out
 
 
@@ -586,7 +590,6 @@ class JobQueueCluster(SpecCluster):
             The number of cpus/processor cores to be reserved for this container
         memory : str
             The amount of memory to be reserved for this container
-
         """
         tag = tag.lower()
         self.model_configs.update_dict(tag, 'Dirs', dirs)
@@ -603,6 +606,16 @@ class JobQueueCluster(SpecCluster):
 
         Base worker name on cluster name. This makes it easier to use job
         arrays within Dask-Jobqueue.
+
+        Parameters
+        ----------
+        worker_number : int
+           Worker number
+        
+        Returns
+        -------
+        str
+           New worker name
         """
         return "{cluster_name}-{worker_number}".format(
             cluster_name=self._name, worker_number=worker_number
@@ -618,11 +631,8 @@ class JobQueueCluster(SpecCluster):
 
         Returns
         -------
-        d: dict mapping names to worker specs
-
-        See Also
-        --------
-        scale
+        dict
+            Dictionary containing the name and spec for the next worker
         """
         if tag not in self.specifications:
             self.specifications[tag] = copy.copy(self.new_spec)
