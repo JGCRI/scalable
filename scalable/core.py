@@ -503,6 +503,7 @@ class JobQueueCluster(SpecCluster):
         
 
     async def remove_launched_worker(self, worker):
+        print(self.shared_lock)
         async with self.shared_lock:
             self.launched.remove(worker)
 
