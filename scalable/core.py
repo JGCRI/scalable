@@ -330,7 +330,7 @@ class Job(ProcessInterface, abc.ABC):
         cmd = list(map(str, cmd))
         cmd += "\n"
         cmd_str = " ".join(cmd)
-        logger.debug(
+        logger.info(
             "Executing the following command to command line\n{}".format(cmd_str)
         )
 
@@ -496,10 +496,11 @@ class JobQueueCluster(SpecCluster):
             name=name,
         )
 
-        timerThread = threading.Thread(target=self._check_dead_workers)
-        timerThread.daemon = True
+        # timerThread = threading.Thread(target=self._check_dead_workers)
+        # timerThread.daemon = True
         self.thread_lock = threading.Lock()
         # timerThread.start()
+        # self.loop.add_callback(self._check_dead_workers)
         
 
     async def remove_launched_worker(self, worker):
@@ -553,7 +554,7 @@ class JobQueueCluster(SpecCluster):
         if self.asynchronous:
             return NoOpAwaitable() 
         
-    def _check_dead_workers(self):
+    async def _check_dead_workers(self):
         """Periodically check for dead workers. 
         
         This function essentially calls self.add_worker() with default 
@@ -561,7 +562,7 @@ class JobQueueCluster(SpecCluster):
         the workers. Any dead workers may be relaunched. 
         """
         next_call = time.time()
-        while True:
+        while not self.exited:
             self.add_worker()
             next_call = next_call + (60 * CHECK_DEAD_WORKER_PERIOD)
             time.sleep(next_call - time.time())
