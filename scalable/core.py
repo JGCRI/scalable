@@ -191,13 +191,19 @@ class Job(ProcessInterface, abc.ABC):
                 "for the workers to be launched. Please try again"
             )
         
-        if security is not None:
-            raise ValueError(
-                "Security is not supported. Please try again."
-            )
-        
         if shared_lock is None:
             logger.warning("No shared async lock provided. This could lead to race conditions.")
+
+        if security:
+            worker_security_dict = security.get_tls_config_for_role("worker")
+            security_command_line_list = [
+                ["--tls-" + key.replace("_", "-"), value]
+                for key, value in worker_security_dict.items()
+                # 'ciphers' parameter does not have a command-line equivalent
+                if key != "ciphers"
+            ]
+            security_command_line = sum(security_command_line_list, [])
+            worker_extra_args = worker_extra_args + security_command_line
         
         self.comm_port = comm_port
         self.tag = tag
@@ -376,6 +382,7 @@ class JobQueueCluster(SpecCluster):
         job_cls: Job = None,
         # Cluster keywords
         loop=None,
+        security=None,
         shared_temp_directory=None,
         silence_logs="error",
         name=None,
@@ -430,11 +437,18 @@ class JobQueueCluster(SpecCluster):
                 'cluster = {0}(..., scheduler_options={{"host": "your-host"}}) rather than\n'
                 'cluster = {0}(..., host="your-host")'.format(self.__class__.__name__)
             )
-        
-        security = None
 
         if protocol is None and security is not None:
             protocol = "tls://"
+
+        if security is True:
+            try:
+                security = Security.temporary()
+            except ImportError:
+                raise ImportError(
+                    "In order to use TLS without pregenerated certificates `cryptography` is required,"
+                    "please install it using either pip or conda"
+                )
         
         self.comm_port = comm_port
         self.hardware = HardwareResources()
@@ -444,7 +458,7 @@ class JobQueueCluster(SpecCluster):
         self.specifications = {}
         self.model_configs = ModelConfig(path_overwrite=config_overwrite)
         self.exited = False
-        
+
         default_scheduler_options = {
             "protocol": protocol,
             "dashboard_address": ":8787",
@@ -474,7 +488,7 @@ class JobQueueCluster(SpecCluster):
         
         job_kwargs["interface"] = interface
         job_kwargs["protocol"] = protocol
-        job_kwargs["security"] = security
+        job_kwargs["security"] = self._get_worker_security(security)
         job_kwargs["comm_port"] = self.comm_port
         job_kwargs["hardware"] = self.hardware
         job_kwargs["shared_lock"] = self.shared_lock
@@ -652,6 +666,75 @@ class JobQueueCluster(SpecCluster):
             new_worker_name = f"{self._new_worker_name(self._i)}-{tag}"
 
         return {new_worker_name: self.specifications[tag]}
+    
+    def _get_worker_security(self, security):
+        """Dump temporary parts of the security object into a shared_temp_directory"""
+        if security is None:
+            return None
+
+        worker_security_dict = security.get_tls_config_for_role("worker")
+
+        # dumping of certificates only needed if multiline in-memory keys are contained
+        if not any(
+            [
+                (value is not None and "\n" in value)
+                for value in worker_security_dict.values()
+            ]
+        ):
+            return security
+        # a shared temp directory should be configured correctly
+        elif self.shared_temp_directory is None:
+            shared_temp_directory = os.getcwd()
+            warnings.warn(
+                "Using a temporary security object without explicitly setting a shared_temp_directory: \
+writing temp files to current working directory ({}) instead. You can set this value by \
+using dask for e.g. `dask.config.set({{'jobqueue.pbs.shared_temp_directory': '~'}})`\
+or by setting this value in the config file found in `~/.config/dask/jobqueue.yaml` ".format(
+                    shared_temp_directory
+                ),
+                category=UserWarning,
+            )
+        else:
+            shared_temp_directory = os.path.expanduser(
+                os.path.expandvars(self.shared_temp_directory)
+            )
+
+        security = copy.copy(security)
+
+        for key, value in worker_security_dict.items():
+            # dump worker in-memory keys for use in job_script
+            if value is not None and "\n" in value:
+                try:
+                    f = tempfile.NamedTemporaryFile(
+                        mode="wt",
+                        prefix=".dask-jobqueue.worker." + key + ".",
+                        dir=shared_temp_directory,
+                    )
+                except OSError as e:
+                    raise OSError(
+                        'failed to dump security objects into shared_temp_directory({})"'.format(
+                            shared_temp_directory
+                        )
+                    ) from e
+
+                # make sure that the file is bound to life time of self by keeping a reference to the file handle
+                setattr(self, "_job_" + key, f)
+                f.write(value)
+                f.flush()
+                # allow expanding of vars and user paths in remote script
+                if self.shared_temp_directory is not None:
+                    fname = os.path.join(
+                        self.shared_temp_directory, os.path.basename(f.name)
+                    )
+                else:
+                    fname = f.name
+                setattr(
+                    security,
+                    "tls_" + ("worker_" if key != "ca_file" else "") + key,
+                    fname,
+                )
+
+        return security
 
     def scale(self, n=None, jobs=0, memory=None, cores=None):
         """Scale cluster to specified configurations.
