@@ -11,6 +11,8 @@ from .common import logger
 DEFAULT_REQUEST_QUANTITY = 1
 
 class SlurmJob(Job):
+
+
     # Override class variables
     cancel_command = "scancel"
 
@@ -32,10 +34,8 @@ class SlurmJob(Job):
     ):
         super().__init__(
             scheduler=scheduler, name=name, hardware=hardware, comm_port=comm_port, \
-            container=container, tag=tag, **base_class_kwargs
+            container=container, tag=tag, shared_lock=shared_lock, **base_class_kwargs
         )
-
-        self.shared_lock = shared_lock
 
         job_name = f"{self.name}-job"
 
@@ -71,11 +71,18 @@ class SlurmJob(Job):
         return out
 
     async def start(self):
+        """Start function for the worker.
+
+        The worker sets itself up by requesting or consuming necessary 
+        resources and adding itself as an active worker to the cluster. 
+        All cases such as there being no active or available nodes are handled 
+        by this function. Called by the parent classes when scaling the workers.
+        """
         logger.debug("Starting worker: %s", self.name)
 
         async with self.shared_lock:
             while self.job_id is None:
-                self.job_node = self.hardware.check_availability(self.cpus, self.memory)
+                self.job_node = self.hardware.get_available_node(self.cpus, self.memory)
                 if self.job_node is None:
                     break
                 job_id = self.hardware.get_node_jobid(self.job_node)
@@ -101,7 +108,7 @@ class SlurmJob(Job):
                     alloc_memory = int(worker_memories[index])
                     alloc_cpus = int(worker_cpus[index])
                     self.hardware.assign_resources(node=node, cpus=alloc_cpus, memory=alloc_memory, jobid=self.job_id)
-                self.job_node = self.hardware.check_availability(self.cpus, self.memory)
+                self.job_node = self.hardware.get_available_node(self.cpus, self.memory)
             _ = await self._ssh_command(self.send_command)
             self.hardware.utilize_resources(self.job_node, self.cpus, self.memory, self.job_id)
             self.launched.append((self.name, self.tag))
@@ -110,6 +117,9 @@ class SlurmJob(Job):
         await ProcessInterface.start(self)
 
     async def close(self):
+        """Close function for the worker.
+        
+        The worker releases the resources it was utilizing and removes itself."""
         async with self.shared_lock:
             self.hardware.release_resources(self.job_node, self.cpus, self.memory, self.job_id)
             if not self.hardware.has_active_nodes(self.job_id):

@@ -202,7 +202,9 @@ if [[ "$build" =~ [Yy]|^[Yy][Ee]|^[Yy][Ee][Ss]$ ]]; then
         check_exit_code $?
     done
 
-    rsync -aP --include '*.sif' containers $user@$host:~/$work_dir
+    flush
+    docker run --rm -v /$(pwd)/containers:/containers -v /$HOME/.ssh:/root/.ssh scalable_container \
+    bash -c "chmod 700 /root/.ssh && chmod 600 ~/.ssh/* && rsync -aP --include '*.sif' containers $user@$host:~/$work_dir"
     check_exit_code $?
     
 fi
@@ -217,6 +219,7 @@ ssh -L 8787:deception.pnl.gov:8787 -t $user@$host \
     module load apptainer/$APPTAINER_VERSION && 
     cd $work_dir &&
     $SHELL --rcfile <(echo \". $RC_FILE; 
-    alias python3='apptainer exec --userns ~/$work_dir/containers/scalable_container.sif python3'\")
+    alias python3='apptainer exec --userns ~/$work_dir/containers/scalable_container.sif python3'\"); 
+    exit
 }"
 
