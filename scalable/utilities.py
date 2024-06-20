@@ -23,7 +23,8 @@ async def get_cmd_comm(port, communicator_path=None):
     
     Returns
     -------
-    The communicator client process.
+    asyncio.subprocess.Process
+        The communicator client process.
     
     """
     if communicator_path is None:
@@ -82,6 +83,20 @@ class ModelConfig:
     """
 
     def __init__(self, path=None, path_overwrite=True):
+        """
+        
+        Parameters
+        ----------
+        path : str
+            The path at which the config_dict.yaml file resides or is to be 
+            written to. Defaults to scalable/config_dict.yaml in the current 
+            workingdirectory.
+        path_overwrite : bool
+            A flag to determine if the config_dict should be overwritten with
+            fresh data or older data such as previously set binded directories.
+            Defaults to True so a new config_dict is made.
+        
+        """
         # HARDCODING CURRENT DIRECTORY
         self.config_dict = {}
         cwd = os.getcwd()
@@ -140,6 +155,12 @@ class ModelConfig:
 
     @staticmethod
     def default_spec():
+        """Return a default specification for a container.
+        
+        Returns
+        -------
+        dict
+            A dictionary containing the default specifications for a container."""
         config = {}
         config['CPUs'] = 4
         config['Memory'] = "8G"
@@ -165,7 +186,7 @@ class HardwareResources:
         A dictionary containing the available number of cpu cores and the 
         available amount of memory for each allocated node. 
     active : dict
-        A dictionary containing the set of nodes allocated for each job 
+         A dictionary containing the set of nodes allocated for each job 
         requested by the cluster. The jobid is used as a key to a set object
         containing the names of all the allocated nodes.
 
@@ -266,6 +287,11 @@ class HardwareResources:
         node : str
             The name of the node whose jobid is requested. 
 
+        Returns
+        -------
+        int
+            The jobid to which the node's allocation request belongs to.
+
         Raises
         ------
         ValueError
@@ -289,6 +315,12 @@ class HardwareResources:
             The number of cpu cores to check.  
         memory : int
             The amount of memory (in bytes) to check.
+        
+        Returns
+        -------
+        bool
+            True if the node has the given amount of cpus and memory available. 
+            False otherwise.
         """
         ret = False
         if node in self.available:
@@ -317,7 +349,9 @@ class HardwareResources:
 
         Returns
         -------
-        
+        str
+            The name of a node which can accomodate the given cpus and memory. 
+            None if no node can accomodate the request.
         """
         ret = None
         for node in self.available.keys():
@@ -399,7 +433,12 @@ class HardwareResources:
         Parameters
         ----------
         jobid : int
-            The jobid for which the active nodes need to be checked.  
+            The jobid for which the active nodes need to be checked.
+
+        Returns
+        -------
+        bool
+            True if the jobid has any nodes with jobs running. False otherwise. 
         """
         ret = True
         if jobid not in self.active or len(self.active[jobid]) == 0:
@@ -463,6 +502,7 @@ class Container:
     
     def __init__(self, name, spec_dict):
         """
+
         Parameters
         ----------
         name : str
@@ -515,9 +555,12 @@ class Container:
     def get_info_dict(self):
         """Return a dictionary containing all the information about the 
         container.
-        
-        The dictionary contains the Name, CPUs, Memory, Path, and Dirs of the 
-        container.
+
+        Returns
+        -------
+        dict
+            A dictionary containing the Name, CPUs, Memory, Path, and Dirs of 
+            the container.
         """
         ret = {}
         ret['Name'] = self.name
@@ -532,6 +575,13 @@ class Container:
         
         The function assumes '--bind' to be the binding flag for the runtime
         application. The command is returned as a list of strings.
+        
+        Returns
+        -------
+        list
+            A list of strings containing the command to run the container. 
+            Joining the elements of the list with a space would give the
+            complete command.
         """
         command = []
         command.append(Container.get_runtime())
@@ -561,7 +611,7 @@ class Container:
     @staticmethod
     def get_runtime_directive():
         if Container._runtime not in Container._runtime_directives:
-            raise ValueError(
+            raise ValueError( 
                 "Runtime has not been set. Please set it using "
                 "set_runtime_directive()."
             )

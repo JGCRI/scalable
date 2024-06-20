@@ -26,6 +26,11 @@ class FileType(GenericType):
     ----------
     value : str
         The path to the file.
+    
+    Returns
+    -------
+    int
+        The hash of the file.
     """
     def __hash__(self) -> int:
         digest = 0
@@ -47,6 +52,11 @@ class DirType(GenericType):
     ----------
     value : str
         The path to the directory.
+    
+    Returns
+    -------
+    int
+        The hash of the directory.
     """
     def __hash__(self) -> int:
         digest = 0
@@ -76,7 +86,13 @@ class ValueType(GenericType):
     Parameters
     ----------
     value : Any
-        The value to be hashed."""
+        The value to be hashed.
+    
+    Returns
+    -------
+    int
+        The hash of the value.
+    """
     def __hash__(self) -> int:
         digest = 0
         x = xxh32(seed=SEED)
@@ -87,12 +103,17 @@ class ValueType(GenericType):
 class ObjectType(GenericType):
     """
     The ObjectType class is used to hash objects, with primary support for 
-    lists and dicts.
+    lists and dicts. Pickle is used to hash such objects.
     
     Parameters
     ----------
     value : Any
         The object to be hashed.
+    
+    Returns
+    -------
+    int
+        The hash of the object.
     """
     def __hash__(self) -> int:
         digest = 0
@@ -111,14 +132,36 @@ class ObjectType(GenericType):
         return digest
     
 def hash_to_bytes(hash):
-    """Converts a hash (or int) to bytes."""
+    """Converts a hash (or int) to bytes.
+    
+    Parameters
+    ----------
+    hash : int
+        The hash to be converted to bytes.
+    
+    Returns
+    -------
+    bytes
+        The bytes representation.
+    """
     return hash.to_bytes((hash.bit_length() + 7) // 8, 'big')
 
 def convert_to_type(arg):
     """Converts a given argument to a hashable type. 
     
     An attempt is made to identify the type of the argument but it's 
-    correctness is not guaranteed for exotic data types/representations."""
+    correctness is not guaranteed for exotic data types/representations.
+    
+    Parameters
+    ----------
+    arg : Any
+        The argument to be converted.
+    
+    Returns
+    -------
+    GenericType/ValueType/FileType/DirType/ObjectType
+        The hashable type class.
+    """
     ret = None
     if isinstance(arg, str):
         if os.path.isfile(arg):
@@ -169,6 +212,10 @@ def cacheable(return_type=None, void=False, recompute=False, store=True, **arg_t
 
     Examples
     --------
+    >>> @cacheable
+        def func(arg1, arg2):
+            ...
+
     >>> @cacheable()
         def func(arg1, arg2):
             ...

@@ -117,6 +117,9 @@ class SlurmJob(Job):
         await ProcessInterface.start(self)
 
     async def close(self):
+        """Close function for the worker.
+        
+        The worker releases the resources it was utilizing and removes itself."""
         async with self.shared_lock:
             self.hardware.release_resources(self.job_node, self.cpus, self.memory, self.job_id)
             if not self.hardware.has_active_nodes(self.job_id):

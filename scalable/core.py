@@ -65,7 +65,10 @@ job_parameters = """
     launched : list
         A list of launched workers which is shared across all workers and the 
         cluster object to keep track of the workers that have been launched.
-    
+    security : Security
+        A security object containing the TLS configuration for the worker. If 
+        True then a temporary security object with a self signed certificate 
+        is created.
 """.strip()
 
 
@@ -510,15 +513,13 @@ class JobQueueCluster(SpecCluster):
             name=name,
         )
 
-        # timerThread = threading.Thread(target=self._check_dead_workers)
-        # timerThread.daemon = True
+        timerThread = threading.Thread(target=self._check_dead_workers)
+        timerThread.daemon = True
         self.thread_lock = threading.Lock()
-        # timerThread.start()
-        # self.loop.add_callback(self._check_dead_workers)
-        
+        timerThread.start()
+    
 
     async def remove_launched_worker(self, worker):
-        print(self.shared_lock)
         async with self.shared_lock:
             self.launched.remove(worker)
 
@@ -568,7 +569,7 @@ class JobQueueCluster(SpecCluster):
         if self.asynchronous:
             return NoOpAwaitable() 
         
-    async def _check_dead_workers(self):
+    def _check_dead_workers(self):
         """Periodically check for dead workers. 
         
         This function essentially calls self.add_worker() with default 
