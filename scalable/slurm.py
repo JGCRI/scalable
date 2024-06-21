@@ -30,6 +30,7 @@ class SlurmJob(Job):
         logs_location=None,
         log=True,
         shared_lock=None,
+        worker_env_vars=None,
         **base_class_kwargs
     ):
         super().__init__(
@@ -46,17 +47,13 @@ class SlurmJob(Job):
             self.log_file = os.path.abspath(os.path.join(logs_location, f"{self.name}-{self.tag}.log"))
         
         # All the wanted commands should be set here
-        self.send_command = self.container.get_command()
+        self.send_command = self.container.get_command(worker_env_vars)
         self.send_command.extend(self.command_args)
-
-    async def _get_resources(self, command):
-        out = await self._call(command, self.comm_port)
-        return out
     
     async def _srun_command(self, command):
         prefix = ["srun", f"--jobid={self.job_id}"]
         command = prefix + command
-        out = await self._call(command, self.comm_port)
+        out = await self._run_command(command)
         return out
     
     async def _ssh_command(self, command):
@@ -67,7 +64,7 @@ class SlurmJob(Job):
         command = list(map(str, command))
         command_str = " ".join(command)
         command = prefix + [f"\"{command_str}\""]
-        out = await self._call(command, self.comm_port)
+        out = await self._run_command(command)
         return out
 
     async def start(self):
@@ -93,7 +90,7 @@ class SlurmJob(Job):
                 else:
                     self.job_id = match.groupdict().get("job_id")
             if self.job_node == None:
-                out = await self._get_resources(self.slurm_cmd)
+                out = await self._run_command(self.slurm_cmd)
                 job_name = f"{self.name}-job"
                 job_id = await self._run_command(jobid_command(job_name))
                 self.job_id = job_id

@@ -570,12 +570,18 @@ class Container:
         ret['Dirs'] = self.directories
         return ret
 
-    def get_command(self):
+    def get_command(self, env_vars=None):
         """Return the command to run the container.
         
         The function assumes '--bind' to be the binding flag for the runtime
         application. The command is returned as a list of strings.
-        
+
+        Parameters
+        ----------
+        env_vars : dict
+            A dictionary containing the environment variables to be set in the 
+            container. Defaults to None.
+
         Returns
         -------
         list
@@ -587,6 +593,9 @@ class Container:
         command.append(Container.get_runtime())
         command.append(Container.get_runtime_directive())
         command.append("--userns")
+        for name, value in env_vars.items():
+            command.append("--env")
+            command.append(f"{name}={value}")
         for src, dst in self.directories.items():
             if dst is None or dst == "":
                 dst = src
