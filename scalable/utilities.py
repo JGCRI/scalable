@@ -130,6 +130,8 @@ class ModelConfig:
                 container_path = os.path.abspath(os.path.join(cwd, "containers", f"{container}_container.sif"))
                 if not os.path.exists(container_path):
                     container_path = ""
+                if container not in self.config_dict:
+                    self.config_dict[container] = ModelConfig.default_spec()
                 self.config_dict[container]['Path'] = container_path
             with open(self.path, 'w') as config:
                 yaml.dump(self.config_dict, config)
