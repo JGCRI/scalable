@@ -270,6 +270,7 @@ class Job(ProcessInterface, abc.ABC):
         self._command_template = " ".join(map(str, command_args))
     
     async def _run_command(self, command):
+        print(self.shared_lock)
         out = await self._call(command, self.comm_port)
         return out
 
@@ -651,6 +652,7 @@ class JobQueueCluster(SpecCluster):
             Dictionary containing the name and spec for the next worker
         """
         if tag not in self.specifications:
+            lock = self.new_spec["options"]["shared_lock"]
             self.specifications[tag] = copy.copy(self.new_spec)
             if tag not in self.containers:
                 raise ValueError(f"The tag ({tag}) given is not a recognized tag for any of the containers."
@@ -660,6 +662,7 @@ class JobQueueCluster(SpecCluster):
             self.specifications[tag]["options"] = copy.copy(self.new_spec["options"])
             self.specifications[tag]["options"]["container"] = self.containers[tag]
             self.specifications[tag]["options"]["tag"] = tag
+            print(f"{self.shared_lock=} {lock=} {self.specifications[tag]['options']['shared_lock']=}")
         self._i += 1
         new_worker_name = f"{self._new_worker_name(self._i)}-{tag}"
         while new_worker_name in self.worker_spec:
