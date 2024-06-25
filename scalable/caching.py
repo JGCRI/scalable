@@ -3,7 +3,7 @@ import pickle
 from diskcache import Cache
 from xxhash import xxh32
 import types
-from multiprocessing import mp
+import multiprocessing as mp
 
 from .common import logger, cachedir, SEED
 
