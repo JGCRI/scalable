@@ -3,6 +3,7 @@ import pickle
 from diskcache import Cache
 from xxhash import xxh32
 import types
+from multiprocessing import Process, Queue
 
 from .common import logger, cachedir, SEED
 
@@ -306,3 +307,13 @@ def cacheable(return_type=None, void=False, recompute=False, store=True, **arg_t
         ret = decorator(func)
     return ret
 
+def isolate(func):
+    q = Queue()
+    def run(*args, **kwargs):
+        q.put(func(*args, **kwargs))
+    def wrapper(*args, **kwargs):
+        p = Process(target=run, args=args, kwargs=kwargs)
+        p.start()
+        p.join()
+        return q.get()
+    return wrapper
