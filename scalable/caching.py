@@ -3,7 +3,7 @@ import pickle
 from diskcache import Cache
 from xxhash import xxh32
 import types
-from multiprocessing import Process, Queue
+from multiprocessing import mp
 
 from .common import logger, cachedir, SEED
 
@@ -313,8 +313,9 @@ def isolate(func):
     def run(q, *args, **kwargs):
         q.put(func(*args, **kwargs))
     def wrapper(*args, **kwargs):
-        q = Queue()
-        p = Process(target=run, args=[q, args], kwargs=kwargs)
+        ctx = mp.get_context('spawn')
+        q = ctx.Queue()
+        p = ctx.Process(target=run, args=[q, args], kwargs=kwargs)
         p.start()
         ret = q.get()
         p.join()
