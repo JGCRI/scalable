@@ -307,13 +307,14 @@ def cacheable(return_type=None, void=False, recompute=False, store=True, **arg_t
         ret = decorator(func)
     return ret
 
-def run(func, q, *args, **kwargs):
-    q.put(func(*args, **kwargs))
+
 
 def isolate(func):
-    q = Queue()
+    def run(q, *args, **kwargs):
+        q.put(func(*args, **kwargs))
     def wrapper(*args, **kwargs):
-        p = Process(target=run, args=[func, q, args], kwargs=kwargs)
+        q = Queue()
+        p = Process(target=run, args=[q, args], kwargs=kwargs)
         p.start()
         ret = q.get()
         p.join()
