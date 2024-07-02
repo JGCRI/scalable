@@ -27,6 +27,7 @@ async def get_cmd_comm(port, communicator_path=None):
         The communicator client process.
     
     """
+    print("inside comm getter")
     if communicator_path is None:
         communicator_path = "./communicator"
     if not os.path.isfile(communicator_path):
@@ -41,6 +42,7 @@ async def get_cmd_comm(port, communicator_path=None):
         stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
     )
+    print("returning proc")
     return proc
 
 def get_comm_port(logpath=None):
@@ -377,7 +379,7 @@ class HardwareResources:
         memory : int
             The amount of memory (in bytes) to reserve. 
         jobid : int
-            The jobid to which the node's allocation request belongs to. 
+            The jobid to which the node's allocation request belongs to.
 
         Raises
         ------

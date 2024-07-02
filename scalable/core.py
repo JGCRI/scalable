@@ -547,7 +547,9 @@ class JobQueueCluster(SpecCluster):
         >>> cluster.add_worker("gcam", 4)
         
         """
+        print("got to call..")
         with self.thread_lock:
+            print("inside the lock in call")
             if self.exited:
                 return
             if tag is not None and tag not in self.containers:
@@ -567,6 +569,7 @@ class JobQueueCluster(SpecCluster):
                     new_worker = self.new_worker_spec(tag)
                     self.worker_spec.update(dict(new_worker))
                 self.loop.add_callback(self._correct_state)
+            print("exiting call..")
         if self.asynchronous:
             return NoOpAwaitable() 
         
@@ -759,7 +762,8 @@ or by setting this value in the config file found in `~/.config/dask/jobqueue.ya
                     "Any calls made explicity or during execution can result " +
                     "in undefined behavior. " + "If called accidentally, an " +
                     "immediate shutdown and restart of the cluster is recommended.")
-        self.exited = True
+        if n is None or n == 0:
+            self.exited = True
         return super().scale(jobs, memory=memory, cores=cores)
     
     
