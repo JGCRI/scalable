@@ -241,6 +241,7 @@ def cacheable(return_type=None, void=False, recompute=False, store=True, **arg_t
     if isinstance(return_type, types.FunctionType):
         func = return_type
         return_type = None
+    print(f"first inside caching return_type: {return_type} func: {func} recompute: {recompute} store: {store} arg_types: {arg_types}")
     def decorator(func):
         def inner(*args, **kwargs):
             keys = []
@@ -270,10 +271,12 @@ def cacheable(return_type=None, void=False, recompute=False, store=True, **arg_t
                     wrapped_arg = convert_to_type(arg)
                 keys.append(hash(ValueType(keyword)))
                 keys.append(hash(wrapped_arg))
+            print(f"inner final args: {final_args} keys: {keys}")
             ret = None
             key = hash(ObjectType(sorted(keys)))
             disk = Cache(directory=cachedir)
             if key in disk and not recompute:
+                print(f"key alr exists in disk")
                 value = disk.get(key)
                 if value is None:
                     raise KeyError(f"Key for function {func.__name__} could not be found.")
@@ -294,6 +297,7 @@ def cacheable(return_type=None, void=False, recompute=False, store=True, **arg_t
                     else:
                         new_digest = hash(return_type(ret))
                     value = [new_digest, ret]
+                    print(f"key: {key} storing value: {value}")
                     if not disk.add(key=key, value=value, retry=True):
                         logger.warn(f"{func.__name__} could not be added to cache.")
             disk.close()
@@ -306,18 +310,3 @@ def cacheable(return_type=None, void=False, recompute=False, store=True, **arg_t
     if func is not None:
         ret = decorator(func)
     return ret
-
-
-
-def isolate(func):
-    def run(q, *args, **kwargs):
-        q.put(func(*args, **kwargs))
-    def wrapper(*args, **kwargs):
-        ctx = mp.get_context('spawn')
-        q = ctx.Queue()
-        p = ctx.Process(target=run, args=[q, args], kwargs=kwargs)
-        p.start()
-        ret = q.get()
-        p.join()
-        return ret
-    return wrapper
