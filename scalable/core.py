@@ -338,7 +338,7 @@ class Job(ProcessInterface, abc.ABC):
         ------
         RuntimeError if the command exits with a non-zero exit code
         """
-        print(f"Curr thread id is {threading.get_ident()}")
+        print(f"Curr thread id is {threading.get_ident()} in call")
         print("entered _call")
         cmd = list(map(str, cmd))
         cmd += "\n"
@@ -552,6 +552,7 @@ class JobQueueCluster(SpecCluster):
         >>> cluster.add_worker("gcam", 4)
         
         """
+        print(f"add worker Curr thread id is {threading.get_ident()} in add worker")
         with self.thread_lock:
             if self.exited:
                 return
