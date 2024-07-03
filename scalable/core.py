@@ -304,6 +304,7 @@ class Job(ProcessInterface, abc.ABC):
 
     @classmethod
     async def _close_job(cls, job_id, cancel_command, port):
+        print(f"in close job for {job_id}")
         with suppress(RuntimeError):  # deleting job when job already gone
             await cls._call(shlex.split(cancel_command) + [job_id], port)
         logger.debug("Closed job %s", job_id)
@@ -337,6 +338,7 @@ class Job(ProcessInterface, abc.ABC):
         ------
         RuntimeError if the command exits with a non-zero exit code
         """
+        print(f"Curr thread id is {threading.get_ident()}")
         print("entered _call")
         cmd = list(map(str, cmd))
         cmd += "\n"
@@ -344,6 +346,7 @@ class Job(ProcessInterface, abc.ABC):
         logger.info(
             "Executing the following command to command line\n{}".format(cmd_str)
         )
+        
 
         proc = await get_cmd_comm(port=port)
         if proc.returncode is not None:

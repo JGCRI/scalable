@@ -4,6 +4,7 @@ import os
 import asyncio
 from dask.utils import parse_bytes
 import re
+import threading
 
 from .common import logger
 
@@ -28,6 +29,7 @@ async def get_cmd_comm(port, communicator_path=None):
     
     """
     print("inside comm getter")
+    print(f"Curr thread id is {threading.get_ident()}")
     if communicator_path is None:
         communicator_path = "./communicator"
     if not os.path.isfile(communicator_path):
