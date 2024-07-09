@@ -69,6 +69,11 @@ job_parameters = """
         A security object containing the TLS configuration for the worker. If 
         True then a temporary security object with a self signed certificate 
         is created.
+    run_scripts_path : str
+        The path where the run scripts are located. Defaults to ./run_scripts.
+        The run scripts should be in the format <worker tag>_script.sh.
+    use_run_scripts : bool
+        Whether or not to use the run scripts. Defaults to True. 
 """.strip()
 
 
@@ -159,6 +164,8 @@ class Job(ProcessInterface, abc.ABC):
         container=None,
         launched=None,
         shared_lock=None,
+        use_run_scripts=True,
+        run_scripts_path=None,
     ):
         """
         Parameters
@@ -194,6 +201,24 @@ class Job(ProcessInterface, abc.ABC):
                 "for the workers to be launched. Please try again"
             )
         
+        self.tag = tag
+        
+        if run_scripts_path is None:
+            run_scripts_path = "./run_scripts"
+        
+        if use_run_scripts:
+            if not os.path.exists(run_scripts_path):
+                raise ValueError(
+                    f"The run scripts path is invalid. The directory {run_scripts_path} does "
+                    "not exist. Please try again."
+                )
+            if not os.path.isfile(f"{run_scripts_path}/{self.tag}_script.sh"):
+                raise ValueError(
+                    f"The run script for the tag {self.tag} does not exist. Please try again."
+                    "The run script should be named <worker tag>_script.sh and should be located "
+                    "at run_scripts_path."
+                )
+                    
         if shared_lock is None:
             logger.warning("No shared async lock provided. This could lead to race conditions.")
 
@@ -209,7 +234,6 @@ class Job(ProcessInterface, abc.ABC):
             worker_extra_args = worker_extra_args + security_command_line
         
         self.comm_port = comm_port
-        self.tag = tag
         self.launched = launched
         self.container = container
         self.scheduler = scheduler
@@ -239,7 +263,8 @@ class Job(ProcessInterface, abc.ABC):
         self.worker_memory = parse_bytes(self.memory) if self.memory is not None else None
         
         # dask-worker command line build
-        dask_worker_command = "%(python)s -m %(worker_command)s" % dict(
+        dask_worker_command = "%(run_script)s %(python)s -m %(worker_command)s" % dict(
+            run_script = f"{run_scripts_path}/{self.tag}_script.sh" if use_run_scripts else "",
             python="python3",
             worker_command=worker_command
         )

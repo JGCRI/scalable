@@ -3,7 +3,7 @@
 GO_VERSION_LINK="https://go.dev/VERSION?m=text"
 GO_DOWNLOAD_LINK="https://go.dev/dl/*.linux-amd64.tar.gz"
 SCALABLE_REPO="https://github.com/JGCRI/scalable.git"
-APPTAINER_VERSION="1.3.0"
+APPTAINER_VERSION="1.3.1"
 
 # set -x
 
@@ -146,16 +146,20 @@ check_exit_code $?
 HTTPS_PROXY="http://proxy01.pnl.gov:3128"
 NO_PROXY="*.pnl.gov,*.pnnl.gov,127.0.0.1"
 # leaving these in; but local apptainer does NOT utilize a cache/tmp directory for now
-APPTAINER_TMPDIR="/tmp-apptainer"
-APPTAINER_CACHEDIR=$APPTAINER_TMPDIR
+mkdir -p tmp-apptainer
+mkdir -p tmp-apptainer/tmp
+mkdir -p tmp-apptainer/cache
+APPTAINER_TMPDIR="/tmp-apptainer/tmp"
+APPTAINER_CACHEDIR="/tmp-apptainer/cache"
 
 if [[ "$build" =~ [Yy]|^[Yy][Ee]|^[Yy][Ee][Ss]$ ]]; then
 
     flush
-    echo 'Creating container & cache directory locally...'
     mkdir -p containers
     check_exit_code $?
     mkdir -p cache
+    check_exit_code $?
+    mkdir -p run_scripts
     check_exit_code $?
 
     targets+=('scalable')
@@ -177,7 +181,25 @@ if [[ "$build" =~ [Yy]|^[Yy][Ee]|^[Yy][Ee][Ss]$ ]]; then
         docker build --target $target --build-arg https_proxy=$HTTPS_PROXY \
         --build-arg no_proxy=$NO_PROXY -t $target\_container .
         check_exit_code $?
+        
+
         flush
+        docker run --rm -v /$(pwd)/run_scripts:/run_scripts $target\_container \
+        bash -c "cp /root/.bashrc /run_scripts/$target\_script.sh"
+        check_exit_code $?
+
+        flush
+        sed -i '1i#!/bin/bash' run_scripts/$target\_script.sh
+        check_exit_code $?
+
+        flush
+        echo "\"\$@\"" >> run_scripts/$target\_script.sh
+        check_exit_code $?
+
+        flush
+        chmod +x run_scripts/$target\_script.sh
+        check_exit_code $?
+
         build+=("$target")
     done
 
@@ -187,6 +209,7 @@ if [[ "$build" =~ [Yy]|^[Yy][Ee]|^[Yy][Ee][Ss]$ ]]; then
         APPTAINER_COMMITISH="v$APPTAINER_VERSION"
         docker build --target apptainer --build-arg https_proxy=$HTTPS_PROXY \
         --build-arg no_proxy=$NO_PROXY --build-arg APPTAINER_COMMITISH=$APPTAINER_COMMITISH \
+        --build-arg APPTAINER_TMPDIR=$APPTAINER_TMPDIR --build-arg APPTAINER_CACHEDIR=$APPTAINER_CACHEDIR \
         -t apptainer_container .
         check_exit_code $?
     fi
@@ -197,7 +220,7 @@ if [[ "$build" =~ [Yy]|^[Yy][Ee]|^[Yy][Ee][Ss]$ ]]; then
         IMAGE_NAME=$(docker images | grep $target\_container | sed -E 's/[\t ][\t ]*/ /g' | cut -d ' ' -f 1)
         IMAGE_TAG=$(docker images | grep $target\_container | sed -E 's/[\t ][\t ]*/ /g' | cut -d ' ' -f 2)
         flush
-        docker run --rm -v //var/run/docker.sock:/var/run/docker.sock -v /$(pwd):/work \
+        docker run --rm -v //var/run/docker.sock:/var/run/docker.sock -v /$(pwd):/work -v /$(pwd)/tmp-apptainer:/tmp-apptainer \
         apptainer_container build --force containers/$target\_container.sif docker-daemon://$IMAGE_NAME:$IMAGE_TAG
         check_exit_code $?
     done
@@ -211,6 +234,16 @@ fi
 
 SHELL="bash"
 RC_FILE="~/.bashrc"
+
+ssh -t $user@$host \
+"{
+    [[ -d \"$work_dir/run_scripts\" ]] && 
+    echo '$work_dir/run_scripts already exists on remote' 
+} || 
+{
+    mkdir -p $work_dir/run_scripts &&
+    rsync -aP --include '*.sh' run_scripts $user@$host:~/$work_dir
+}"
 
 ssh -L 8787:deception.pnl.gov:8787 -t $user@$host \
 "{

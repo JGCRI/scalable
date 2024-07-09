@@ -599,6 +599,7 @@ class Container:
         command.append(Container.get_runtime())
         command.append(Container.get_runtime_directive())
         command.append("--userns")
+        command.append("--containall")
         for name, value in env_vars.items():
             command.append("--env")
             command.append(f"{name}={value}")
