@@ -207,7 +207,7 @@ if [[ "$build" =~ [Yy]|^[Yy][Ee]|^[Yy][Ee][Ss]$ ]]; then
     if [ "$?" -ne 0 ]; then
         flush
         APPTAINER_COMMITISH="v$APPTAINER_VERSION"
-        docker build --target apptainer --build-arg https_proxy=$HTTPS_PROXY \
+        docker build --userns --target apptainer --build-arg https_proxy=$HTTPS_PROXY \
         --build-arg no_proxy=$NO_PROXY --build-arg APPTAINER_COMMITISH=$APPTAINER_COMMITISH \
         --build-arg APPTAINER_TMPDIR=$APPTAINER_TMPDIR --build-arg APPTAINER_CACHEDIR=$APPTAINER_CACHEDIR \
         -t apptainer_container .
@@ -224,26 +224,21 @@ if [[ "$build" =~ [Yy]|^[Yy][Ee]|^[Yy][Ee][Ss]$ ]]; then
         apptainer_container build --force containers/$target\_container.sif docker-daemon://$IMAGE_NAME:$IMAGE_TAG
         check_exit_code $?
     done
-
-    flush
-    docker run --rm -v /$(pwd)/containers:/containers -v /$HOME/.ssh:/root/.ssh scalable_container \
-    bash -c "chmod 700 /root/.ssh && chmod 600 ~/.ssh/* && rsync -aP --include '*.sif' containers $user@$host:~/$work_dir"
-    check_exit_code $?
     
 fi
 
 SHELL="bash"
 RC_FILE="~/.bashrc"
 
-ssh -t $user@$host \
-"{
-    [[ -d \"$work_dir/run_scripts\" ]] && 
-    echo '$work_dir/run_scripts already exists on remote' 
-} || 
-{
-    mkdir -p $work_dir/run_scripts &&
-    rsync -aP --include '*.sh' run_scripts $user@$host:~/$work_dir
-}"
+flush
+docker run --rm -v /$(pwd)/containers:/containers -v /$HOME/.ssh:/root/.ssh scalable_container \
+    bash -c "chmod 700 /root/.ssh && chmod 600 ~/.ssh/* && rsync -aP --include '*.sif' containers $user@$host:~/$work_dir"
+check_exit_code $?
+
+flush
+docker run --rm -v /$(pwd)/run_scripts:/run_scripts -v /$HOME/.ssh:/root/.ssh scalable_container \
+    bash -c "chmod 700 /root/.ssh && chmod 600 ~/.ssh/* && rsync -aP --include '*.sh' run_scripts $user@$host:~/$work_dir"
+check_exit_code $?
 
 ssh -L 8787:deception.pnl.gov:8787 -t $user@$host \
 "{
