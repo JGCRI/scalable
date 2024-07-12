@@ -329,7 +329,6 @@ class Job(ProcessInterface, abc.ABC):
 
     @classmethod
     async def _close_job(cls, job_id, cancel_command, port):
-        print(f"in close job for {job_id}")
         with suppress(RuntimeError):  # deleting job when job already gone
             await cls._call(shlex.split(cancel_command) + [job_id], port)
         logger.debug("Closed job %s", job_id)
@@ -611,6 +610,9 @@ class JobQueueCluster(SpecCluster):
         next_call = time.time()
         while not self.exited:
             self.add_worker()
+            with tempfile.NamedTemporaryFile(mode='w+', delete=True) as temp_file:
+                temp_file.write("scalable")
+                temp_file.read()
             next_call = next_call + (60 * CHECK_DEAD_WORKER_PERIOD)
             time.sleep(next_call - time.time())
 
@@ -792,6 +794,7 @@ or by setting this value in the config file found in `~/.config/dask/jobqueue.ya
                     "immediate shutdown and restart of the cluster is recommended.")
         if n is None or n == 0:
             self.exited = True
+            logger.info("Cleaning workers...")
         return super().scale(jobs, memory=memory, cores=cores)
     
     

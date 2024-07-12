@@ -121,6 +121,7 @@ class SlurmJob(Job):
         print(f"Curr thread id is {threading.get_ident()} in close")
         async with self.shared_lock:
             self.hardware.release_resources(self.job_node, self.cpus, self.memory, self.job_id)
+            print(f"Released resources for {self.name} and lock is {self.shared_lock}")
             if not self.hardware.has_active_nodes(self.job_id):
                 self.hardware.remove_jobid_nodes(self.job_id)
                 await SlurmJob._close_job(self.job_id, self.cancel_command, self.comm_port)
