@@ -610,8 +610,10 @@ class JobQueueCluster(SpecCluster):
         next_call = time.time()
         while not self.exited:
             self.add_worker()
-            with tempfile.NamedTemporaryFile(mode='w+', delete=True) as temp_file:
+            with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_file:
                 temp_file.write("scalable")
+                temp_file.flush()
+                temp_file.seek(0) 
                 temp_file.read()
             next_call = next_call + (60 * CHECK_DEAD_WORKER_PERIOD)
             time.sleep(next_call - time.time())
