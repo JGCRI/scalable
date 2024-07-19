@@ -118,6 +118,7 @@ class ModelConfig:
             except ValueError:
                 pass
             avail_containers = list(filter(bool, avail_containers))
+            avail_containers = [container.replace('\r', '') for container in avail_containers]
         else:
             logger.error("Failed to run sed command...manual entry of container info may be required")
             return
@@ -600,6 +601,8 @@ class Container:
         command.append(Container.get_runtime_directive())
         command.append("--userns")
         command.append("--containall")
+        if env_vars is None:
+            env_vars = {}
         for name, value in env_vars.items():
             command.append("--env")
             command.append(f"{name}={value}")
