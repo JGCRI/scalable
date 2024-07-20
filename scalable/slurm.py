@@ -125,6 +125,7 @@ class SlurmJob(Job):
             if not self.hardware.has_active_nodes(self.job_id):
                 self.hardware.remove_jobid_nodes(self.job_id)
                 await SlurmJob._close_job(self.job_id, self.cancel_command, self.comm_port)
+            print(f"Closed job {self.job_id} exiting...")
 
                 
 
