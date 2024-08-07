@@ -28,8 +28,6 @@ async def get_cmd_comm(port, communicator_path=None):
         The communicator client process.
     
     """
-    print("inside comm getter")
-    print(f"Curr thread id is {threading.get_ident()}")
     if communicator_path is None:
         communicator_path = "./communicator"
     if not os.path.isfile(communicator_path):
@@ -44,7 +42,6 @@ async def get_cmd_comm(port, communicator_path=None):
         stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
     )
-    print("returning proc")
     return proc
 
 def get_comm_port(logpath=None):
@@ -111,7 +108,6 @@ class ModelConfig:
         f"sed -n 's/^FROM[[:space:]]\+[^ ]\+[[:space:]]\+AS[[:space:]]\+\([^ ]\+\)$/\\1/p' {dockerfile_path}"
         result = subprocess.run(list_avial_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         if result.returncode == 0:
-            avail_containers = result.stdout.decode('utf-8').split('\n')
             avail_containers = result.stdout.decode('utf-8').split('\n')
             try:
                 avail_containers.remove("build_env")
@@ -221,8 +217,8 @@ class HardwareResources:
         Set the minimum amount of memory which should always be available.
     """
 
-    MIN_CPUS = 1
-    MIN_MEMORY = 2
+    MIN_CPUS = 10
+    MIN_MEMORY = 20
 
     def __init__(self):
         self.nodes = []
@@ -429,7 +425,7 @@ class HardwareResources:
                 self.active[self.available[node]['jobid']].remove(node)
         else:
             raise ValueError (
-                "The given node does not exist. Please try again.\n"
+                f"The given node does not exist. Please try again.\n"
             )
     
     
@@ -452,6 +448,26 @@ class HardwareResources:
             ret = False
         return ret
     
+    def is_assigned(self, jobid):
+        """Check if the given jobid corresponds to a real job. 
+
+        Parameters
+        ----------
+        jobid : int
+            The jobid to check for.
+
+        Returns
+        -------
+        bool
+            True if the jobid is in the list of removed jobids. False otherwise. 
+        """
+        ret = False
+        for node in self.nodes:
+            if self.assigned[node]['jobid'] == jobid:
+                ret = True
+                break
+        return ret
+
     @staticmethod
     def set_min_free_cpus(cpus):
         HardwareResources.MIN_CPUS = cpus

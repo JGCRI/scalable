@@ -3,6 +3,7 @@ import os
 from .core import Job, JobQueueCluster, job_parameters, cluster_parameters
 from distributed.deploy.spec import ProcessInterface
 from .support import *
+from distributed.core import Status
 
 from .utilities import *
 
@@ -43,6 +44,9 @@ class SlurmJob(Job):
         self.slurm_cmd = salloc_command(account=account, name=job_name, nodes=DEFAULT_REQUEST_QUANTITY, 
                                         partition=queue, time=walltime)
         
+        self.job_id = None
+        self.job_node = None
+
         if log:
             self.log_file = os.path.abspath(os.path.join(logs_location, f"{self.name}-{self.tag}.log"))
         
@@ -117,17 +121,22 @@ class SlurmJob(Job):
         """Close function for the worker.
         
         The worker releases the resources it was utilizing and removes itself."""
-        print(f"in close function for {self.name} and lock is {self.shared_lock}")
-        print(f"Curr thread id is {threading.get_ident()} in close")
         async with self.shared_lock:
-            self.hardware.release_resources(self.job_node, self.cpus, self.memory, self.job_id)
-            print(f"Released resources for {self.name} and lock is {self.shared_lock}")
-            if not self.hardware.has_active_nodes(self.job_id):
-                self.hardware.remove_jobid_nodes(self.job_id)
-                await SlurmJob._close_job(self.job_id, self.cancel_command, self.comm_port)
-            print(f"Closed job {self.job_id} exiting...")
+            if self.hardware.is_assigned(self.job_id):
+                out = await self._run_command(jobcheck_command(self.job_id))
+                match = re.search(self.job_id_regexp, out)
+                if match is None:
+                    self.hardware.remove_jobid_nodes(self.job_id)
+                else:
+                    self.hardware.release_resources(self.job_node, self.cpus, self.memory, self.job_id)
+                    if not self.hardware.has_active_nodes(self.job_id):
+                        self.hardware.remove_jobid_nodes(self.job_id)
+                        await SlurmJob._close_job(self.job_id, self.cancel_command, self.comm_port)
+            if self.tag in self.removed and self.removed[self.tag] > 0:
+                self.removed[self.tag] -= 1
+            elif self._cluster().status not in (Status.closing, Status.closed):
+                self.cluster_ops["correct_state"]()
 
-                
 
 class SlurmCluster(JobQueueCluster):
     __doc__ = """ Launch Dask on a SLURM cluster

@@ -163,9 +163,12 @@ class Job(ProcessInterface, abc.ABC):
         tag=None,
         container=None,
         launched=None,
+        removed=None,
+        cluster_ops=None,
         shared_lock=None,
         use_run_scripts=True,
         run_scripts_path=None,
+        cluster=None,
     ):
         """
         Parameters
@@ -183,6 +186,18 @@ class Job(ProcessInterface, abc.ABC):
             raise ValueError(
                 "Launched list is None. Every worker needs a launched list for the cluster "
                 "to be able to monitor the workers effectively. Please try again."
+            )
+        
+        if removed is None:
+            raise ValueError(
+                "Removed dictionary is None. Every worker needs a removed dictionary for the cluster "
+                "to be able to monitor the workers effectively. Please try again."
+            )
+        
+        if cluster_ops is None:
+            raise ValueError(
+                "Cluster operations dictionary is None. Workers need the dictionary to perform necessary "
+                "operations on the cluster. Please try again."
             )
 
         if tag is None:
@@ -235,12 +250,15 @@ class Job(ProcessInterface, abc.ABC):
         
         self.comm_port = comm_port
         self.launched = launched
+        self.removed = removed
+        self.cluster_ops = cluster_ops
         self.container = container
         self.scheduler = scheduler
         self.hardware = hardware
         self.name = name
         self.shared_lock = shared_lock
-        self.job_id = None
+        self.cluster = cluster
+        self.job_id = None        
 
         super().__init__()
 
@@ -295,7 +313,6 @@ class Job(ProcessInterface, abc.ABC):
         self._command_template = " ".join(map(str, command_args))
     
     async def _run_command(self, command):
-        print(self.shared_lock)
         out = await self._call(command, self.comm_port)
         return out
 
@@ -362,8 +379,6 @@ class Job(ProcessInterface, abc.ABC):
         ------
         RuntimeError if the command exits with a non-zero exit code
         """
-        print(f"Curr thread id is {threading.get_ident()} in call")
-        print("entered _call")
         cmd = list(map(str, cmd))
         cmd += "\n"
         cmd_str = " ".join(cmd)
@@ -386,7 +401,6 @@ class Job(ProcessInterface, abc.ABC):
         await proc.wait()
         out = out.decode()
         out = out.strip()
-        print("returning from _call")
         return out
 
 
@@ -487,6 +501,7 @@ class JobQueueCluster(SpecCluster):
         self.hardware = HardwareResources()
         self.shared_lock = asyncio.Lock()
         self.launched = []
+        self.removed = {}
         self.status = Status.created
         self.specifications = {}
         self.model_configs = ModelConfig(path_overwrite=config_overwrite)
@@ -527,6 +542,8 @@ class JobQueueCluster(SpecCluster):
         job_kwargs["shared_lock"] = self.shared_lock
         job_kwargs["logs_location"] = self.logs_location
         job_kwargs["launched"] = self.launched
+        job_kwargs["removed"] = self.removed
+        job_kwargs["cluster_ops"] = {"add": self.add_worker, "delete": self._delete_worker, "correct_state": self._stabalize}
         self._job_kwargs = job_kwargs
 
         worker = {"cls": self.job_cls, "options": self._job_kwargs}
@@ -543,15 +560,30 @@ class JobQueueCluster(SpecCluster):
             name=name,
         )
 
-        timerThread = threading.Thread(target=self._check_dead_workers)
-        timerThread.daemon = True
-        self.thread_lock = threading.Lock()
-        timerThread.start()
+        #timerThread = threading.Thread(target=self._check_dead_workers)
+        #timerThread.daemon = True
+        #self.thread_lock = threading.Lock()
+        #timerThread.start()
     
-
-    async def remove_launched_worker(self, worker):
+    async def _remove_launched_worker(self, worker):
         async with self.shared_lock:
             self.launched.remove(worker)
+
+    async def _remove_worker(self, tag, n):
+        async with self.shared_lock:
+            if tag not in self.removed:
+                self.removed[tag] = 0
+            self.removed[tag] += n
+
+    def _delete_worker(self, worker):
+        if worker in self.worker_spec:
+            del self.worker_spec[worker]
+        else:
+            logger.warn(f"Worker {worker} not found in worker_spec. Likely a bug.")
+
+    def _stabalize(self):
+        if self.status not in (Status.closing, Status.closed):
+            self.loop.add_callback(self._correct_state)
 
     def add_worker(self, tag=None, n=0):
         """Add workers to the cluster. 
@@ -576,30 +608,63 @@ class JobQueueCluster(SpecCluster):
         >>> cluster.add_worker("gcam", 4)
         
         """
-        print(f"add worker Curr thread id is {threading.get_ident()} in add worker")
-        with self.thread_lock:
-            if self.exited:
-                return
-            if tag is not None and tag not in self.containers:
-                logger.error(f"The tag ({tag}) given is not a recognized tag for any of the containers. "
-                            "Please add a container with this tag to the cluster by using "
-                            "add_container() and try again.")
-                return
-            tags = [tag for _ in range(n)]
-            current_workers = [worker for worker in self.workers.keys()]
-            to_relaunch = [worker for worker in self.launched if worker[0] not in current_workers]
-            for worker in to_relaunch:
-                del self.worker_spec[worker[0]]
-                asyncio.run(self.remove_launched_worker(worker))
-            tags.extend([worker[1] for worker in to_relaunch])
-            if self.status not in (Status.closing, Status.closed):
-                for tag in tags:
-                    new_worker = self.new_worker_spec(tag)
-                    self.worker_spec.update(dict(new_worker))
-                self.loop.add_callback(self._correct_state)
+        #with self.thread_lock:
+        if self.exited or self.status in (Status.closing, Status.closed):
+            return
+        if tag is not None and tag not in self.containers:
+            logger.error(f"The tag ({tag}) given is not a recognized tag for any of the containers. "
+                        "Please add a container with this tag to the cluster by using "
+                        "add_container() and try again.")
+            return
+        tags = [tag for _ in range(n)]
+        #current_workers = list(self.workers.keys())
+        
+        for key, value in self.workers.items():
+            if value.status in (Status.closing, Status.closed, Status.closing_gracefully):
+                del self.worker_spec[key]
+        #    if worker not in current_workers:
+        #        if worker in self.worker_spec:
+        #            del self.worker_spec[worker]
+        #        self.launched.remove(worker)
+        for tag in tags:
+            if tag in self.removed:
+                if self.removed[tag] > 0:
+                    self.removed[tag] -= 1
+                    continue
+            new_worker = self.new_worker_spec(tag)
+            self.worker_spec.update(dict(new_worker))
+        self.loop.add_callback(self._correct_state)
         if self.asynchronous:
             return NoOpAwaitable() 
         
+    def remove_workers(self, tag=None, n=0):
+        #with self.thread_lock:
+        if self.exited:
+            return
+        if tag is not None and tag not in self.containers:
+            logger.error(f"The tag ({tag}) given is not a recognized tag for any of the containers. "
+                        "Please add a container with this tag to the cluster by using "
+                        "add_container() and try again.")
+            return
+        can_remove = [worker.name for worker in self.scheduler.idle.values() if tag in worker.name]
+        if n > len(can_remove):
+            can_remove.extend([worker_name for worker_name in list(self.worker_spec.keys()) if tag in worker_name])
+        current = len(can_remove)
+        if n > current:
+            logger.warn(f"Cannot remove {n} workers. Only {current} workers found, removing all.")
+            n = current
+        can_remove = can_remove[:n]
+        if n != 0 and self.status not in (Status.closing, Status.closed):
+            if tag not in self.removed:
+                self.removed[tag] = 0
+            self.removed[tag] += n
+            self.loop.spawn_callback(self.scheduler.retire_workers, names=can_remove)
+            for i in range(n):
+                del self.worker_spec[can_remove[i]]
+            self.loop.add_callback(self._correct_state)
+        if self.asynchronous:
+            return NoOpAwaitable()
+
     def _check_dead_workers(self):
         """Periodically check for dead workers. 
         
@@ -610,15 +675,31 @@ class JobQueueCluster(SpecCluster):
         next_call = time.time()
         while not self.exited:
             self.add_worker()
-            temp_file = tempfile.NamedTemporaryFile(mode='w+', delete=False)
-            temp_file.write("scalable")
-            temp_file.flush()
-            temp_file.seek(0) 
-            temp_file.read()
+            temp_file = tempfile.NamedTemporaryFile(mode='w+', delete=True)
+            temp_file_name = temp_file.name
             temp_file.close()
-            os.remove(temp_file.name)
+            with open(temp_file_name, 'w+') as temp_file:
+                temp_file.write("scalable")
+                temp_file.flush()
+                temp_file.seek(0) 
+                temp_file.read()
+            os.remove(temp_file_name)
             next_call = next_call + (60 * CHECK_DEAD_WORKER_PERIOD)
             time.sleep(next_call - time.time())
+    
+    def _get_dead_worker_tags(self):
+        """Get the list of dead workers. 
+        
+        This function returns the list of workers that are dead. 
+        """
+        dead_workers = []
+        for worker in self.launched:
+            if worker[0] not in self.workers:
+                dead_workers.append(worker)
+        for worker in dead_workers:
+            del self.worker_spec[worker[0]]
+            self.launched.remove(worker)
+        return [worker[1] for worker in dead_workers]
 
     def add_container(self, tag, dirs, path=None, cpus=None, memory=None):
         """Add containers to enable them launching as workers. 
@@ -699,7 +780,6 @@ class JobQueueCluster(SpecCluster):
             self.specifications[tag]["options"] = copy.copy(self.new_spec["options"])
             self.specifications[tag]["options"]["container"] = self.containers[tag]
             self.specifications[tag]["options"]["tag"] = tag
-            print(f"{self.shared_lock=} {lock=} {self.specifications[tag]['options']['shared_lock']=}")
         self._i += 1
         new_worker_name = f"{self._new_worker_name(self._i)}-{tag}"
         while new_worker_name in self.worker_spec:
