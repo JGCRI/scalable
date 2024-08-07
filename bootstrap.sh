@@ -63,8 +63,9 @@ prompt "$RED" "Enter Work Directory Name \
 work_dir=$input
 
 prompt "$RED" "Do you want to build and transfer containers? (Y/n): "
-build=$input
-if [[ "$build" =~ [Yy]|^[Yy][Ee]|^[Yy][Ee][Ss]$ ]]; then
+transfer=$input
+build=()
+if [[ "$transfer" =~ [Yy]|^[Yy][Ee]|^[Yy][Ee][Ss]$ ]]; then
     echo -e "${YELLOW}Available container targets: ${NC}"
     avail=$(sed -n -E 's/^FROM[[:space:]]{1,}[^ ]{1,}[[:space:]]{1,}AS[[:space:]]{1,}([^ ]{1,})$/\1/p' Dockerfile)
     check_exit_code $?
@@ -76,14 +77,29 @@ if [[ "$build" =~ [Yy]|^[Yy][Ee]|^[Yy][Ee][Ss]$ ]]; then
     flush
     read -r -a targets
     check_exit_code $?
+    echo -e "${RED}Checking if entered container names are valid... ${NC}"
+    for target in "${targets[@]}"
+    do
+        echo "$avail" | grep "$target"
+        check_exit_code $?
+    done
+    targets+=('scalable')
+    for target in "${targets[@]}"
+    do
+        check=$target\_container
+        ssh $user@$host "[[ -f \"$work_dir/containers/$check.sif\" ]]"
+        if [ "$?" -eq 0 ]; then
+            echo -e "${YELLOW}$check.sif already exists in $work_dir/containers.${NC}"
+            flush
+            prompt "$RED" "Do you want to overwrite $check.sif? (Y/n): "
+            choice=$input
+            if [[ "$choice" =~ [Nn]|^[Nn][Oo]$ ]]; then
+                continue
+            fi
+        fi
+        build+=("$target")
+    done
 fi
-
-echo -e "${RED}Checking if entered container names are valid... ${NC}"
-for target in "${targets[@]}"
-do
-    echo "$avail" | grep "$target"
-    check_exit_code $?
-done
 
 echo -e "${YELLOW}To reinstall any directory or file already on remote, \
 please delete it from remote and run this script again${NC}"
@@ -152,7 +168,7 @@ mkdir -p tmp-apptainer/cache
 APPTAINER_TMPDIR="/tmp-apptainer/tmp"
 APPTAINER_CACHEDIR="/tmp-apptainer/cache"
 
-if [[ "$build" =~ [Yy]|^[Yy][Ee]|^[Yy][Ee][Ss]$ ]]; then
+if [[ "$transfer" =~ [Yy]|^[Yy][Ee]|^[Yy][Ee][Ss]$ ]]; then
 
     flush
     mkdir -p containers
@@ -162,27 +178,12 @@ if [[ "$build" =~ [Yy]|^[Yy][Ee]|^[Yy][Ee][Ss]$ ]]; then
     mkdir -p run_scripts
     check_exit_code $?
 
-    targets+=('scalable')
-    build=()
-    for target in "${targets[@]}"
+    for target in "${build[@]}"
     do
-        check=$target\_container
-        ssh $user@$host "[[ -f \"$work_dir/containers/$check.sif\" ]]"
-        if [ "$?" -eq 0 ]; then
-            echo -e "${YELLOW}$check.sif already exists in $work_dir/containers.${NC}"
-            flush
-            prompt "$RED" "Do you want to overwrite $check.sif? (Y/n): "
-            choice=$input
-            if [[ "$choice" =~ [Nn]|^[Nn][Oo]$ ]]; then
-                continue
-            fi
-        fi
         flush
-        docker build --target $target --build-arg https_proxy=$HTTPS_PROXY \
-        --build-arg no_proxy=$NO_PROXY -t $target\_container .
+        docker build --target $target -t $target\_container .
         check_exit_code $?
         
-
         flush
         docker run --rm -v /$(pwd)/run_scripts:/run_scripts $target\_container \
         bash -c "cp /root/.bashrc /run_scripts/$target\_script.sh"
@@ -200,15 +201,13 @@ if [[ "$build" =~ [Yy]|^[Yy][Ee]|^[Yy][Ee][Ss]$ ]]; then
         chmod +x run_scripts/$target\_script.sh
         check_exit_code $?
 
-        build+=("$target")
     done
 
     docker images | grep apptainer_container
     if [ "$?" -ne 0 ]; then
         flush
         APPTAINER_COMMITISH="v$APPTAINER_VERSION"
-        docker build --userns --target apptainer --build-arg https_proxy=$HTTPS_PROXY \
-        --build-arg no_proxy=$NO_PROXY --build-arg APPTAINER_COMMITISH=$APPTAINER_COMMITISH \
+        docker build --userns --target apptainer --build-arg APPTAINER_COMMITISH=$APPTAINER_COMMITISH \
         --build-arg APPTAINER_TMPDIR=$APPTAINER_TMPDIR --build-arg APPTAINER_CACHEDIR=$APPTAINER_CACHEDIR \
         -t apptainer_container .
         check_exit_code $?
@@ -231,13 +230,12 @@ SHELL="bash"
 RC_FILE="~/.bashrc"
 
 flush
-docker run --rm -v /$(pwd)/containers:/containers -v /$HOME/.ssh:/root/.ssh scalable_container \
-    bash -c "chmod 700 /root/.ssh && chmod 600 ~/.ssh/* && rsync -aP --include '*.sif' containers $user@$host:~/$work_dir"
-check_exit_code $?
-
-flush
-docker run --rm -v /$(pwd)/run_scripts:/run_scripts -v /$HOME/.ssh:/root/.ssh scalable_container \
-    bash -c "chmod 700 /root/.ssh && chmod 600 ~/.ssh/* && rsync -aP --include '*.sh' run_scripts $user@$host:~/$work_dir"
+docker run --rm -v /$(pwd):/host -v /$HOME/.ssh:/root/.ssh scalable_container \
+    bash -c "chmod 700 /root/.ssh && chmod 600 ~/.ssh/* \
+    && cd /host \
+    && rsync -aP --include '*.sif' containers $user@$host:~/$work_dir \
+    && rsync -aP --include '*.sh' run_scripts $user@$host:~/$work_dir \
+    && rsync -aP Dockerfile $user@$host:~/$work_dir/scalable"
 check_exit_code $?
 
 ssh -L 8787:deception.pnl.gov:8787 -t $user@$host \
@@ -247,7 +245,7 @@ ssh -L 8787:deception.pnl.gov:8787 -t $user@$host \
     module load apptainer/$APPTAINER_VERSION && 
     cd $work_dir &&
     $SHELL --rcfile <(echo \". $RC_FILE; 
-    alias python3='apptainer exec --userns ~/$work_dir/containers/scalable_container.sif python3'\"); 
+    alias python3='apptainer exec --userns --compat --home ~/$work_dir --cwd ~/$work_dir ~/$work_dir/containers/scalable_container.sif python3'\"); 
     exit
 }"
 
