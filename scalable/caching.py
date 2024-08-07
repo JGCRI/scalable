@@ -5,6 +5,7 @@ from xxhash import xxh32
 import types
 import numpy as np
 import pandas as pd
+import dill
 
 from .common import logger, cachedir, SEED
 
@@ -193,6 +194,9 @@ def convert_to_type(arg):
     elif isinstance(arg, (np.ndarray, pd.DataFrame)):
         ret = UtilityType(arg)
     else:
+        logger.warn(f"Could not identify type for argument: {arg}. Using default hash function. " 
+                    "For more reliable performance, either wrap the argument in a class with a defined"
+                    " __hash__() function or open an issue on the scalable Github: github.com/JGCRI/scalable.")
         ret = ObjectType(arg)
     return ret
 
@@ -264,7 +268,8 @@ def cacheable(return_type=None, void=False, recompute=False, store=True, **arg_t
         def inner(*args, **kwargs):
             keys = []
             x = xxh32(seed=SEED)
-            x.update(func.__code__.co_code)
+            func_str = dill.source.getsource(func)
+            x.update(func_str.encode('utf-8'))
             keys.append(x.intdigest())
             arg_names = func.__code__.co_varnames[:func.__code__.co_argcount]
             default_values = {}
