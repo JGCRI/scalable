@@ -10,6 +10,7 @@ from .utilities import *
 from .common import logger
 
 DEFAULT_REQUEST_QUANTITY = 1
+RECOVERY_DELAY = 3
 
 class SlurmJob(Job):
 
@@ -132,11 +133,11 @@ class SlurmJob(Job):
                     if not self.hardware.has_active_nodes(self.job_id):
                         self.hardware.remove_jobid_nodes(self.job_id)
                         await SlurmJob._close_job(self.job_id, self.cancel_command, self.comm_port)
+            cluster = self._cluster()
             if self.tag in self.removed and self.removed[self.tag] > 0:
                 self.removed[self.tag] -= 1
-            elif self._cluster().status not in (Status.closing, Status.closed):
-                self.cluster_ops["correct_state"]()
-
+            elif cluster.status not in (Status.closing, Status.closed):
+                cluster.loop.call_later(RECOVERY_DELAY, cluster._correct_state)
 
 class SlurmCluster(JobQueueCluster):
     __doc__ = """ Launch Dask on a SLURM cluster
