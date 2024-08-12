@@ -4,7 +4,6 @@ import os
 import asyncio
 from dask.utils import parse_bytes
 import re
-import threading
 
 from .common import logger
 
@@ -250,17 +249,15 @@ class HardwareResources:
             If the node is already stored. 
         """
         allotted = {'cpus': cpus, 'memory': memory, 'jobid': jobid}
+        ret = False
         if node not in self.assigned and node not in self.available:
             self.assigned[node] = allotted
             self.available[node] = allotted.copy()
             self.nodes.append(node)
             if jobid not in self.active:
                 self.active[jobid] = set()
-        else:
-            raise ValueError(
-                "The node already exists. New resources to an existing node"
-                " cannot be assigned. Please try again.\n"
-            )
+            ret = True
+        return ret
     
     def remove_jobid_nodes(self, jobid):
         """Remove all the nodes belonging to the given jobid. 
@@ -467,6 +464,16 @@ class HardwareResources:
                 ret = True
                 break
         return ret
+    
+    def get_active_jobids(self):
+        """Get all the active jobids in the cluster. 
+
+        Returns
+        -------
+        list
+            A set containing all the active jobids in the cluster. 
+        """
+        return list(set(self.active.keys()))
 
     @staticmethod
     def set_min_free_cpus(cpus):

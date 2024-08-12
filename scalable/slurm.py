@@ -1,13 +1,13 @@
 import os
 
-from .core import Job, JobQueueCluster, job_parameters, cluster_parameters
-from distributed.deploy.spec import ProcessInterface
-from .support import *
+from collections.abc import Awaitable
 from distributed.core import Status
-
-from .utilities import *
+from distributed.deploy.spec import ProcessInterface
 
 from .common import logger
+from .core import Job, JobQueueCluster, job_parameters, cluster_parameters
+from .support import *
+from .utilities import *
 
 DEFAULT_REQUEST_QUANTITY = 1
 RECOVERY_DELAY = 3
@@ -45,6 +45,7 @@ class SlurmJob(Job):
         self.slurm_cmd = salloc_command(account=account, name=job_name, nodes=DEFAULT_REQUEST_QUANTITY, 
                                         partition=queue, time=walltime)
         
+        self.job_name = job_name
         self.job_id = None
         self.job_node = None
 
@@ -71,6 +72,11 @@ class SlurmJob(Job):
         command = prefix + [f"\"{command_str}\""]
         out = await self._run_command(command)
         return out
+    
+    async def _check_valid_job_id(self, job_id):
+        out = await self._run_command(jobcheck_command(job_id))
+        match = re.search(self.job_id_regexp, out)
+        return match
 
     async def start(self):
         """Start function for the worker.
@@ -88,18 +94,16 @@ class SlurmJob(Job):
                 if self.job_node is None:
                     break
                 job_id = self.hardware.get_node_jobid(self.job_node)
-                out = await self._run_command(jobcheck_command(job_id))
-                match = re.search(self.job_id_regexp, out)
+                match = await self._check_valid_job_id(job_id)
                 if match is None:
                     self.hardware.remove_jobid_nodes(job_id)
                 else:
                     self.job_id = match.groupdict().get("job_id")
             if self.job_node == None:
                 out = await self._run_command(self.slurm_cmd)
-                job_name = f"{self.name}-job"
-                job_id = await self._run_command(jobid_command(job_name))
+                job_id = await self._run_command(jobid_command(self.job_name))
                 self.job_id = job_id
-                nodelist = await self._run_command(nodelist_command(job_name))
+                nodelist = await self._run_command(nodelist_command(self.job_name))
                 nodes = parse_nodelist(nodelist)
                 worker_memories = await self._srun_command(memory_command())
                 worker_cpus = await self._srun_command(core_command())
@@ -109,7 +113,14 @@ class SlurmJob(Job):
                     node = nodes[index]
                     alloc_memory = int(worker_memories[index])
                     alloc_cpus = int(worker_cpus[index])
-                    self.hardware.assign_resources(node=node, cpus=alloc_cpus, memory=alloc_memory, jobid=self.job_id)
+                    if not self.hardware.assign_resources(node=node, cpus=alloc_cpus, memory=alloc_memory, jobid=self.job_id):
+                        stored_job_id = self.hardware.get_node_jobid(node)
+                        match = await self._check_valid_job_id(stored_job_id)
+                        if match is None:
+                            self.hardware.remove_jobid_nodes(stored_job_id)
+                            assert self.hardware.assign_resources(node=node, cpus=alloc_cpus, memory=alloc_memory, jobid=self.job_id)
+                        else:
+                            raise ValueError(f"Node {node} is already assigned to job {stored_job_id}")
                 self.job_node = self.hardware.get_available_node(self.cpus, self.memory)
             _ = await self._ssh_command(self.send_command)
             self.hardware.utilize_resources(self.job_node, self.cpus, self.memory, self.job_id)
@@ -124,8 +135,7 @@ class SlurmJob(Job):
         The worker releases the resources it was utilizing and removes itself."""
         async with self.shared_lock:
             if self.hardware.is_assigned(self.job_id):
-                out = await self._run_command(jobcheck_command(self.job_id))
-                match = re.search(self.job_id_regexp, out)
+                match = await self._check_valid_job_id(self.job_id)
                 if match is None:
                     self.hardware.remove_jobid_nodes(self.job_id)
                 else:
@@ -159,6 +169,27 @@ class SlurmCluster(JobQueueCluster):
         job=job_parameters, cluster=cluster_parameters
     )
     job_cls = SlurmJob
+
+    def close(self, timeout: float | None = None) -> Awaitable[None] | None:
+        active_jobs = self.hardware.get_active_jobids()
+        jobs_command = "squeue -o \"%i %t\" -u $(whoami) | sed '1d'"
+        result = subprocess.run(jobs_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        if result.returncode == 0:
+            jobs_states = result.stdout.decode('utf-8').split('\n')
+            jobid_states = [job.split() for job in jobs_states if job]
+            for job_info in jobid_states:
+                if job_info[1] == "PD":
+                    active_jobs.append(job_info[0])
+        for job_id in active_jobs:
+            cancel_job_command = f"scancel {job_id}"
+            result = subprocess.run(cancel_job_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            if result.returncode == 0:
+                self.hardware.remove_jobid_nodes(job_id)
+                logger.info(f"Cancelled job: {job_id}")
+            else:
+                logger.error(f"Failed to cancel job: {job_id}")
+        
+        return super().close(timeout)
     
     @staticmethod
     def set_default_request_quantity(nodes):
