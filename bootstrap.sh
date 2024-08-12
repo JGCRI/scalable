@@ -7,6 +7,8 @@ APPTAINER_VERSION="1.3.1"
 
 # set -x
 
+set -o pipefail
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
@@ -240,12 +242,10 @@ check_exit_code $?
 
 ssh -L 8787:deception.pnl.gov:8787 -t $user@$host \
 "{
-    cd $work_dir && 
-    ./communicator -s > communicator.log & 
     module load apptainer/$APPTAINER_VERSION && 
     cd $work_dir &&
     $SHELL --rcfile <(echo \". $RC_FILE; 
-    alias python3='apptainer exec --userns --compat --home ~/$work_dir --cwd ~/$work_dir ~/$work_dir/containers/scalable_container.sif python3'\"); 
-    exit
+    alias python3='./communicator -s & \
+    apptainer exec --userns --compat --home ~/$work_dir --cwd ~/$work_dir ~/$work_dir/containers/scalable_container.sif python3 ; 
+    pkill -9 communicator' \"); 
 }"
-
