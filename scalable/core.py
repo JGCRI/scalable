@@ -69,6 +69,11 @@ job_parameters = """
         A security object containing the TLS configuration for the worker. If 
         True then a temporary security object with a self signed certificate 
         is created.
+    run_scripts_path : str
+        The path where the run scripts are located. Defaults to ./run_scripts.
+        The run scripts should be in the format <worker tag>_script.sh.
+    use_run_scripts : bool
+        Whether or not to use the run scripts. Defaults to True. 
 """.strip()
 
 
@@ -158,7 +163,11 @@ class Job(ProcessInterface, abc.ABC):
         tag=None,
         container=None,
         launched=None,
+        removed=None,
         shared_lock=None,
+        use_run_scripts=True,
+        run_scripts_path=None,
+        cluster=None,
     ):
         """
         Parameters
@@ -175,6 +184,12 @@ class Job(ProcessInterface, abc.ABC):
         if launched is None:
             raise ValueError(
                 "Launched list is None. Every worker needs a launched list for the cluster "
+                "to be able to monitor the workers effectively. Please try again."
+            )
+        
+        if removed is None:
+            raise ValueError(
+                "Removed dictionary is None. Every worker needs a removed dictionary for the cluster "
                 "to be able to monitor the workers effectively. Please try again."
             )
 
@@ -194,6 +209,24 @@ class Job(ProcessInterface, abc.ABC):
                 "for the workers to be launched. Please try again"
             )
         
+        self.tag = tag
+        
+        if run_scripts_path is None:
+            run_scripts_path = "./run_scripts"
+        
+        if use_run_scripts:
+            if not os.path.exists(run_scripts_path):
+                raise ValueError(
+                    f"The run scripts path is invalid. The directory {run_scripts_path} does "
+                    "not exist. Please try again."
+                )
+            if not os.path.isfile(f"{run_scripts_path}/{self.tag}_script.sh"):
+                raise ValueError(
+                    f"The run script for the tag {self.tag} does not exist. Please try again."
+                    "The run script should be named <worker tag>_script.sh and should be located "
+                    "at run_scripts_path."
+                )
+                    
         if shared_lock is None:
             logger.warning("No shared async lock provided. This could lead to race conditions.")
 
@@ -209,14 +242,15 @@ class Job(ProcessInterface, abc.ABC):
             worker_extra_args = worker_extra_args + security_command_line
         
         self.comm_port = comm_port
-        self.tag = tag
         self.launched = launched
+        self.removed = removed
         self.container = container
         self.scheduler = scheduler
         self.hardware = hardware
         self.name = name
         self.shared_lock = shared_lock
-        self.job_id = None
+        self.cluster = cluster
+        self.job_id = None        
 
         super().__init__()
 
@@ -239,7 +273,8 @@ class Job(ProcessInterface, abc.ABC):
         self.worker_memory = parse_bytes(self.memory) if self.memory is not None else None
         
         # dask-worker command line build
-        dask_worker_command = "%(python)s -m %(worker_command)s" % dict(
+        dask_worker_command = "%(run_script)s %(python)s -m %(worker_command)s" % dict(
+            run_script = f"{run_scripts_path}/{self.tag}_script.sh" if use_run_scripts else "",
             python="python3",
             worker_command=worker_command
         )
@@ -342,6 +377,7 @@ class Job(ProcessInterface, abc.ABC):
         logger.info(
             "Executing the following command to command line\n{}".format(cmd_str)
         )
+        
 
         proc = await get_cmd_comm(port=port)
         if proc.returncode is not None:
@@ -457,6 +493,7 @@ class JobQueueCluster(SpecCluster):
         self.hardware = HardwareResources()
         self.shared_lock = asyncio.Lock()
         self.launched = []
+        self.removed = {}
         self.status = Status.created
         self.specifications = {}
         self.model_configs = ModelConfig(path_overwrite=config_overwrite)
@@ -497,6 +534,7 @@ class JobQueueCluster(SpecCluster):
         job_kwargs["shared_lock"] = self.shared_lock
         job_kwargs["logs_location"] = self.logs_location
         job_kwargs["launched"] = self.launched
+        job_kwargs["removed"] = self.removed
         self._job_kwargs = job_kwargs
 
         worker = {"cls": self.job_cls, "options": self._job_kwargs}
@@ -513,23 +551,8 @@ class JobQueueCluster(SpecCluster):
             name=name,
         )
 
-        timerThread = threading.Thread(target=self._check_dead_workers)
-        timerThread.daemon = True
-        self.thread_lock = threading.Lock()
-        timerThread.start()
-    
-
-    async def remove_launched_worker(self, worker):
-        async with self.shared_lock:
-            self.launched.remove(worker)
-
     def add_worker(self, tag=None, n=0):
-        """Add workers to the cluster. 
-        
-        This is also the function which syncs the cluster to recognize any 
-        dead, expired, or revoked workers. Cleaning up such workers and 
-        relaunching them is done here. Only cleanup and replacement of dead 
-        workers is performed when called with no or defalt arguments. 
+        """Add workers to the cluster.  
 
         Parameters
         ----------
@@ -546,29 +569,71 @@ class JobQueueCluster(SpecCluster):
         >>> cluster.add_worker("gcam", 4)
         
         """
-        with self.thread_lock:
-            if self.exited:
-                return
-            if tag is not None and tag not in self.containers:
-                logger.error(f"The tag ({tag}) given is not a recognized tag for any of the containers. "
-                            "Please add a container with this tag to the cluster by using "
-                            "add_container() and try again.")
-                return
-            tags = [tag for _ in range(n)]
-            current_workers = [worker for worker in self.workers.keys()]
-            to_relaunch = [worker for worker in self.launched if worker[0] not in current_workers]
-            for worker in to_relaunch:
-                del self.worker_spec[worker[0]]
-                asyncio.run(self.remove_launched_worker(worker))
-            tags.extend([worker[1] for worker in to_relaunch])
-            if self.status not in (Status.closing, Status.closed):
-                for tag in tags:
-                    new_worker = self.new_worker_spec(tag)
-                    self.worker_spec.update(dict(new_worker))
-                self.loop.add_callback(self._correct_state)
+        if self.exited or self.status in (Status.closing, Status.closed):
+            return
+        if tag is not None and tag not in self.containers:
+            logger.error(f"The tag ({tag}) given is not a recognized tag for any of the containers. "
+                        "Please add a container with this tag to the cluster by using "
+                        "add_container() and try again.")
+            return
+        tags = [tag for _ in range(n)]
+        for key, value in self.workers.items():
+            if value.status in (Status.closing, Status.closed, Status.closing_gracefully):
+                del self.worker_spec[key]
+        for tag in tags:
+            if tag in self.removed:
+                if self.removed[tag] > 0:
+                    self.removed[tag] -= 1
+                    continue
+            new_worker = self.new_worker_spec(tag)
+            self.worker_spec.update(dict(new_worker))
+        self.loop.add_callback(self._correct_state)
         if self.asynchronous:
             return NoOpAwaitable() 
         
+    def remove_workers(self, tag=None, n=0):
+        """Remove workers from the cluster.
+
+        Parameters
+        ----------
+        tag: str
+            The tag or the container type of the worker to be removed. 
+            Examples could include "gcam" for the gcam container and 
+            "stitches" for the stitches container.
+        n: int
+            The number of workers desired to be removed with the given tag.
+
+        Examples
+        --------
+        >>> cluster.remove_workers("gcam", 4)
+        
+        """
+        if self.exited:
+            return
+        if tag is not None and tag not in self.containers:
+            logger.error(f"The tag ({tag}) given is not a recognized tag for any of the containers. "
+                        "Please add a container with this tag to the cluster by using "
+                        "add_container() and try again.")
+            return
+        can_remove = [worker.name for worker in self.scheduler.idle.values() if tag in worker.name]
+        if n > len(can_remove):
+            can_remove.extend([worker_name for worker_name in list(self.worker_spec.keys()) if tag in worker_name])
+        current = len(can_remove)
+        if n > current:
+            logger.warn(f"Cannot remove {n} workers. Only {current} workers found, removing all.")
+            n = current
+        can_remove = can_remove[:n]
+        if n != 0 and self.status not in (Status.closing, Status.closed):
+            if tag not in self.removed:
+                self.removed[tag] = 0
+            self.removed[tag] += n
+            self.loop.spawn_callback(self.scheduler.retire_workers, names=can_remove)
+            for i in range(n):
+                del self.worker_spec[can_remove[i]]
+            self.loop.add_callback(self._correct_state)
+        if self.asynchronous:
+            return NoOpAwaitable()
+
     def _check_dead_workers(self):
         """Periodically check for dead workers. 
         
@@ -579,8 +644,31 @@ class JobQueueCluster(SpecCluster):
         next_call = time.time()
         while not self.exited:
             self.add_worker()
+            temp_file = tempfile.NamedTemporaryFile(mode='w+', delete=True)
+            temp_file_name = temp_file.name
+            temp_file.close()
+            with open(temp_file_name, 'w+') as temp_file:
+                temp_file.write("scalable")
+                temp_file.flush()
+                temp_file.seek(0) 
+                temp_file.read()
+            os.remove(temp_file_name)
             next_call = next_call + (60 * CHECK_DEAD_WORKER_PERIOD)
             time.sleep(next_call - time.time())
+    
+    def _get_dead_worker_tags(self):
+        """Get the list of dead workers. 
+        
+        This function returns the list of workers that are dead. 
+        """
+        dead_workers = []
+        for worker in self.launched:
+            if worker[0] not in self.workers:
+                dead_workers.append(worker)
+        for worker in dead_workers:
+            del self.worker_spec[worker[0]]
+            self.launched.remove(worker)
+        return [worker[1] for worker in dead_workers]
 
     def add_container(self, tag, dirs, path=None, cpus=None, memory=None):
         """Add containers to enable them launching as workers. 
@@ -651,6 +739,7 @@ class JobQueueCluster(SpecCluster):
             Dictionary containing the name and spec for the next worker
         """
         if tag not in self.specifications:
+            lock = self.new_spec["options"]["shared_lock"]
             self.specifications[tag] = copy.copy(self.new_spec)
             if tag not in self.containers:
                 raise ValueError(f"The tag ({tag}) given is not a recognized tag for any of the containers."
@@ -756,7 +845,9 @@ or by setting this value in the config file found in `~/.config/dask/jobqueue.ya
                     "Any calls made explicity or during execution can result " +
                     "in undefined behavior. " + "If called accidentally, an " +
                     "immediate shutdown and restart of the cluster is recommended.")
-        self.exited = True
+        if n is None or n == 0:
+            self.exited = True
+            logger.info("Cleaning workers...")
         return super().scale(jobs, memory=memory, cores=cores)
     
     

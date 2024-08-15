@@ -108,12 +108,12 @@ class ModelConfig:
         result = subprocess.run(list_avial_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         if result.returncode == 0:
             avail_containers = result.stdout.decode('utf-8').split('\n')
-            avail_containers = result.stdout.decode('utf-8').split('\n')
             try:
                 avail_containers.remove("build_env")
             except ValueError:
                 pass
             avail_containers = list(filter(bool, avail_containers))
+            avail_containers = [container.replace('\r', '') for container in avail_containers]
         else:
             logger.error("Failed to run sed command...manual entry of container info may be required")
             return
@@ -130,6 +130,8 @@ class ModelConfig:
                 container_path = os.path.abspath(os.path.join(cwd, "containers", f"{container}_container.sif"))
                 if not os.path.exists(container_path):
                     container_path = ""
+                if container not in self.config_dict:
+                    self.config_dict[container] = ModelConfig.default_spec()
                 self.config_dict[container]['Path'] = container_path
             with open(self.path, 'w') as config:
                 yaml.dump(self.config_dict, config)
@@ -214,8 +216,8 @@ class HardwareResources:
         Set the minimum amount of memory which should always be available.
     """
 
-    MIN_CPUS = 1
-    MIN_MEMORY = 2
+    MIN_CPUS = 10
+    MIN_MEMORY = 20
 
     def __init__(self):
         self.nodes = []
@@ -247,17 +249,15 @@ class HardwareResources:
             If the node is already stored. 
         """
         allotted = {'cpus': cpus, 'memory': memory, 'jobid': jobid}
+        ret = False
         if node not in self.assigned and node not in self.available:
             self.assigned[node] = allotted
             self.available[node] = allotted.copy()
             self.nodes.append(node)
             if jobid not in self.active:
                 self.active[jobid] = set()
-        else:
-            raise ValueError(
-                "The node already exists. New resources to an existing node"
-                " cannot be assigned. Please try again.\n"
-            )
+            ret = True
+        return ret
     
     def remove_jobid_nodes(self, jobid):
         """Remove all the nodes belonging to the given jobid. 
@@ -375,7 +375,7 @@ class HardwareResources:
         memory : int
             The amount of memory (in bytes) to reserve. 
         jobid : int
-            The jobid to which the node's allocation request belongs to. 
+            The jobid to which the node's allocation request belongs to.
 
         Raises
         ------
@@ -422,7 +422,7 @@ class HardwareResources:
                 self.active[self.available[node]['jobid']].remove(node)
         else:
             raise ValueError (
-                "The given node does not exist. Please try again.\n"
+                f"The given node does not exist. Please try again.\n"
             )
     
     
@@ -445,6 +445,36 @@ class HardwareResources:
             ret = False
         return ret
     
+    def is_assigned(self, jobid):
+        """Check if the given jobid corresponds to a real job. 
+
+        Parameters
+        ----------
+        jobid : int
+            The jobid to check for.
+
+        Returns
+        -------
+        bool
+            True if the jobid is in the list of removed jobids. False otherwise. 
+        """
+        ret = False
+        for node in self.nodes:
+            if self.assigned[node]['jobid'] == jobid:
+                ret = True
+                break
+        return ret
+    
+    def get_active_jobids(self):
+        """Get all the active jobids in the cluster. 
+
+        Returns
+        -------
+        list
+            A set containing all the active jobids in the cluster. 
+        """
+        return list(set(self.active.keys()))
+
     @staticmethod
     def set_min_free_cpus(cpus):
         HardwareResources.MIN_CPUS = cpus
@@ -570,12 +600,18 @@ class Container:
         ret['Dirs'] = self.directories
         return ret
 
-    def get_command(self):
+    def get_command(self, env_vars=None):
         """Return the command to run the container.
         
         The function assumes '--bind' to be the binding flag for the runtime
         application. The command is returned as a list of strings.
-        
+
+        Parameters
+        ----------
+        env_vars : dict
+            A dictionary containing the environment variables to be set in the 
+            container. Defaults to None.
+
         Returns
         -------
         list
@@ -587,6 +623,12 @@ class Container:
         command.append(Container.get_runtime())
         command.append(Container.get_runtime_directive())
         command.append("--userns")
+        command.append("--compat")
+        if env_vars is None:
+            env_vars = {}
+        for name, value in env_vars.items():
+            command.append("--env")
+            command.append(f"{name}={value}")
         for src, dst in self.directories.items():
             if dst is None or dst == "":
                 dst = src
