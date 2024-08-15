@@ -552,12 +552,7 @@ class JobQueueCluster(SpecCluster):
         )
 
     def add_worker(self, tag=None, n=0):
-        """Add workers to the cluster. 
-        
-        This is also the function which syncs the cluster to recognize any 
-        dead, expired, or revoked workers. Cleaning up such workers and 
-        relaunching them is done here. Only cleanup and replacement of dead 
-        workers is performed when called with no or defalt arguments. 
+        """Add workers to the cluster.  
 
         Parameters
         ----------
@@ -597,6 +592,22 @@ class JobQueueCluster(SpecCluster):
             return NoOpAwaitable() 
         
     def remove_workers(self, tag=None, n=0):
+        """Remove workers from the cluster.
+
+        Parameters
+        ----------
+        tag: str
+            The tag or the container type of the worker to be removed. 
+            Examples could include "gcam" for the gcam container and 
+            "stitches" for the stitches container.
+        n: int
+            The number of workers desired to be removed with the given tag.
+
+        Examples
+        --------
+        >>> cluster.remove_workers("gcam", 4)
+        
+        """
         if self.exited:
             return
         if tag is not None and tag not in self.containers:

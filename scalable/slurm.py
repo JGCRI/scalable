@@ -14,7 +14,6 @@ RECOVERY_DELAY = 3
 
 class SlurmJob(Job):
 
-
     # Override class variables
     cancel_command = "scancel"
 
@@ -171,6 +170,9 @@ class SlurmCluster(JobQueueCluster):
     job_cls = SlurmJob
 
     def close(self, timeout: float | None = None) -> Awaitable[None] | None:
+        """Close the cluster
+
+        This closes all running jobs and the scheduler."""
         active_jobs = self.hardware.get_active_jobids()
         jobs_command = "squeue -o \"%i %t\" -u $(whoami) | sed '1d'"
         result = subprocess.run(jobs_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
