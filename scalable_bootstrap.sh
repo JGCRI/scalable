@@ -110,10 +110,12 @@ flush
 ssh -t $user@$host \
 "{
     [[ -d \"$work_dir\" ]] && 
+    [[ -d \"$work_dir/logs\" ]] &&
     echo '$work_dir already exists on remote'
 } || 
 {
     mkdir -p $work_dir
+    mkdir -p $work_dir/logs
 }"
 check_exit_code $?
 
@@ -236,16 +238,26 @@ docker run --rm -v /$(pwd):/host -v /$HOME/.ssh:/root/.ssh scalable_container \
     bash -c "chmod 700 /root/.ssh && chmod 600 ~/.ssh/* \
     && cd /host \
     && rsync -aP --include '*.sif' containers $user@$host:~/$work_dir \
-    && rsync -aP --include '*.sh' run_scripts $user@$host:~/$work_dir \
-    && rsync -aP Dockerfile $user@$host:~/$work_dir/scalable"
+    && rsync -aP --include '*.sh' run_scripts $user@$host:~/$work_dir"
 check_exit_code $?
+
+if [[ -f "Dockerfile" ]]; then
+    flush
+    docker run --rm -v /$(pwd):/host -v /$HOME/.ssh:/root/.ssh scalable_container \
+        bash -c "chmod 700 /root/.ssh && chmod 600 ~/.ssh/* \
+        && cd /host \
+        && rsync -aP Dockerfile $user@$host:~/$work_dir"
+    check_exit_code $?
+fi
 
 ssh -L 8787:deception.pnl.gov:8787 -t $user@$host \
 "{
     module load apptainer/$APPTAINER_VERSION && 
     cd $work_dir &&
     $SHELL --rcfile <(echo \". $RC_FILE; 
-    alias python3='./communicator -s & \
-    apptainer exec --userns --compat --home ~/$work_dir --cwd ~/$work_dir ~/$work_dir/containers/scalable_container.sif python3 ; 
-    pkill -9 communicator' \"); 
+    python3() {
+        ./communicator -s >> logs/communicator.log &
+        apptainer exec --userns --compat --home ~/$work_dir --cwd ~/$work_dir ~/$work_dir/containers/scalable_container.sif python3 \\\$@
+        pkill -9 communicator
+    } \" ); 
 }"
