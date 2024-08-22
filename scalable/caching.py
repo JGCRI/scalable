@@ -10,8 +10,7 @@ import dill
 from .common import logger, cachedir, SEED
 
 class GenericType:
-    """
-    The GenericType class is a base class for all types that can be hashed.
+    """The GenericType class is a base class for all types that can be hashed.
 
     Parameters
     ----------
@@ -23,8 +22,7 @@ class GenericType:
         self.value = value
 
 class FileType(GenericType):
-    """
-    The FileType class is used to hash files.
+    """The FileType class is used to hash files.
 
     Parameters
     ----------
@@ -45,8 +43,7 @@ class FileType(GenericType):
         return digest
 
 class DirType(GenericType):
-    """
-    The DirType class is used to hash directories.
+    """The DirType class is used to hash directories.
     
     Parameters
     ----------
@@ -75,8 +72,7 @@ class DirType(GenericType):
         return digest
 
 class ValueType(GenericType):
-    """
-    The ValueType class is used to hash generic values such as int, str, 
+    """The ValueType class is used to hash generic values such as int, str, 
     float, bytes, etc. 
     
     Parameters
@@ -93,8 +89,7 @@ class ValueType(GenericType):
         return digest
 
 class ObjectType(GenericType):
-    """
-    The ObjectType class is used to hash objects, with primary support for 
+    """The ObjectType class is used to hash objects, with primary support for 
     lists and dicts. Pickle is used to hash such objects.
     
     Parameters

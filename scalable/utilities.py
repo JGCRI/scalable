@@ -3,7 +3,9 @@ import yaml
 import os
 import asyncio
 from dask.utils import parse_bytes
+from importlib.resources import files
 import re
+import sys
 
 from .common import logger
 
@@ -25,7 +27,6 @@ async def get_cmd_comm(port, communicator_path=None):
     -------
     asyncio.subprocess.Process
         The communicator client process.
-    
     """
     if communicator_path is None:
         communicator_path = "./communicator"
@@ -57,11 +58,17 @@ def get_comm_port(logpath=None):
                     break
     return ret
 
-
+def run_bootstrap():
+    bootstrap_location = files('scalable').joinpath('scalable_bootstrap.sh')
+    print(bootstrap_location)
+    sys.stdout.flush()
+    result = subprocess.run(["/bin/bash", bootstrap_location], stdin=sys.stdin, 
+                            stdout=sys.stdout, stderr=sys.stderr)
+    if result.returncode != 0:
+        sys.exit(result.returncode)
 
 class ModelConfig:
-    """
-    ModelConfig class to represent the resource requirements for each model
+    """ModelConfig class to represent the resource requirements for each model
     or container in the cluster. 
 
     Essentially a wrapper around config_dict.yaml which stores information 
@@ -95,7 +102,6 @@ class ModelConfig:
             A flag to determine if the config_dict should be overwritten with
             fresh data or older data such as previously set binded directories.
             Defaults to True so a new config_dict is made.
-        
         """
         # HARDCODING CURRENT DIRECTORY
         self.config_dict = {}
@@ -171,8 +177,8 @@ class ModelConfig:
 
 
 class HardwareResources:
-    """
-    HardwareResources class is used for storing details about allocated nodes.
+    """HardwareResources class is used for storing details about allocated 
+    nodes.
 
     The class is essentially a set of dictionaries which track allocated and
     available nodes along with details like cpu cores and memory on each node.
@@ -456,7 +462,7 @@ class HardwareResources:
         Returns
         -------
         bool
-            True if the jobid is in the list of removed jobids. False otherwise. 
+            True if the jobid is in the list of removed jobids. False otherwise.
         """
         ret = False
         for node in self.nodes:
@@ -486,8 +492,7 @@ class HardwareResources:
 
 
 class Container:
-    """
-    Container class to store information about the program containers. 
+    """Container class to store information about the program containers. 
 
     These containers store the program along with any dependencies the program
     may need to run. They also store the necessary libraries needed to connect 

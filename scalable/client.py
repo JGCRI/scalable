@@ -128,7 +128,7 @@ class ScalableClient(Client):
                               allow_other_workers=allow_other_workers, 
                               actor=actor, 
                               actors=actors, 
-                              pure=pure, 
+                              pure=False, 
                               **kwargs)
 
     
