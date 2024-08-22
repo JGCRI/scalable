@@ -1,13 +1,20 @@
 # Scalable
 
-Scalable is a Python library which aids in running complex workflows on HPCs by orchestrating multiple containers, requesting appropriate HPC jobs to the scheduler, and providing a python environment for distributed computing. It's designed to be primarily used with JGCRI Climate Models but can be easily adapted for any arbritrary uses.
+Scalable is a Python library which aids in running complex workflows on HPCs by orchestrating multiple containers, requesting appropriate HPC jobs to the scheduler, and providing a python environment for distributed computing. It's designed to be primarily used with JGCRI Climate Models but can be easily adapted for any arbitrary uses.
 
 ## Installation
 
 Use the package manager [pip](https://pip.pypa.io/en/stable/) to install scalable.
 
 ```bash
-pip install scalable
+[user@localhost ~]$ pip install scalable
+```
+
+Alternatively, the git repo can be cloned directly and installed locally. The git repo should be cloned to the preferred working directory. 
+
+```bash
+[user@localhost <local_work_dir>]$ git clone https://github.com/JGCRI/scalable.git
+[user@localhost <local_work_dir>]$ pip install ./scalable
 ```
 
 ## Setup
@@ -19,18 +26,18 @@ For Windows users, Git Bash is recommended for bootstrapping. For MacOS users, -
 
 HPC Schedulers Supported: Slurm
 
-Tools required on HPC Host: apptainer
+Tools required on HPC Host: apptainer\
 Tools required on Local Host: docker
 
 ### Work Directory Setup
 
-A work directory needs to be setup on the HPC host which would ensure the presence and a structured location for all required dependencies and any outputs. The provided bootstrap script helps in setting up the work directory and the containers which would be used as workers. **It is highly recommended to use the bootstrap script to use scalable.**
+A work directory needs to be setup on the HPC host which would ensure the presence and a structured location for all required dependencies and any outputs. The provided bootstrap script helps in setting up the work directory and the containers which would be used as workers. **It is highly recommended to use the bootstrap script to use scalable.** Moreover, since the bootstrap scripts attempts to connect to the HPC host multiple times, **it is also highly recommended to have password-less ssh login enabled through private keys.** Otherwise, a password would need to be entered up to 15 times when running the script only once. A guide to setup key based authentication could be found [here](https://www.digitalocean.com/community/tutorials/how-to-configure-ssh-key-based-authentication-on-a-linux-server).
 
 Once scalable is installed through pip, navigate to a directory on your local computer where the bootstrap script can place containers, logs, and any other required dependency. The bootstrap script downloads and builds files both on your local system and the HPC system. 
 
 ```bash
 [user@localhost ~]$ cd <local_work_dir>
-[user@localhost ~]$ scalable_bootstrap.sh
+[user@localhost <local_work_dir>]$ scalable_bootstrap
 ```
 
 Follow and answer the prompts in the bootstrap script. All the dependencies will be automatically downloaded. Once everything has been downloaded and built, the script will initiate a SSH Session with the HPC Host logging in the user to the work directory on the HPC. 
@@ -117,13 +124,43 @@ The functions will print to the logs of whichever worker they ran on. Futures ar
 
 The cluster can optionally be closed on exit. Automatic exit is supported. **It is recommended to check with the job scheduler on the HPC Host for any pending/zombie jobs.** Although, the cluster should cancel any such jobs on exit. 
 
-## Contributing
+### Function Caching
 
-Pull requests are welcome. For major changes, please open an issue first
-to discuss what you would like to change.
+To prevent wastage of resources and time in the case of a crash, workers getting disconnected, or simply the walltime running out, function caching is supported to avoid running functions which have already been ran before. To make any function cacheable, just using the decorator should suffice. 
 
-Please make sure to update tests as appropriate.
+```python
+from scalable import cacheable
+import time
 
-## License
+@cacheable(return_type=str, param=str)
+def func1(param):
+    import gcam
+    time.sleep(5)
+    print(f"{param=} {gcam.__version__}")
+    return gcam.__version__
 
-[MIT](https://choosealicense.com/licenses/mit/)
+@cacheable(return_type=str, recompute=True, param=str)
+def func2(param):
+    import stitches
+    time.sleep(3)
+    print(f"{param=} {stitches.__version__}")
+    return stitches.__version__
+
+@cacheable
+def func3(param):
+    import osiris
+    time.sleep(10)
+    print(f"{param=} {osiris.__version__}")
+    return osiris.__version__
+
+```
+
+In the example above, the functions will wait 5, 3, and 10 seconds for the first time they are computed. However, their results will be cached due to the decorator and so, if the functions are ran again with the same arguments, their results are going to be returned from memory instead and they wouldn't sleep. There are arguments which directly can be given to the cacheable decorator. **It is always recommended to specify the return type and the type of arguments for each use.** This ensures expected functioning of the module and for correct caching. --TODO--
+
+## Contact
+
+For any contribution, questions, or requests, please feel free to [open an issue](https://github.com/JGCRI/scalable/issues) or contact us directly:
+**Shashank Lamba** [shashank.lamba@pnnl.gov](mailto:shashank.lamba@pnnl.gov)
+**Pralit Patel** [pralit.patel@pnnl.gov](mailto:pralit.patel@pnnl.gov)
+
+## [License](https://github.com/JGCRI/scalable/blob/master/LICENSE.md)
