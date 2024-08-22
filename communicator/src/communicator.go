@@ -58,6 +58,7 @@ func main() {
 	} else if arguments[0] == "-c" {
 		client, err := net.Dial(CONNECTION_TYPE, DEFAULT_HOST+":"+listen_port)
 		if err != nil {
+			fmt.Println("Couldn't connect to server")
 			gracefulExit()
 		}
 		defer client.Close()

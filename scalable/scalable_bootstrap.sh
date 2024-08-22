@@ -3,7 +3,7 @@
 GO_VERSION_LINK="https://go.dev/VERSION?m=text"
 GO_DOWNLOAD_LINK="https://go.dev/dl/*.linux-amd64.tar.gz"
 SCALABLE_REPO="https://github.com/JGCRI/scalable.git"
-APPTAINER_VERSION="1.3.1"
+APPTAINER_VERSION="1.3.2"
 
 # set -x
 
@@ -64,10 +64,19 @@ prompt "$RED" "Enter Work Directory Name \
 (created in home directory of remote system or if it already exists): "
 work_dir=$input
 
+echo -e "${GREEN}To prevent local environment setup every time on launch, please run the \
+scalable_bootstrap script from the same directory each time.${NC}"
+
 prompt "$RED" "Do you want to build and transfer containers? (Y/n): "
 transfer=$input
 build=()
 if [[ "$transfer" =~ [Yy]|^[Yy][Ee]|^[Yy][Ee][Ss]$ ]]; then
+    if [[ ! -f "Dockerfile" ]]; then
+        flush
+        echo -e "${YELLOW}Dockefile not found in current directory. Downloading from remote...${NC}"
+        wget "https://raw.githubusercontent.com/JGCRI/scalable/master/Dockerfile"
+        check_exit_code $?
+    fi
     echo -e "${YELLOW}Available container targets: ${NC}"
     avail=$(sed -n -E 's/^FROM[[:space:]]{1,}[^ ]{1,}[[:space:]]{1,}AS[[:space:]]{1,}([^ ]{1,})$/\1/p' Dockerfile)
     check_exit_code $?
@@ -148,9 +157,7 @@ flush
 ssh -t $user@$host \
 "{ 
     [[ -f \"$work_dir/communicator\" ]] && 
-    echo '$work_dir/communicator file already exists on remote' 
-} || 
-{
+    echo '$work_dir/communicator file already exists on remote' &&
     [[ -f \"$work_dir/scalable/communicator/communicator\" ]] && 
     cp $work_dir/scalable/communicator/communicator $work_dir/.
 } ||
@@ -189,7 +196,7 @@ if [[ "$transfer" =~ [Yy]|^[Yy][Ee]|^[Yy][Ee][Ss]$ ]]; then
         check_exit_code $?
         
         flush
-        docker run --rm -v /$(pwd)/run_scripts:/run_scripts $target\_container \
+        docker run --rm --mount type=bind,source=/$(pwd)/run_scripts,target=/run_scripts $target\_container \
         bash -c "cp /root/.bashrc /run_scripts/$target\_script.sh"
         check_exit_code $?
 
@@ -207,11 +214,19 @@ if [[ "$transfer" =~ [Yy]|^[Yy][Ee]|^[Yy][Ee][Ss]$ ]]; then
 
     done
 
+    rebuild="false"
     docker images | grep apptainer_container
     if [ "$?" -ne 0 ]; then
+        rebuild="true"
+    fi
+    current_version=$(docker run --rm apptainer_container version)
+    if [ "$current_version" != "$APPTAINER_VERSION" ]; then
+        rebuild="true"
+    fi
+    if [ "$rebuild" == "true" ]; then
         flush
         APPTAINER_COMMITISH="v$APPTAINER_VERSION"
-        docker build --userns --target apptainer --build-arg APPTAINER_COMMITISH=$APPTAINER_COMMITISH \
+        docker build --target apptainer --build-arg APPTAINER_COMMITISH=$APPTAINER_COMMITISH \
         --build-arg APPTAINER_TMPDIR=$APPTAINER_TMPDIR --build-arg APPTAINER_CACHEDIR=$APPTAINER_CACHEDIR \
         -t apptainer_container .
         check_exit_code $?
@@ -224,7 +239,7 @@ if [[ "$transfer" =~ [Yy]|^[Yy][Ee]|^[Yy][Ee][Ss]$ ]]; then
         IMAGE_TAG=$(docker images | grep $target\_container | sed -E 's/[\t ][\t ]*/ /g' | cut -d ' ' -f 2)
         flush
         docker run --rm -v //var/run/docker.sock:/var/run/docker.sock -v /$(pwd):/work -v /$(pwd)/tmp-apptainer:/tmp-apptainer \
-        apptainer_container build --force containers/$target\_container.sif docker-daemon://$IMAGE_NAME:$IMAGE_TAG
+        apptainer_container build --userns --force containers/$target\_container.sif docker-daemon://$IMAGE_NAME:$IMAGE_TAG
         check_exit_code $?
     done
     
@@ -238,17 +253,9 @@ docker run --rm -v /$(pwd):/host -v /$HOME/.ssh:/root/.ssh scalable_container \
     bash -c "chmod 700 /root/.ssh && chmod 600 ~/.ssh/* \
     && cd /host \
     && rsync -aP --include '*.sif' containers $user@$host:~/$work_dir \
-    && rsync -aP --include '*.sh' run_scripts $user@$host:~/$work_dir"
+    && rsync -aP --include '*.sh' run_scripts $user@$host:~/$work_dir \
+    && rsync -aP Dockerfile $user@$host:~/$work_dir"
 check_exit_code $?
-
-if [[ -f "Dockerfile" ]]; then
-    flush
-    docker run --rm -v /$(pwd):/host -v /$HOME/.ssh:/root/.ssh scalable_container \
-        bash -c "chmod 700 /root/.ssh && chmod 600 ~/.ssh/* \
-        && cd /host \
-        && rsync -aP Dockerfile $user@$host:~/$work_dir"
-    check_exit_code $?
-fi
 
 ssh -L 8787:deception.pnl.gov:8787 -t $user@$host \
 "{
@@ -257,7 +264,8 @@ ssh -L 8787:deception.pnl.gov:8787 -t $user@$host \
     $SHELL --rcfile <(echo \". $RC_FILE; 
     python3() {
         ./communicator -s >> logs/communicator.log &
+        COMMUNICATOR_PID=\\\$!
         apptainer exec --userns --compat --home ~/$work_dir --cwd ~/$work_dir ~/$work_dir/containers/scalable_container.sif python3 \\\$@
-        pkill -9 communicator
+        kill -9 \\\$COMMUNICATOR_PID
     } \" ); 
 }"

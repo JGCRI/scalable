@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools", "versioneer"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scalable"
+dynamic = ["version"]
+description = "Assist with running models on job queing systems like Slurm"
+authors = [
+    { name = "Shashank Lamba", email = "shashank.lamba@pnnl.gov" },
+    { name = "Pralit Patel", email = "pralit.patel@pnnl.gov" }
+]
+maintainers = [
+    { name = "Shashank Lamba", email = "shashank.lamba@pnnl.gov" }
+]
+readme = "README.md"
+license = {file = "LICENSE.md"}
+requires-python = ">=3.9"
+dependencies = [
+    "cryptography>=42.0.8",
+    "dask>=2022.02.0",
+    "dill>=0.3.8",
+    "diskcache>=5.6.3",
+    "distributed>=2022.02.0",
+    "joblib>=1.3.2",
+    "xxhash>=3.4.1",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Topic :: System :: Distributed Computing",
+    "License :: OSI Approved :: BSD License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3 :: Only",
+]
+
+[project.optional-dependencies]
+test = [
+    "cryptography",
+    "pytest",
+    "pytest-asyncio",
+]
+
+[project.urls]
+"Github" = "https://github.com/JGCRI/scalable/tree/master/scalable"
+"Homepage" = "https://www.pnnl.gov"
+
+[project.scripts]
+scalable_bootstrap = "scalable.utilities:run_bootstrap"
+
+[tool.setuptools.package-data]
+scalable = ["scalable_bootstrap.sh", "Dockerfile"]
+
+[tool.versioneer]
+VCS = "git"
+style = "pep440"
+versionfile_source = "scalable/_version.py"
+versionfile_build = "scalable/_version.py"
+tag_prefix = ""
+parentdir_prefix = "scalable-"

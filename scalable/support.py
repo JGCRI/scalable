@@ -145,7 +145,8 @@ def parse_nodelist(nodelist):
     Returns
     -------
     list
-        The list of nodes."""
+        The list of nodes.
+    """
     nodes = []
     matched = re.search(r'\[(.*)\]', nodelist)
     if matched:
@@ -183,7 +184,8 @@ def create_logs_folder(folder, worker_name):
     Returns
     -------
     str
-        The path to the newly created logs folder."""
+        The path to the newly created logs folder.
+    """
     current_datetime = datetime.now()
     formatted_datetime = current_datetime.strftime("%Y%m%d_%H%M%S")
     folder_name = f"{worker_name}_{formatted_datetime}_logs"

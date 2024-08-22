@@ -31,7 +31,6 @@ setup(
     python_requires=">=3.8",
     license="BSD-2-Clause",
     packages=["scalable"],
-    scripts=["scalable_bootstrap.sh"],
     include_package_data=True,
     install_requires=install_requires,
     tests_require=["pytest >= 2.7.1"],

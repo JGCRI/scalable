@@ -113,7 +113,7 @@ cluster_parameters = """
 
 
 class Job(ProcessInterface, abc.ABC):
-    """ Base class to launch Dask workers on Job queues
+    """Base class to launch Dask workers on Job queues
 
     This class should not be used directly, use a class appropriate for
     your queueing system (e.g. PBScluster or SLURMCluster) instead.
@@ -330,9 +330,7 @@ class Job(ProcessInterface, abc.ABC):
         return job_id
 
     async def close(self):
-        """
-        Close the current worker. 
-        """
+        """Close the current worker. """
         logger.debug("Stopping worker: %s job: %s", self.name, self.job_id)
         await self._close_job(self.job_id, self.cancel_command, self.comm_port)
 
@@ -758,7 +756,9 @@ class JobQueueCluster(SpecCluster):
         return {new_worker_name: self.specifications[tag]}
     
     def _get_worker_security(self, security):
-        """Dump temporary parts of the security object into a shared_temp_directory"""
+        """Dump temporary parts of the security object into a 
+        shared_temp_directory.
+        """
         if security is None:
             return None
 
