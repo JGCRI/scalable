@@ -2,7 +2,7 @@
 
 from os.path import exists
 
-from .versioneer import get_version, get_cmdclass
+from versioneer import get_version, get_cmdclass
 from setuptools import setup
 
 with open("requirements.txt") as f:
