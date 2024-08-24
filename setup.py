@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from setuptools import setup
-from . import versioneer
+import versioneer
 
 setup(
     name="scalable",
