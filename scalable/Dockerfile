@@ -9,7 +9,7 @@ RUN apt-get -y update && apt-get install -y \
     ssh nano locate curl net-tools netcat-traditional git python3 python3-pip \
     python3-dev gcc libboost-python1.74 libboost-numpy1.74 openjdk-11-jre-headless libtbb12 rsync
 RUN apt-get -y update && apt -y upgrade
-RUN pip3 install --upgrade dask[complete] dask-jobqueue dask_mpi pyyaml joblib xarray
+RUN pip3 install --upgrade dask[complete] dask-jobqueue dask_mpi pyyaml joblib versioneer tomli xarray
 RUN apt-get -y update && apt -y upgrade
 RUN apt-get install -y --no-install-recommends r-base r-base-dev
 RUN apt-get install -y --no-install-recommends python3-rpy2
