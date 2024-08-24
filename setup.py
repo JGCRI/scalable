@@ -2,7 +2,7 @@
 
 from os.path import exists
 
-import versioneer
+from .versioneer import get_version, get_cmdclass
 from setuptools import setup
 
 with open("requirements.txt") as f:
@@ -24,8 +24,8 @@ else:
 
 setup(
     name="scalable",
-    version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass(),
+    version=get_version(),
+    cmdclass=get_cmdclass(),
     description="Assist with running models on job queing systems like Slurm",
     url="https://www.pnnl.gov",
     python_requires=">=3.8",
