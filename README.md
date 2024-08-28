@@ -1,4 +1,5 @@
-# Scalable
+# Scalable 
+[v0.6](https://github.com/JGCRI/scalable/tree/0.6.0)
 
 Scalable is a Python library which aids in running complex workflows on HPCs by orchestrating multiple containers, requesting appropriate HPC jobs to the scheduler, and providing a python environment for distributed computing. It's designed to be primarily used with JGCRI Climate Models but can be easily adapted for any arbitrary uses.
 
@@ -22,7 +23,7 @@ Alternatively, the git repo can be cloned directly and installed locally. The gi
 ### Compatibility Requirements
 
 Docker is needed to run the bootstrap script. The script itself is preferred to be ran in a linux environment. 
-For Windows users, Git Bash is recommended for bootstrapping. For MacOS users, ----- TODO -----
+For Windows users, Git Bash is recommended for bootstrapping. For MacOS users, just the terminal app should suffice.
 
 HPC Schedulers Supported: Slurm
 
