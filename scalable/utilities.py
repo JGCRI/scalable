@@ -60,8 +60,6 @@ def get_comm_port(logpath=None):
 
 def run_bootstrap():
     bootstrap_location = files('scalable').joinpath('scalable_bootstrap.sh')
-    print(bootstrap_location)
-    sys.stdout.flush()
     result = subprocess.run(["/bin/bash", bootstrap_location], stdin=sys.stdin, 
                             stdout=sys.stdout, stderr=sys.stderr)
     if result.returncode != 0:
@@ -194,7 +192,7 @@ class HardwareResources:
         A dictionary containing the available number of cpu cores and the 
         available amount of memory for each allocated node. 
     active : dict
-         A dictionary containing the set of nodes allocated for each job 
+        A dictionary containing the set of nodes allocated for each job 
         requested by the cluster. The jobid is used as a key to a set object
         containing the names of all the allocated nodes.
 
