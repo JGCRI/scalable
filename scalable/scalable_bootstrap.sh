@@ -239,7 +239,7 @@ if [[ "$transfer" =~ [Yy]|^[Yy][Ee]|^[Yy][Ee][Ss]$ ]]; then
         IMAGE_TAG=$(docker images | grep $target\_container | sed -E 's/[\t ][\t ]*/ /g' | cut -d ' ' -f 2)
         flush
         docker run --rm -v //var/run/docker.sock:/var/run/docker.sock -v /$(pwd):/work -v /$(pwd)/tmp-apptainer:/tmp-apptainer \
-        apptainer_container build --userns --force //work/containers/$target\_container.sif docker-daemon://$IMAGE_NAME:$IMAGE_TAG
+        apptainer_container build --userns --force containers/$target\_container.sif docker-daemon://$IMAGE_NAME:$IMAGE_TAG
         check_exit_code $?
     done
     
