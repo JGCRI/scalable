@@ -30,7 +30,7 @@ RUN eval "$(/root/miniconda3/bin/conda shell.bash hook)" \
 ENV PATH /root/miniconda3/bin:$PATH
 RUN conda init
 
-FROM build_env as scalable
+FROM build_env AS scalable
 ADD "https://api.github.com/repos/JGCRI/scalable/commits?per_page=1" latest_commit
 RUN git clone https://github.com/JGCRI/scalable.git /scalable
 RUN pip3 install /scalable/.
