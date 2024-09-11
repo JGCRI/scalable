@@ -42,11 +42,11 @@ class ScalableClient(Client):
         Parameters
         ----------
         func : callable
-            Callable to be scheduled as ``func(*args **kwargs)``. If ``func`` returns a
-            coroutine, it will be run on the main event loop of a worker. Otherwise
-            ``func`` will be run in a worker's task executor pool (see
-            ``Worker.executors`` for more information.)
-        *args : tuple
+            Callable to be scheduled as ``func(*args,**kwargs)``. If ``func`` 
+            returns a coroutine, it will be run on the main event loop of a 
+            worker. Otherwise ``func`` will be run in a worker's task executor 
+            pool (see ``Worker.executors`` for more information.)
+        \*args : tuple
             Optional positional arguments
         key : str
             Unique identifier for the task.  Defaults to function-name and hash
@@ -72,7 +72,6 @@ class ScalableClient(Client):
             may be performed on workers that are not in the `workers` set(s).
         actor : bool (default False)
             Whether this task should exist on the worker as a stateful actor.
-            See :doc:`actors` for additional details.
         actors : bool (default False)
             Alias for `actor`
         pure : bool (defaults to True)
@@ -80,21 +79,23 @@ class ScalableClient(Client):
             impure functions like ``np.random.random``. Note that if both
             ``actor`` and ``pure`` kwargs are set to True, then the value
             of ``pure`` will be reverted to False, since an actor is stateful.
-            See :ref:`pure functions` for more details.
-        **kwargs
+        \*\*kwargs : dict
+            Optional key-value pairs to be passed to the function.
 
         Examples
         --------
-        >>> c = client.submit(add, a, b)  # doctest: +SKIP
+        >>> c = client.submit(add, a, b)
 
         Notes
         -----
-        The current implementation of a task graph resolution searches for occurrences of ``key``
-        and replaces it with a corresponding ``Future`` result. That can lead to unwanted
-        substitution of strings passed as arguments to a task if these strings match some ``key``
-        that already exists on a cluster. To avoid these situations it is required to use unique
-        values if a ``key`` is set manually.
-        See https://github.com/dask/dask/issues/9969 to track progress on resolving this issue.
+        The current implementation of a task graph resolution searches for 
+        occurrences of ``key`` and replaces it with a corresponding ``Future`` 
+        result. That can lead to unwanted substitution of strings passed as 
+        arguments to a task if these strings match some ``key`` that already 
+        exists on a cluster. To avoid these situations it is required to use 
+        unique values if a ``key`` is set manually. See 
+        https://github.com/dask/dask/issues/9969 to track progress on resolving 
+        this issue.
 
         Returns
         -------
@@ -105,14 +106,10 @@ class ScalableClient(Client):
         Raises
         ------
         TypeError
-            If 'func' is not callable, a TypeError is raised
+            If 'func' is not callable, a TypeError is raised.
         ValueError
             If 'allow_other_workers'is True and 'workers' is None, a
-            ValueError is raised
-
-        See Also
-        --------
-        Client.map : Submit on many arguments at once
+            ValueError is raised.
         """
         resources = None
         if tag is not None:
