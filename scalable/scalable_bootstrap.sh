@@ -4,6 +4,7 @@ GO_VERSION_LINK="https://go.dev/VERSION?m=text"
 GO_DOWNLOAD_LINK="https://go.dev/dl/*.linux-amd64.tar.gz"
 SCALABLE_REPO="https://github.com/JGCRI/scalable.git"
 APPTAINER_VERSION="1.3.2"
+DEFAULT_PORT="1919"
 
 # set -x
 
@@ -112,6 +113,8 @@ if [[ "$transfer" =~ [Yy]|^[Yy][Ee]|^[Yy][Ee][Ss]$ ]]; then
     done
 fi
 
+exist=$(ssh $user@$host "[[ -f $work_dir/containers/scalable_container.sif ]]")
+
 echo -e "${YELLOW}To reinstall any directory or file already on remote, \
 please delete it from remote and run this script again${NC}"
 
@@ -179,6 +182,17 @@ mkdir -p tmp-apptainer/cache
 APPTAINER_TMPDIR="/tmp-apptainer/tmp"
 APPTAINER_CACHEDIR="/tmp-apptainer/cache"
 
+ssh $user@$host "[[ -f $work_dir/containers/scalable_container.sif ]]"
+exist=$(echo $?)
+if [[ "$exist" -eq 0 ]]; then
+    docker images | grep scalable_container
+    exist=$(echo $?)
+fi
+if [[ "$exist" -ne 0 ]]; then
+    transfer=Y
+    build+=("scalable")
+fi
+
 if [[ "$transfer" =~ [Yy]|^[Yy][Ee]|^[Yy][Ee][Ss]$ ]]; then
 
     flush
@@ -239,7 +253,7 @@ if [[ "$transfer" =~ [Yy]|^[Yy][Ee]|^[Yy][Ee][Ss]$ ]]; then
         IMAGE_TAG=$(docker images | grep $target\_container | sed -E 's/[\t ][\t ]*/ /g' | cut -d ' ' -f 2)
         flush
         docker run --rm -v //var/run/docker.sock:/var/run/docker.sock -v /$(pwd):/work -v /$(pwd)/tmp-apptainer:/tmp-apptainer \
-        apptainer_container build --userns --force containers/$target\_container.sif docker-daemon://$IMAGE_NAME:$IMAGE_TAG
+        apptainer_container build --userns --force //work/containers/$target\_container.sif docker-daemon://$IMAGE_NAME:$IMAGE_TAG
         check_exit_code $?
     done
     
@@ -257,15 +271,24 @@ docker run --rm -v /$(pwd):/host -v /$HOME/.ssh:/root/.ssh scalable_container \
     && rsync -aP Dockerfile $user@$host:~/$work_dir"
 check_exit_code $?
 
+COMM_PORT=$DEFAULT_PORT
+ssh $user@$host "netstat -tuln | grep :$COMM_PORT"
+while [ $? -eq 0 ]
+do
+    COMM_PORT=$(awk -v min=1024 -v max=49151 'BEGIN{srand(); print int(min+rand()*(max-min+1))}')
+    check_exit_code $?
+    ssh $user@$host "netstat -tuln | grep :$COMM_PORT"
+done
+
 ssh -L 8787:deception.pnl.gov:8787 -t $user@$host \
 "{
     module load apptainer/$APPTAINER_VERSION && 
     cd $work_dir &&
     $SHELL --rcfile <(echo \". $RC_FILE; 
     python3() {
-        ./communicator -s >> logs/communicator.log &
+        ./communicator -s $COMM_PORT >> logs/communicator.log &
         COMMUNICATOR_PID=\\\$!
-        apptainer exec --userns --compat --home ~/$work_dir --cwd ~/$work_dir ~/$work_dir/containers/scalable_container.sif python3 \\\$@
+        apptainer exec --userns --compat --env COMM_PORT=$COMM_PORT --home ~/$work_dir --cwd ~/$work_dir ~/$work_dir/containers/scalable_container.sif python3 \\\$@
         kill -9 \\\$COMMUNICATOR_PID
     } \" ); 
 }"
