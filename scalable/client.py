@@ -1,13 +1,12 @@
 from collections.abc import Awaitable
-from distributed import Scheduler, Client
+from distributed import Client, Scheduler
 from distributed.diagnostics.plugin import SchedulerPlugin
 
-
 from .common import logger
-from .slurm import SlurmJob, SlurmCluster
+from .slurm import SlurmCluster, SlurmJob
+
 
 class SlurmSchedulerPlugin(SchedulerPlugin):
-
     def __init__(self, cluster):
         self.cluster = cluster
         super().__init__()    
@@ -127,9 +126,4 @@ class ScalableClient(Client):
                               actors=actors, 
                               pure=False, 
                               **kwargs)
-
     
-    
-    
-    
-        
