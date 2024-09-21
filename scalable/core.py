@@ -1,28 +1,27 @@
-from contextlib import suppress
+
+import abc
+import asyncio
+import copy
 import os
 import re
 import shlex
 import sys
-import abc
 import tempfile
 import threading
 import time
-import copy
 import warnings
-import asyncio
 
+from contextlib import suppress
 from dask.utils import parse_bytes
-
 from distributed.core import Status
 from distributed.deploy.spec import ProcessInterface, SpecCluster
 from distributed.scheduler import Scheduler
 from distributed.security import Security
 from distributed.utils import NoOpAwaitable
 
-from .utilities import *
-from .support import *
-
 from .common import logger
+from .support import *
+from .utilities import *
 
 DEFAULT_WORKER_COMMAND = "distributed.cli.dask_worker"
 
@@ -439,6 +438,8 @@ class JobQueueCluster(SpecCluster):
         **job_kwargs
     ):
         
+        if comm_port is None:
+            comm_port = os.getenv("COMM_PORT")
         if comm_port is None:
             raise ValueError(
                 "Communicator port not given. You must specify the communicator port "
