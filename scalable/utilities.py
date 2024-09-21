@@ -1,12 +1,12 @@
-import subprocess
-import yaml
-import os
 import asyncio
-from dask.utils import parse_bytes
-from importlib.resources import files
+import os
 import re
+import subprocess
 import sys
+from importlib.resources import files
 
+import yaml
+from dask.utils import parse_bytes
 from .common import logger
 
 comm_port_regex = r'0\.0\.0\.0:(\d{1,5})'
@@ -43,20 +43,6 @@ async def get_cmd_comm(port, communicator_path=None):
         stdout=asyncio.subprocess.PIPE,
     )
     return proc
-
-def get_comm_port(logpath=None):
-    if logpath is None:
-        logpath = "./communicator.log"
-    ret = -1
-    with open(logpath, 'r') as file:
-        for line in file:
-            match = re.search(comm_port_regex, line)
-            if match:
-                port = int(match.group(1))
-                if 0 <= port <= 65535:
-                    ret = port
-                    break
-    return ret
 
 def run_bootstrap():
     bootstrap_location = files('scalable').joinpath('scalable_bootstrap.sh')
