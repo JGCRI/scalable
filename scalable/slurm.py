@@ -5,7 +5,7 @@ from distributed.core import Status
 from distributed.deploy.spec import ProcessInterface
 
 from .common import logger
-from .core import Job, JobQueueCluster, job_parameters, cluster_parameters
+from .core import Job, JobQueueCluster, cluster_parameters, job_parameters
 from .support import *
 from .utilities import *
 
@@ -172,7 +172,8 @@ class SlurmCluster(JobQueueCluster):
     def close(self, timeout: float | None = None) -> Awaitable[None] | None:
         """Close the cluster
 
-        This closes all running jobs and the scheduler."""
+        This closes all running jobs and the scheduler. Pending jobs belonging
+        to the user are also cancelled."""
         active_jobs = self.hardware.get_active_jobids()
         jobs_command = "squeue -o \"%i %t\" -u $(whoami) | sed '1d'"
         result = subprocess.run(jobs_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
