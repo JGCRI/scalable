@@ -619,7 +619,7 @@ class JobQueueCluster(SpecCluster):
             can_remove.extend([worker_name for worker_name in list(self.worker_spec.keys()) if tag in worker_name])
         current = len(can_remove)
         if n > current:
-            logger.warn(f"Cannot remove {n} workers. Only {current} workers found, removing all.")
+            logger.warning(f"Cannot remove {n} workers. Only {current} workers found, removing all.")
             n = current
         can_remove = can_remove[:n]
         if n != 0 and self.status not in (Status.closing, Status.closed):
@@ -738,7 +738,6 @@ class JobQueueCluster(SpecCluster):
             Dictionary containing the name and spec for the next worker
         """
         if tag not in self.specifications:
-            lock = self.new_spec["options"]["shared_lock"]
             self.specifications[tag] = copy.copy(self.new_spec)
             if tag not in self.containers:
                 raise ValueError(f"The tag ({tag}) given is not a recognized tag for any of the containers."
@@ -776,7 +775,7 @@ class JobQueueCluster(SpecCluster):
         # a shared temp directory should be configured correctly
         elif self.shared_temp_directory is None:
             shared_temp_directory = os.getcwd()
-            warnings.warn(
+            logger.warning(
                 "Using a temporary security object without explicitly setting a shared_temp_directory: \
 writing temp files to current working directory ({}) instead. You can set this value by \
 using dask for e.g. `dask.config.set({{'jobqueue.pbs.shared_temp_directory': '~'}})`\
@@ -842,7 +841,7 @@ or by setting this value in the config file found in `~/.config/dask/jobqueue.ya
            Target number of cores
 
         """
-        logger.warn("This function must only be called internally on exit. " +
+        logger.warning("This function must only be called internally on exit. " +
                     "Any calls made explicity or during execution can result " +
                     "in undefined behavior. " + "If called accidentally, an " +
                     "immediate shutdown and restart of the cluster is recommended.")
