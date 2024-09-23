@@ -1,13 +1,14 @@
 import os
 import pickle
-from diskcache import Cache
-from xxhash import xxh32
 import types
+import dill
 import numpy as np
 import pandas as pd
-import dill
 
-from .common import logger, cachedir, SEED
+from diskcache import Cache
+from xxhash import xxh32
+from .common import SEED, cachedir, logger
+
 
 class GenericType:
     """The GenericType class is a base class for all types that can be hashed.
@@ -189,7 +190,7 @@ def convert_to_type(arg):
     elif isinstance(arg, (np.ndarray, pd.DataFrame)):
         ret = UtilityType(arg)
     else:
-        logger.warn(f"Could not identify type for argument: {arg}. Using default hash function. " 
+        logger.warning(f"Could not identify type for argument: {arg}. Using default hash function. " 
                     "For more reliable performance, either wrap the argument in a class with a defined"
                     " __hash__() function or open an issue on the scalable Github: github.com/JGCRI/scalable.")
         ret = ObjectType(arg)
@@ -306,7 +307,7 @@ def cacheable(return_type=None, void=False, recompute=False, store=True, **arg_t
                     ret = value[1]
                 else:
                     if not disk.delete(key, True):
-                        logger.warn(f"{func.__name__} could not be deleted from cache after hash"
+                        logger.warning(f"{func.__name__} could not be deleted from cache after hash"
                                     " mismatch.")
             if ret is None:
                 ret = func(*args, **kwargs)
@@ -318,7 +319,7 @@ def cacheable(return_type=None, void=False, recompute=False, store=True, **arg_t
                         new_digest = hash(return_type(ret))
                     value = [new_digest, ret]
                     if not disk.add(key=key, value=value, retry=True):
-                        logger.warn(f"{func.__name__} could not be added to cache.")
+                        logger.warning(f"{func.__name__} could not be added to cache.")
             disk.close()
             return ret
         ret = inner

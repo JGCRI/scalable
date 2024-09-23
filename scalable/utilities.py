@@ -108,7 +108,7 @@ class ModelConfig:
             logger.error("Failed to run sed command...manual entry of container info may be required")
             return
         if not os.path.exists(self.path):
-            logger.warn("No resource dict found...making one")
+            logger.warning("No resource dict found...making one")
             path_overwrite = True
             for container in avail_containers:
                 self.config_dict[container] = ModelConfig.default_spec()
