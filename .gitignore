@@ -8,5 +8,6 @@ communicator/src/communicator
 containers/
 config_dict.yaml
 cache/
+docs/_build/
 logs/
 .vscode/
