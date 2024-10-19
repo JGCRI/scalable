@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.abspath('../scalable'))
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'Scalable'
-copyright = '2024, Shashank Lamba, Pralit Patel'
+copyright = '2024, Joint Global Change Research Institute'
 author = 'Shashank Lamba, Pralit Patel'
 release = '0.5.0'
 
