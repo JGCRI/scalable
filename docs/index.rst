@@ -30,7 +30,7 @@ When adding workers to cluster, it can be specified how many workers of
 each type should be added.
 
 Contents:
-~~~~~~~~~
+---------
 
 .. toctree::
    :maxdepth: 1
