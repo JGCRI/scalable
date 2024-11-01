@@ -7,11 +7,10 @@ import re
 import shlex
 import sys
 import tempfile
-import threading
 import time
-import warnings
 
 from contextlib import suppress
+
 from dask.utils import parse_bytes
 from distributed.core import Status
 from distributed.deploy.spec import ProcessInterface, SpecCluster
@@ -25,80 +24,13 @@ from .utilities import *
 
 DEFAULT_WORKER_COMMAND = "distributed.cli.dask_worker"
 
-# The length of the period (in mins) to check and account for dead workers
-CHECK_DEAD_WORKER_PERIOD = 1
-
-job_parameters = """
-    cpus : int
-        Akin to the number of cores the current job should have available.
-    memory : str
-        Amount of memory the current job should have available.
-    nanny : bool
-        Whether or not to start a nanny process.
-    interface : str
-        Network interface like 'eth0' or 'ib0'. This will be used both for the
-        Dask scheduler and the Dask workers interface. If you need a different
-        interface for the Dask scheduler you can pass it through
-        the ``scheduler_options`` argument: ``interface=your_worker_interface, 
-        scheduler_options={'interface': your_scheduler_interface}``.
-    death_timeout : float
-        Seconds to wait for a scheduler before closing workers
-    local_directory : str
-        Dask worker local directory for file spilling.
-    worker_command : list
-        Command to run when launching a worker. Defaults to 
-        "distributed.cli.dask_worker"
-    worker_extra_args : list
-        Additional arguments to pass to `dask-worker`
-    python : str
-        Python executable used to launch Dask workers.
-        Defaults to the Python that is submitting these jobs
-    hardware : HardwareResources
-        A shared object containing the hardware resources available to the
-        cluster.
-    tag : str
-        The tag or the container type of the worker to be launched.
-    container : Container
-        The container object containing the information about launching the 
-        worker.
-    launched : list
-        A list of launched workers which is shared across all workers and the 
-        cluster object to keep track of the workers that have been launched.
-    security : Security
-        A security object containing the TLS configuration for the worker. If 
-        True then a temporary security object with a self signed certificate 
-        is created.
-    run_scripts_path : str
-        The path where the run scripts are located. Defaults to ./run_scripts.
-        The run scripts should be in the format <worker tag>_script.sh.
-    use_run_scripts : bool
-        Whether or not to use the run scripts. Defaults to True. 
+job_parameters = """ 
 """.strip()
 
 
 cluster_parameters = """
-    silence_logs : str
-        Log level like "debug", "info", or "error" to emit here if the
-        scheduler is started locally
-    asynchronous : bool
-        Whether or not to run this cluster object with the async/await syntax
-    name : str
-        The name of the cluster, which would also be used to name workers. 
-        Defaults to class name. 
-    scheduler_options : dict
-        Used to pass additional arguments to Dask Scheduler. For example use
-        ``scheduler_options={'dashboard_address': ':12435'}`` to specify which
-        port the web dashboard should use or 
-        ``scheduler_options={'host': 'your-host'}`` to specify the host the Dask 
-        scheduler should run on. See :class:`distributed.Scheduler` for more 
-        details.
-    scheduler_cls : type
-        Changes the class of the used Dask Scheduler. Defaults to  Dask's
-        :class:`distributed.Scheduler`.
-    shared_temp_directory : str
-        Shared directory between scheduler and worker (used for example by 
-        temporary security certificates) defaults to current working directory 
-        if not set.
+    account : str
+        Accounting string associated with each worker job. 
     comm_port : int
         The network port on which the cluster can contact the host 
     config_overwrite : bool
@@ -107,7 +39,24 @@ cluster_parameters = """
     logs_location : str
         The location to store worker logs. Default to the logs folder in the 
         current directory.
-
+    suppress_logs : bool
+        Whether or not to suppress logs. Defaults to False.
+    name : str
+        The name of the cluster, which would also be used to name workers. 
+        Defaults to class name. 
+    queue : str
+        Destination queue for each worker job. 
+    run_scripts_path : str
+        The path where the run scripts are located. Defaults to ./run_scripts.
+        The run scripts should be in the format <worker tag>_script.sh.
+    security : Security
+        A security object containing the TLS configuration for the worker. If 
+        True then a temporary security object with a self signed certificate 
+        is created.
+    use_run_scripts : bool
+        Whether or not to use the run scripts. Defaults to True.
+    walltime : str
+        Walltime for each worker job.
 """.strip()
 
 
@@ -137,7 +86,7 @@ class Job(ProcessInterface, abc.ABC):
     SLURMCluster
     """.format(job_parameters=job_parameters)
 
-    # Following class attributes should be overridden by extending classes.
+    # Following class attributes should be overridden by extending classes if necessary.
     cancel_command = None
     job_id_regexp = r"(?P<job_id>\d+)"
 
@@ -268,7 +217,6 @@ class Job(ProcessInterface, abc.ABC):
         if protocol and "--protocol" not in worker_extra_args:
             worker_extra_args.extend(["--protocol", protocol])
 
-        # Keep information on process, cores, and memory, for use in subclasses
         self.worker_memory = parse_bytes(self.memory) if self.memory is not None else None
         
         # dask-worker command line build
@@ -435,6 +383,7 @@ class JobQueueCluster(SpecCluster):
         config_overwrite=True,
         comm_port=None,
         logs_location=None,
+        suppress_logs=False,
         **job_kwargs
     ):
         
@@ -516,12 +465,14 @@ class JobQueueCluster(SpecCluster):
             "cls": scheduler_cls,
             "options": scheduler_options,
         }
-
         
-        self.logs_location = logs_location
-        if self.logs_location is None:
-            directory_name = self.job_cls.__name__.replace("Job", "") + "Cluster"
-            self.logs_location = create_logs_folder("logs", directory_name)
+        if not suppress_logs:
+            if logs_location is None:
+                directory_name = self.job_cls.__name__.replace("Job", "") + "Cluster"
+                logs_location = create_logs_folder("logs", directory_name)
+            self.logs_location = logs_location
+        else:
+            self.logs_location = None
 
         self.shared_temp_directory = shared_temp_directory
         
@@ -550,7 +501,7 @@ class JobQueueCluster(SpecCluster):
             name=name,
         )
 
-    def add_worker(self, tag=None, n=0):
+    def add_workers(self, tag=None, n=0):
         """Add workers to the cluster.  
 
         Parameters
@@ -565,7 +516,7 @@ class JobQueueCluster(SpecCluster):
 
         Examples
         --------
-        >>> cluster.add_worker("gcam", 4)
+        >>> cluster.add_workers("gcam", 4)
         
         """
         if self.exited or self.status in (Status.closing, Status.closed):
@@ -632,42 +583,6 @@ class JobQueueCluster(SpecCluster):
             self.loop.add_callback(self._correct_state)
         if self.asynchronous:
             return NoOpAwaitable()
-
-    def _check_dead_workers(self):
-        """Periodically check for dead workers. 
-        
-        This function essentially calls self.add_worker() with default 
-        parameters which only syncs the cluster to the current state of 
-        the workers. Any dead workers may be relaunched. 
-        """
-        next_call = time.time()
-        while not self.exited:
-            self.add_worker()
-            temp_file = tempfile.NamedTemporaryFile(mode='w+', delete=True)
-            temp_file_name = temp_file.name
-            temp_file.close()
-            with open(temp_file_name, 'w+') as temp_file:
-                temp_file.write("scalable")
-                temp_file.flush()
-                temp_file.seek(0) 
-                temp_file.read()
-            os.remove(temp_file_name)
-            next_call = next_call + (60 * CHECK_DEAD_WORKER_PERIOD)
-            time.sleep(next_call - time.time())
-    
-    def _get_dead_worker_tags(self):
-        """Get the list of dead workers. 
-        
-        This function returns the list of workers that are dead. 
-        """
-        dead_workers = []
-        for worker in self.launched:
-            if worker[0] not in self.workers:
-                dead_workers.append(worker)
-        for worker in dead_workers:
-            del self.worker_spec[worker[0]]
-            self.launched.remove(worker)
-        return [worker[1] for worker in dead_workers]
 
     def add_container(self, tag, dirs, path=None, cpus=None, memory=None):
         """Add containers to enable them launching as workers. 
@@ -776,10 +691,10 @@ class JobQueueCluster(SpecCluster):
         elif self.shared_temp_directory is None:
             shared_temp_directory = os.getcwd()
             logger.warning(
-                "Using a temporary security object without explicitly setting a shared_temp_directory: \
-writing temp files to current working directory ({}) instead. You can set this value by \
-using dask for e.g. `dask.config.set({{'jobqueue.pbs.shared_temp_directory': '~'}})`\
-or by setting this value in the config file found in `~/.config/dask/jobqueue.yaml` ".format(
+                "Using a temporary security object without explicitly setting a shared_temp_directory: " 
+                "writing temp files to current working directory ({}) instead. You can set this value by "
+                "using dask for e.g. `dask.config.set({{'jobqueue.pbs.shared_temp_directory': '~'}})` "
+                "or by setting this value in the config file found in `~/.config/dask/jobqueue.yaml` ".format(
                     shared_temp_directory
                 ),
                 category=UserWarning,

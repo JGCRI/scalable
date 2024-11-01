@@ -29,7 +29,6 @@ class SlurmJob(Job):
         tag=None,
         hardware=None,
         logs_location=None,
-        log=True,
         shared_lock=None,
         worker_env_vars=None,
         **base_class_kwargs
@@ -47,11 +46,11 @@ class SlurmJob(Job):
         self.job_name = job_name
         self.job_id = None
         self.job_node = None
+        self.log_file = None
 
-        if log:
+        if logs_location is not None:
             self.log_file = os.path.abspath(os.path.join(logs_location, f"{self.name}-{self.tag}.log"))
         
-        # All the wanted commands should be set here
         self.send_command = self.container.get_command(worker_env_vars)
         self.send_command.extend(self.command_args)
     
@@ -149,23 +148,18 @@ class SlurmJob(Job):
                 cluster.loop.call_later(RECOVERY_DELAY, cluster._correct_state)
 
 class SlurmCluster(JobQueueCluster):
-    __doc__ = """ Launch Dask on a SLURM cluster
+    __doc__ = """Launch Dask on a SLURM cluster. Inherits the JobQueueCluster 
+    class.
 
     Parameters
     ----------
-    queue : str
-        Destination queue for each worker job. 
-    project : str
-        Deprecated: use ``account`` instead. This parameter will be removed in a future version.
-    account : str
-        Accounting string associated with each worker job. 
-    {job}
     {cluster}
-    walltime : str
-        Walltime for each worker job.
-        
+    *args : tuple
+        Positional arguments to pass to JobQueueCluster.
+    **kwargs : dict
+        Keyword arguments to pass to JobQueueCluster.
     """.format(
-        job=job_parameters, cluster=cluster_parameters
+        cluster=cluster_parameters
     )
     job_cls = SlurmJob
 
@@ -196,6 +190,21 @@ class SlurmCluster(JobQueueCluster):
     
     @staticmethod
     def set_default_request_quantity(nodes):
+        """Set the default number of nodes to request when scaling the cluster.
+
+        Static Function. Does not require an instance of the class.
+
+        If set to 1 (the original default), the cluster will request one 
+        hardware node at a time when scaling. If set to a higher number, like 5,
+        the cluster will request 5 hardware nodes at a time when scaling. This
+        is helpful when each worker may need almost all the resources of a 
+        node and it is more efficient to request multiple nodes at once.
+
+        Parameters
+        ----------
+        nodes : int
+            Number of nodes to request when scaling the cluster.
+        """
         global DEFAULT_REQUEST_QUANTITY
         DEFAULT_REQUEST_QUANTITY = nodes
     
