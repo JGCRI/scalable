@@ -92,8 +92,8 @@ class ModelConfig:
         self.config_dict = {}
         cwd = os.getcwd()
         if path is None:
-            self.path = os.path.abspath(os.path.join(cwd, "scalable", "config_dict.yaml"))
-        dockerfile_path = os.path.abspath(os.path.join(cwd, "scalable", "Dockerfile"))
+            self.path = os.path.abspath(os.path.join(cwd, "config_dict.yaml"))
+        dockerfile_path = os.path.abspath(os.path.join(cwd, "Dockerfile"))
         list_avial_command = \
         f"sed -n 's/^FROM[[:space:]]\+[^ ]\+[[:space:]]\+AS[[:space:]]\+\([^ ]\+\)$/\\1/p' {dockerfile_path}"
         result = subprocess.run(list_avial_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
