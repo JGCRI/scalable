@@ -56,11 +56,6 @@ flush() {
     read -t 0.1 -n 10000 discard
 }
 
-# comments, headlining sections and methods
-
-# add documentation for copying scalable target
-
-
 echo -e "${RED}Connection to HPC/Cloud...${NC}"
 
 choice="N"
