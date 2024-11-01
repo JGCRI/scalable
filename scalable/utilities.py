@@ -3,10 +3,11 @@ import os
 import re
 import subprocess
 import sys
-from importlib.resources import files
-
 import yaml
+
+from importlib.resources import files
 from dask.utils import parse_bytes
+
 from .common import logger
 
 comm_port_regex = r'0\.0\.0\.0:(\d{1,5})'
@@ -46,8 +47,8 @@ async def get_cmd_comm(port, communicator_path=None):
 
 def run_bootstrap():
     bootstrap_location = files('scalable').joinpath('scalable_bootstrap.sh')
-    result = subprocess.run(["/bin/bash", bootstrap_location], stdin=sys.stdin, 
-                            stdout=sys.stdout, stderr=sys.stderr)
+    result = subprocess.run([os.environ.get("SHELL"), bootstrap_location.as_posix()], stdin=sys.stdin, 
+                            stdout=sys.stdout, stderr=sys.stdout)
     if result.returncode != 0:
         sys.exit(result.returncode)
 
@@ -521,7 +522,6 @@ class Container:
     
     def __init__(self, name, spec_dict):
         """
-
         Parameters
         ----------
         name : str
@@ -532,15 +532,12 @@ class Container:
             be in gigabytes, megabytes, or bytes. '500MB' or '2GB' are valid.
             A valid spec_dict can look like:
             {
-                'CPUs': 4,
-                'Memory': '8G',
-                'Path': '/home/user/work/containers/container.sif',
-                'Dirs': {
-                    '/home/work/inputs': '/inputs'
-                    '/home/work/shared': '/shared'
-                }
-            }
-        
+            'CPUs': 4,
+            'Memory': '8G',
+            'Path': '/home/user/work/containers/container.sif',
+            'Dirs': {
+            '/home/work/inputs': '/inputs'
+            '/home/work/shared': '/shared'}}
         """
         self.name = name
         self.cpus = spec_dict['CPUs']
