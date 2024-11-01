@@ -73,8 +73,6 @@ def memory_command():
     list
         The command to get the memory available on the node.
     """
-
-    # sanity check results
     command = "free -g | grep 'Mem' | sed 's/[\t ][\t ]*/ /g' | cut -d ' ' -f 7"
     return shlex.split(command, posix=False)
 
@@ -86,7 +84,6 @@ def core_command():
     list
         The command to get the number of cores available on the node.
     """
-    # sanity check
     return ["nproc", "--all"]
 
 def jobid_command(name):
@@ -189,7 +186,6 @@ def create_logs_folder(folder, worker_name):
     str
         The path to the newly created logs folder.
     """
-    # maybe add a way to suppress logs
     current_datetime = datetime.now()
     formatted_datetime = current_datetime.strftime("%Y%m%d_%H%M%S")
     folder_name = f"{worker_name}_{formatted_datetime}_logs"
