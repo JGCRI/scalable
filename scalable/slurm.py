@@ -63,7 +63,7 @@ class SlurmJob(Job):
     async def _ssh_command(self, command):
         prefix = ["ssh", self.job_node]
         if self.log_file:
-            suffix = [f">>{self.log_file}", "2>&1", "&"]
+            suffix = [f">> {self.log_file}", "2>&1", "&"]
             command = command + suffix
         command = list(map(str, command))
         command_str = " ".join(command)
