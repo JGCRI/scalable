@@ -408,6 +408,9 @@ class JobQueueCluster(SpecCluster):
                     type(self)
                 )
             )
+        
+        if interface is None:
+            interface = "ib0"
 
         if dashboard_address is not None:
             raise ValueError(
