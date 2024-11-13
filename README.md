@@ -160,7 +160,7 @@ In the example above, the functions will wait 5, 3, and 10 seconds for the first
 
 ## Contact
 
-For any contribution, questions, or requests, please feel free to [open an issue](https://github.com/JGCRI/scalable/issues) or contact us directly:
+For any contribution, questions, or requests, please feel free to [open an issue](https://github.com/JGCRI/scalable/issues) or contact us directly:\
 **Shashank Lamba** [shashank.lamba@pnnl.gov](mailto:shashank.lamba@pnnl.gov)\
 **Pralit Patel** [pralit.patel@pnnl.gov](mailto:pralit.patel@pnnl.gov)
 
