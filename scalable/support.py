@@ -1,7 +1,8 @@
-from datetime import datetime
 import os
 import re
 import shlex
+from datetime import datetime
+
 
 def salloc_command(account=None, chdir=None, clusters=None, exclusive=True, gpus=None, name=None, memory=None, 
                    nodes=None, partition=None, time=None, extras=None):
@@ -85,7 +86,6 @@ def core_command():
     """
     return ["nproc", "--all"]
 
-# Handle what to do if name is null or invalid
 def jobid_command(name):
     """Make the command to get the job id of a job with a given name.
     
@@ -173,7 +173,7 @@ def parse_nodelist(nodelist):
 def create_logs_folder(folder, worker_name):
     """Create a folder for logs. Uses the current date and time along with 
     the given worker name to create a unique folder name.
-    
+
     Parameters
     ----------
     folder : str

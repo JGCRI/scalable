@@ -1,11 +1,12 @@
-import subprocess
-import yaml
-import os
 import asyncio
-from dask.utils import parse_bytes
-from importlib.resources import files
+import os
 import re
+import subprocess
 import sys
+import yaml
+
+from importlib.resources import files
+from dask.utils import parse_bytes
 
 from .common import logger
 
@@ -44,24 +45,10 @@ async def get_cmd_comm(port, communicator_path=None):
     )
     return proc
 
-def get_comm_port(logpath=None):
-    if logpath is None:
-        logpath = "./communicator.log"
-    ret = -1
-    with open(logpath, 'r') as file:
-        for line in file:
-            match = re.search(comm_port_regex, line)
-            if match:
-                port = int(match.group(1))
-                if 0 <= port <= 65535:
-                    ret = port
-                    break
-    return ret
-
 def run_bootstrap():
     bootstrap_location = files('scalable').joinpath('scalable_bootstrap.sh')
-    result = subprocess.run(["/bin/bash", bootstrap_location], stdin=sys.stdin, 
-                            stdout=sys.stdout, stderr=sys.stderr)
+    result = subprocess.run([os.environ.get("SHELL"), bootstrap_location.as_posix()], stdin=sys.stdin, 
+                            stdout=sys.stdout, stderr=sys.stdout)
     if result.returncode != 0:
         sys.exit(result.returncode)
 
@@ -105,8 +92,8 @@ class ModelConfig:
         self.config_dict = {}
         cwd = os.getcwd()
         if path is None:
-            self.path = os.path.abspath(os.path.join(cwd, "scalable", "config_dict.yaml"))
-        dockerfile_path = os.path.abspath(os.path.join(cwd, "scalable", "Dockerfile"))
+            self.path = os.path.abspath(os.path.join(cwd, "config_dict.yaml"))
+        dockerfile_path = os.path.abspath(os.path.join(cwd, "Dockerfile"))
         list_avial_command = \
         f"sed -n 's/^FROM[[:space:]]\+[^ ]\+[[:space:]]\+AS[[:space:]]\+\([^ ]\+\)$/\\1/p' {dockerfile_path}"
         result = subprocess.run(list_avial_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
@@ -122,7 +109,7 @@ class ModelConfig:
             logger.error("Failed to run sed command...manual entry of container info may be required")
             return
         if not os.path.exists(self.path):
-            logger.warn("No resource dict found...making one")
+            logger.warning("No resource dict found...making one")
             path_overwrite = True
             for container in avail_containers:
                 self.config_dict[container] = ModelConfig.default_spec()
@@ -535,7 +522,6 @@ class Container:
     
     def __init__(self, name, spec_dict):
         """
-
         Parameters
         ----------
         name : str
@@ -546,15 +532,12 @@ class Container:
             be in gigabytes, megabytes, or bytes. '500MB' or '2GB' are valid.
             A valid spec_dict can look like:
             {
-                'CPUs': 4,
-                'Memory': '8G',
-                'Path': '/home/user/work/containers/container.sif',
-                'Dirs': {
-                    '/home/work/inputs': '/inputs'
-                    '/home/work/shared': '/shared'
-                }
-            }
-        
+            'CPUs': 4,
+            'Memory': '8G',
+            'Path': '/home/user/work/containers/container.sif',
+            'Dirs': {
+            '/home/work/inputs': '/inputs'
+            '/home/work/shared': '/shared'}}
         """
         self.name = name
         self.cpus = spec_dict['CPUs']

@@ -1,13 +1,16 @@
+import dill
 import os
 import pickle
-from diskcache import Cache
-from xxhash import xxh32
 import types
+
 import numpy as np
 import pandas as pd
-import dill
 
-from .common import logger, cachedir, SEED
+from diskcache import Cache
+from xxhash import xxh32
+
+from .common import SEED, cachedir, logger
+
 
 class GenericType:
     """The GenericType class is a base class for all types that can be hashed.
@@ -31,8 +34,8 @@ class FileType(GenericType):
     """
 
     def __hash__(self) -> int:
-        digest = 0
         if os.path.exists(self.value):
+            digest = 0
             with open(self.value, 'rb') as file:
                 x = xxh32(seed=SEED)
                 x.update(str(os.path.basename(self.value)).encode('utf-8'))
@@ -52,10 +55,10 @@ class DirType(GenericType):
     """
 
     def __hash__(self) -> int:
-        digest = 0
-        x = xxh32(seed=SEED)
-        x.update(str(os.path.basename(self.value)).encode('utf-8'))
         if os.path.exists(self.value):
+            digest = 0
+            x = xxh32(seed=SEED)
+            x.update(str(os.path.basename(self.value)).encode('utf-8'))
             filenames = os.listdir(self.value)
             filenames = sorted(filenames)
             for filename in filenames:
@@ -103,10 +106,6 @@ class ObjectType(GenericType):
         x = xxh32(seed=SEED)
         if isinstance(self.value, list):
             value_list = self.value
-            try:
-                value_list = sorted(self.value)
-            except:
-                pass
             for element in value_list:
                 x.update(hash_to_bytes(hash(convert_to_type(element))))
         elif isinstance(self.value, dict):
@@ -141,7 +140,7 @@ class UtilityType(GenericType):
         if isinstance(self.value, np.ndarray):
             x.update(self.value.tobytes())
         elif isinstance(self.value, pd.DataFrame):
-            x.update(self.value.to_string().encode('utf-8'))
+            x.update(pickle.dumps(self.value))
         digest = x.intdigest()
         return digest
     
@@ -189,13 +188,13 @@ def convert_to_type(arg):
     elif isinstance(arg, (np.ndarray, pd.DataFrame)):
         ret = UtilityType(arg)
     else:
-        logger.warn(f"Could not identify type for argument: {arg}. Using default hash function. " 
+        logger.warning(f"Could not identify type for argument: {arg}. Using default hash function. " 
                     "For more reliable performance, either wrap the argument in a class with a defined"
                     " __hash__() function or open an issue on the scalable Github: github.com/JGCRI/scalable.")
         ret = ObjectType(arg)
     return ret
 
-def cacheable(return_type=None, void=False, recompute=False, store=True, **arg_types):
+def cacheable(return_type=None, void=False, check_output=False, recompute=False, store=True, **arg_types):
     """Decorator function to cache the output of a function.
     
     This function is used to cache other functions' outputs for certain 
@@ -219,6 +218,10 @@ def cacheable(return_type=None, void=False, recompute=False, store=True, **arg_t
     void : bool, optional
         Whether the function returns a value or not. A function is void if it 
         does not return a value. The default is False.
+    check_output : bool, optional
+        Whether to check the output of a function has the same hash as when 
+        it was stored. Useful to ensure entities like files haven't been
+        modified since initially stored. The default is False.
     recompute : bool, optional
         Whether to recompute the value or not. The default is False.
     store : bool, optional
@@ -298,16 +301,18 @@ def cacheable(return_type=None, void=False, recompute=False, store=True, **arg_t
                     raise KeyError(f"Key for function {func.__name__} could not be found.")
                 stored_digest = value[0]
                 new_digest = 0
-                if return_type is None:
-                    new_digest = hash(convert_to_type(value[1]))
-                else:
-                    new_digest = hash(return_type(value[1]))
-                if new_digest == stored_digest:
-                    ret = value[1]
-                else:
-                    if not disk.delete(key, True):
-                        logger.warn(f"{func.__name__} could not be deleted from cache after hash"
+                if check_output:
+                    if return_type is None:
+                        new_digest = hash(convert_to_type(value[1]))
+                    else:
+                        new_digest = hash(return_type(value[1]))
+                    if new_digest == stored_digest:
+                        ret = value[1]
+                    elif not disk.delete(key, True):
+                        logger.warning(f"{func.__name__} could not be deleted from cache after hash"
                                     " mismatch.")
+                else:
+                    ret = value[1]             
             if ret is None:
                 ret = func(*args, **kwargs)
                 if store:
@@ -318,7 +323,7 @@ def cacheable(return_type=None, void=False, recompute=False, store=True, **arg_t
                         new_digest = hash(return_type(ret))
                     value = [new_digest, ret]
                     if not disk.add(key=key, value=value, retry=True):
-                        logger.warn(f"{func.__name__} could not be added to cache.")
+                        logger.warning(f"{func.__name__} could not be added to cache.")
             disk.close()
             return ret
         ret = inner

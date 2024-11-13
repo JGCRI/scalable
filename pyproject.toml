@@ -25,6 +25,8 @@ dependencies = [
     "joblib >= 1.3.2",
     "xxhash >= 3.4.1",
     "versioneer >= 0.29",
+    "numpy >= 1.26.4", 
+    "pandas >= 2.2.3"
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -48,7 +50,6 @@ test = [
 
 [project.urls]
 "Github" = "https://github.com/JGCRI/scalable/tree/master/scalable"
-"Homepage" = "https://www.pnnl.gov"
 
 [project.scripts]
 scalable_bootstrap = "scalable.utilities:run_bootstrap"

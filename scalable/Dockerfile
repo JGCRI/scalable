@@ -16,6 +16,7 @@ RUN apt-get install -y --no-install-recommends python3-rpy2
 ENV R_LIBS_USER usr/lib/R/site-library
 RUN chmod a+w /usr/lib/R/site-library
 RUN cp -r /usr/lib/R/site-library /usr/local/lib/R/site-library
+RUN python3 -m pip install -U pip
 
 FROM build_env AS conda
 RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
@@ -30,7 +31,7 @@ RUN eval "$(/root/miniconda3/bin/conda shell.bash hook)" \
 ENV PATH /root/miniconda3/bin:$PATH
 RUN conda init
 
-FROM build_env as scalable
+FROM build_env AS scalable
 ADD "https://api.github.com/repos/JGCRI/scalable/commits?per_page=1" latest_commit
 RUN git clone https://github.com/JGCRI/scalable.git /scalable
 RUN pip3 install /scalable/.
@@ -172,7 +173,8 @@ RUN cd /gcamwrapper && sed -i "s/python_requires='>=3.6.*, <4'/python_requires='
 RUN cd /gcamwrapper && pip3 install .
 RUN pip install gcamreader
 RUN git clone https://github.com/JGCRI/gcam_config.git /gcam_config
-RUN pip3 install /gcam_config/. 
+RUN pip3 install /gcam_config/.
+RUN pip3 install dtaidistance scipy
 COPY --from=scalable /scalable /scalable
 RUN pip3 install /scalable/.
 RUN pip3 install --force-reinstall numpy==1.26.4

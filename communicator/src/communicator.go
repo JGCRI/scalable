@@ -17,9 +17,10 @@ import (
 // Changing CONNECTION_TYPE is not recommended
 
 const (
-	DEFAULT_HOST    = "0.0.0.0"
-	DEFAULT_PORT    = "1919"
-	CONNECTION_TYPE = "tcp"
+	DEFAULT_HOST     = "0.0.0.0"
+	DEFAULT_PORT     = "1919"
+	CONNECTION_TYPE  = "tcp"
+	NUM_PORT_RETRIES = 5
 )
 
 var BUFFER_LEN = 5120
@@ -27,16 +28,17 @@ var BUFFER_LEN = 5120
 func main() {
 	arguments := os.Args[1:]
 	listen_port := DEFAULT_PORT
-	if len(arguments) > 1 {
-		listen_port = arguments[1]
-	} else if len(arguments) == 0 {
-		fmt.Println("Either -s or -c option needed")
+	argslen := len(arguments)
+	if argslen == 0 {
+		fmt.Println("Either -s or -c option needed. Use -h for help.")
 		gracefulExit()
+	} else if argslen > 1 {
+		listen_port = arguments[1]
 	}
 	if arguments[0] == "-s" {
 		loop := 0
 		server, err := net.Listen(CONNECTION_TYPE, DEFAULT_HOST+":"+listen_port)
-		for err != nil && loop < 5 && len(arguments) <= 1 {
+		for err != nil && loop < NUM_PORT_RETRIES && argslen <= 1 {
 			listen_port = strconv.Itoa(rand.Intn(40000-2000) + 2000)
 			server, err = net.Listen(CONNECTION_TYPE, DEFAULT_HOST+":"+listen_port)
 			loop++
@@ -119,6 +121,13 @@ func main() {
 			received += read
 		}
 		fmt.Print(output.String())
+	} else if arguments[0] == "-h" {
+		fmt.Println("Usage: communicator [OPTION] [PORT]")
+		fmt.Println("Options:")
+		fmt.Println("  -s\t\tStart server")
+		fmt.Println("  -c\t\tStart client")
+		fmt.Println("  -h\t\tShow help")
+		fmt.Println("PORT is optional and defaults to 1919 for server use.")
 	} else {
 		fmt.Println("Invalid option")
 		gracefulExit()
@@ -141,7 +150,7 @@ func handleRequest(client net.Conn) {
 	buffer := make([]byte, BUFFER_LEN)
 	received := 0
 	flag := 0
-	for received < len(lenBuffer) {
+	for received < len(lenBuffer) && received < BUFFER_LEN {
 		read, err := client.Read(lenBuffer[received:])
 		if err != nil {
 			clientClose(err, client)
@@ -230,7 +239,7 @@ func handleRequest(client net.Conn) {
 		return
 	}
 	sent = 0
-	for sent < len(lastOutput.String()) {
+	for sent < len(lastOutput.String()) && sent < BUFFER_LEN {
 		wrote, err := client.Write(([]byte(lastOutput.String()))[sent:])
 		if err != nil {
 			clientClose(err, client)

@@ -1,5 +1,5 @@
 # Scalable 
-[v0.5.7](https://github.com/JGCRI/scalable/tree/0.5.7)
+[v0.6.0](https://github.com/JGCRI/scalable/tree/0.6.0)
 
 Scalable is a Python library which aids in running complex workflows on HPCs by orchestrating multiple containers, requesting appropriate HPC jobs to the scheduler, and providing a python environment for distributed computing. It's designed to be primarily used with JGCRI Climate Models but can be easily adapted for any arbitrary uses.
 
@@ -80,9 +80,9 @@ cluster.add_container(tag="osiris", cpus=8, memory="20G", dirs={"/rcfs/projects/
 Before launching the workers, the configuration of worker or container targets needs to be specified. The containers to be launched as workers need to be first added by specifying their tag, number of cpu cores they need, the memory they would need, and the directory on the HPC Host to bind to the containers so that these directories are accessible by the container.
 
 ```python
-cluster.add_worker(n=3, tag="gcam")
-cluster.add_worker(n=2, tag="stitches")
-cluster.add_worker(n=3, tag="osiris")
+cluster.add_workers(n=3, tag="gcam")
+cluster.add_workers(n=2, tag="stitches")
+cluster.add_workers(n=3, tag="osiris")
 ```
 
 Launching workers on the cluster can be done by just adding workers to the cluster. This call will only be successful if the tags used have also had containers with the same tag added beforehand. Removing workers is similarly as easy.
@@ -156,12 +156,12 @@ def func3(param):
 
 ```
 
-In the example above, the functions will wait 5, 3, and 10 seconds for the first time they are computed. However, their results will be cached due to the decorator and so, if the functions are ran again with the same arguments, their results are going to be returned from memory instead and they wouldn't sleep. There are arguments which directly can be given to the cacheable decorator. **It is always recommended to specify the return type and the type of arguments for each use.** This ensures expected functioning of the module and for correct caching. --TODO--
+In the example above, the functions will wait 5, 3, and 10 seconds for the first time they are computed. However, their results will be cached due to the decorator and so, if the functions are ran again with the same arguments, their results are going to be returned from memory instead and they wouldn't sleep. There are arguments which directly can be given to the cacheable decorator. **It is always recommended to specify the return type and the type of arguments for each use.** This ensures expected functioning of the module and for correct caching.
 
 ## Contact
 
-For any contribution, questions, or requests, please feel free to [open an issue](https://github.com/JGCRI/scalable/issues) or contact us directly:
-**Shashank Lamba** [shashank.lamba@pnnl.gov](mailto:shashank.lamba@pnnl.gov)
+For any contribution, questions, or requests, please feel free to [open an issue](https://github.com/JGCRI/scalable/issues) or contact us directly:\
+**Shashank Lamba** [shashank.lamba@pnnl.gov](mailto:shashank.lamba@pnnl.gov)\
 **Pralit Patel** [pralit.patel@pnnl.gov](mailto:pralit.patel@pnnl.gov)
 
 ## [License](https://github.com/JGCRI/scalable/blob/master/LICENSE.md)
