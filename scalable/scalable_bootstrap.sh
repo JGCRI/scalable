@@ -7,6 +7,7 @@ GO_DOWNLOAD_LINK="https://go.dev/dl/*.linux-amd64.tar.gz"
 SCALABLE_REPO="https://github.com/JGCRI/scalable.git"
 APPTAINER_VERSION="1.3.2"
 DEFAULT_PORT="1919"
+DEFAULT_DASHBOARD_PORT="8786"
 CONFIG_FILE="/tmp/.scalable_config"
 
 # set -x
@@ -57,6 +58,13 @@ flush() {
 }
 
 echo -e "${RED}Connection to HPC/Cloud...${NC}"
+
+docker --version
+if [ $? -ne 0 ]; then
+    echo -e "${RED}Docker not found on the system..please install or activate docker and try again{NC}"
+    echo -e "${RED}Exiting...${NC}"
+    exit $1
+fi
 
 choice="N"
 
@@ -292,23 +300,21 @@ docker run --rm -v /$(pwd):/host -v /$HOME/.ssh:/root/.ssh scalable_container \
 check_exit_code $?
 
 COMM_PORT=$DEFAULT_PORT
+DASH_PORT=$DEFAULT_DASHBOARD_PORT
 ssh $user@$host "netstat -tuln | grep :$COMM_PORT"
-while [[ $? -eq 0 && "$COMM_PORT" != "8787" ]]; do
+while [[ $? -eq 0 || "$COMM_PORT" == "$DASH_PORT" ]]; do
     COMM_PORT=$(awk -v min=1024 -v max=49151 'BEGIN{srand(); print int(min+rand()*(max-min+1))}')
     check_exit_code $?
     ssh $user@$host "netstat -tuln | grep :$COMM_PORT"
 done
+ssh $user@$host "netstat -tuln | grep :$DASH_PORT"
+while [[ $? -eq 0 || "$DASH_PORT" == "$COMM_PORT" ]]; do
+    DASH_PORT=$(awk -v min=1024 -v max=49151 'BEGIN{srand(); print int(min+rand()*(max-min+1))}')
+    check_exit_code $?
+    ssh $user@$host "netstat -tuln | grep :$DASH_PORT"
+done
 
-ssh $user@$host "netstat -tuln | grep :8787"
-if [ $? -eq 0 ]; then
-    echo -e "${RED}Port 8787 is already in use on remote system${NC}"
-    echo -e "${YELLOW}Not forwarding port 8787, dask dashboard may be unavailable...${NC}"
-    connect="ssh"
-else
-    connect="ssh -L 8787:$host:8787"
-fi
-
-$connect -t $user@$host \
+ssh -L $DASH_PORT:$host:$DASH_PORT -t $user@$host \
 "{
     module load apptainer/$APPTAINER_VERSION && 
     cd $work_dir &&
@@ -316,7 +322,7 @@ $connect -t $user@$host \
     python3() {
         ./communicator -s $COMM_PORT >> logs/communicator.log &
         COMMUNICATOR_PID=\\\$!
-        apptainer exec --userns --compat --env COMM_PORT=$COMM_PORT --home ~/$work_dir --cwd ~/$work_dir ~/$work_dir/containers/scalable_container.sif python3 \\\$@
+        apptainer exec --userns --compat --env COMM_PORT=$COMM_PORT --env DASH_PORT=$DASH_PORT --home ~/$work_dir --cwd ~/$work_dir ~/$work_dir/containers/scalable_container.sif bash -i -c python3 \\\$@
         kill -9 \\\$COMMUNICATOR_PID
     } \" ); 
 }"
