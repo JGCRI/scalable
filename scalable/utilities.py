@@ -47,8 +47,12 @@ async def get_cmd_comm(port, communicator_path=None):
 
 def run_bootstrap():
     bootstrap_location = files('scalable').joinpath('scalable_bootstrap.sh')
-    result = subprocess.run([os.environ.get("SHELL"), bootstrap_location.as_posix()], stdin=sys.stdin, 
-                            stdout=sys.stdout, stderr=sys.stdout)
+    try:
+        result = subprocess.run([os.environ.get("SHELL"), bootstrap_location.as_posix()], stdin=sys.stdin, 
+                                stdout=sys.stdout, stderr=sys.stdout)
+    except KeyboardInterrupt:
+        logger.error("Bootstrap process interruped. Exiting...")
+        sys.exit(1)
     if result.returncode != 0:
         sys.exit(result.returncode)
 

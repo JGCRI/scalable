@@ -121,6 +121,7 @@ class SlurmJob(Job):
                             raise ValueError(f"Node {node} is already assigned to job {stored_job_id}")
                 self.job_node = self.hardware.get_available_node(self.cpus, self.memory)
             _ = await self._ssh_command(self.send_command)
+            asyncio.get_event_loop().create_task(self.check_launched_worker())
             self.hardware.utilize_resources(self.job_node, self.cpus, self.memory, self.job_id)
             self.launched.append((self.name, self.tag))
 

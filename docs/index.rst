@@ -34,15 +34,21 @@ Contents:
 
 .. toctree::
    :maxdepth: 1
+   :caption: API
 
    workers
-
-.. toctree::
-   :maxdepth: 1
-
    caching
+   functions
 
 .. toctree::
    :maxdepth: 1
+   :caption: How-tos
 
-   functions
+   cache_hash
+   container
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Demo
+
+   demo
