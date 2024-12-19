@@ -7,7 +7,7 @@ GO_DOWNLOAD_LINK="https://go.dev/dl/*.linux-amd64.tar.gz"
 SCALABLE_REPO="https://github.com/JGCRI/scalable.git"
 APPTAINER_VERSION="1.3.2"
 DEFAULT_PORT="1919"
-DEFAULT_DASHBOARD_PORT="8786"
+DEFAULT_DASHBOARD_PORT="8787"
 CONFIG_FILE="/tmp/.scalable_config"
 
 # set -x
@@ -301,18 +301,22 @@ check_exit_code $?
 
 COMM_PORT=$DEFAULT_PORT
 DASH_PORT=$DEFAULT_DASHBOARD_PORT
-ssh $user@$host "netstat -tuln | grep :$COMM_PORT"
+ssh $user@$host "netstat -tuln | grep :$COMM_PORT" >> /dev/null
 while [[ $? -eq 0 || "$COMM_PORT" == "$DASH_PORT" ]]; do
     COMM_PORT=$(awk -v min=1024 -v max=49151 'BEGIN{srand(); print int(min+rand()*(max-min+1))}')
     check_exit_code $?
-    ssh $user@$host "netstat -tuln | grep :$COMM_PORT"
+    ssh $user@$host "netstat -tuln | grep :$COMM_PORT" >> /dev/null
 done
-ssh $user@$host "netstat -tuln | grep :$DASH_PORT"
+ssh $user@$host "netstat -tuln | grep :$DASH_PORT" >> /dev/null
 while [[ $? -eq 0 || "$DASH_PORT" == "$COMM_PORT" ]]; do
     DASH_PORT=$(awk -v min=1024 -v max=49151 'BEGIN{srand(); print int(min+rand()*(max-min+1))}')
     check_exit_code $?
-    ssh $user@$host "netstat -tuln | grep :$DASH_PORT"
+    ssh $user@$host "netstat -tuln | grep :$DASH_PORT" >> /dev/null
 done
+
+echo -e "${GREEN}Dask dashboard will be hosted on port $DASH_PORT.${NC}"
+echo -e "${GREEN}It can be accessed on localhost:$DASH_PORT on a web browser \
+AFTER the scalable cluster has been launched.${NC}"
 
 ssh -L $DASH_PORT:$host:$DASH_PORT -t $user@$host \
 "{
