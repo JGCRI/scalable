@@ -23,6 +23,7 @@ from .support import *
 from .utilities import *
 
 DEFAULT_WORKER_COMMAND = "distributed.cli.dask_worker"
+WORKER_LAUNCH_THRESHOLD_MINS = 2
 
 job_parameters = """ 
 """.strip()
@@ -281,6 +282,12 @@ class Job(ProcessInterface, abc.ABC):
         logger.debug("Stopping worker: %s job: %s", self.name, self.job_id)
         await self._close_job(self.job_id, self.cancel_command, self.comm_port)
 
+    async def check_launched_worker(self):
+        await asyncio.sleep(WORKER_LAUNCH_THRESHOLD_MINS * 60)
+        if self.name not in self._cluster().scheduler._worker_collections[-1]:
+            logger.error(f"Worker {self.name} did not launch successfully. Closing job...")
+            await self.close()
+
     @classmethod
     async def _close_job(cls, job_id, cancel_command, port):
         with suppress(RuntimeError):  # deleting job when job already gone
@@ -452,7 +459,7 @@ class JobQueueCluster(SpecCluster):
 
         default_scheduler_options = {
             "protocol": protocol,
-            "dashboard_address": ":8787",
+            "dashboard_address": os.getenv("DASH_PORT", "8787"),
             "security": security,
         }
 
