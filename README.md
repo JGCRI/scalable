@@ -3,7 +3,7 @@
 
 Scalable is a Python library which aids in running complex workflows on HPCs by orchestrating multiple containers, requesting appropriate HPC jobs to the scheduler, and providing a python environment for distributed computing. It's designed to be primarily used with JGCRI Climate Models but can be easily adapted for any arbitrary uses.
 
-## [Documentation](scalable.readthedocs.io)
+## [Documentation](https://scalable.readthedocs.io)
 
 ## Installation
 
