@@ -33,7 +33,6 @@ Contents:
 ---------
 
 .. toctree::
-   :maxdepth: 1
    :caption: API
 
    workers
@@ -41,14 +40,17 @@ Contents:
    functions
 
 .. toctree::
-   :maxdepth: 1
    :caption: How-tos
 
    cache_hash
    container
 
 .. toctree::
-   :maxdepth: 1
    :caption: Demo
 
    demo
+
+.. toctree::
+   :caption: Common Issues
+
+   issues
