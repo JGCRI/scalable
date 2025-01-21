@@ -99,7 +99,7 @@ class ScalableClient(Client):
         """
         return super().close(timeout)
     
-    def map(self, func, parameters, tag, n, *args, **kwargs):
+    def map(self, func, *parameters, tag, n, **kwargs):
         """Map a function on multiple sets of arguments to run the function
         multiple times with different inputs. 
 
@@ -138,7 +138,7 @@ class ScalableClient(Client):
         resources = None
         if tag is not None:
             resources = {tag: n}
-        return super().map(func=func, iterables=parameters, resources=resources, *args, **kwargs)
+        return super().map(func=func, iterables=parameters, resources=resources, **kwargs)
     
     def get_versions(self, check=False, packages = None):
         """Return version info for the scheduler, all workers and myself
