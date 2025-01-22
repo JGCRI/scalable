@@ -44,11 +44,13 @@ Contents:
 
    cache_hash
    container
+   rpy2
 
 .. toctree::
-   :caption: Demo
+   :caption: Demos
 
    demo
+   helps_demo
 
 .. toctree::
    :caption: Common Issues
