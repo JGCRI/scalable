@@ -23,16 +23,16 @@ the conversion. The R code is as follows:
     library(HELPS)
 
     # test
-    esi.mon <- HeatStress(TempRes = "month", SECTOR = "SUNF_R", HS = WBGT_ESI, YEAR_INPUT = 2024,
-                        "path/hurs_mon_basd_CanESM5_W5E5v2_GCAM_ref_2015.nc",
-                        "path/tas_mon_basd_CanESM5_W5E5v2_GCAM_ref_2015-2100.nc",
-                        "path/rsds_mon_basd_CanESM5_W5E5v2_GCAM_ref_2015.nc")
+    esi.mon <- cal_heat_stress(TempRes = "month", SECTOR = "SUNF_R", HS = WBGT_ESI, YEAR_INPUT = 2024,
+                            "path/hurs_mon_basd_CanESM5_W5E5v2_GCAM_ref_2015.nc",
+                            "path/tas_mon_basd_CanESM5_W5E5v2_GCAM_ref_2015-2100.nc",
+                            "path/rsds_mon_basd_CanESM5_W5E5v2_GCAM_ref_2015.nc")
 
 
-    pwc.mon.hothaps <- PWC(WBGT = esi.mon,  LHR = LHR_Hothaps, workload = "high")
-    pwc.hothaps.ann <- MON2ANN(input_rack = pwc.mon.hothaps, SECTOR = "SUNF_R")
-    ctry_pwc <- G2R(grid_annual_value = pwc.hothaps.ann, SECTOR = "SUNF_R", rast_boundary = country_raster)
-    glu_pwc <- G2R(grid_annual_value = pwc.hothaps.ann, SECTOR = "SUNF_R", rast_boundary = reg_WB_raster)
+    pwc.mon.hothaps <- cal_pwc(WBGT = esi.mon,  LHR = LHR_Hothaps, workload = "high")
+    pwc.hothaps.ann <- monthly_to_annual(input_rack = pwc.mon.hothaps, SECTOR = "SUNF_R")
+    ctry_pwc <- grid_to_region(grid_annual_value = pwc.hothaps.ann, SECTOR = "SUNF_R", rast_boundary = country_raster)
+    glu_pwc <- grid_to_region(grid_annual_value = pwc.hothaps.ann, SECTOR = "SUNF_R", rast_boundary = reg_WB_raster)
 
 
 A simple conversion of the above code to Python code using rpy2 is as follows:
@@ -44,19 +44,19 @@ A simple conversion of the above code to Python code using rpy2 is as follows:
 
     helps = rpackages.importr('HELPS')
     
-    esi_mon = helps.HeatStress(TempRes = "month", SECTOR = "SUNF_R", HS = helps.WBGT_ESI, YEAR_INPUT = 2024, 
-                                a="hurs_mon_basd_CanESM5_W5E5v2_GCAM_ref_2015-2100.nc",
-                                b="tas_mon_basd_CanESM5_W5E5v2_GCAM_ref_2015-2100.nc", 
-                                c="rsds_mon_basd_CanESM5_W5E5v2_GCAM_ref_2015-2100.nc")
+    esi_mon = helps.cal_heat_stress(TempRes = "month", SECTOR = "SUNF_R", HS = helps.WBGT_ESI, YEAR_INPUT = 2024, 
+                                    a="hurs_mon_basd_CanESM5_W5E5v2_GCAM_ref_2015-2100.nc",
+                                    b="tas_mon_basd_CanESM5_W5E5v2_GCAM_ref_2015-2100.nc", 
+                                    c="rsds_mon_basd_CanESM5_W5E5v2_GCAM_ref_2015-2100.nc")
 
-    pwc_mon_hothaps = helps.PWC(WBGT = esi_mon,  LHR = helps.LHR_Hothaps, workload = "high")
-    pwc_hothaps_ann = helps.MON2ANN(input_rack = pwc_mon_hothaps, SECTOR = "SUNF_R")
+    pwc_mon_hothaps = helps.cal_pwc(WBGT = esi_mon,  LHR = helps.LHR_Hothaps, workload = "high")
+    pwc_hothaps_ann = helps.monthly_to_annual(input_rack = pwc_mon_hothaps, SECTOR = "SUNF_R")
     
     country_raster = robjects.r['country_raster']
-    ctry_pwc = helps.G2R(grid_annual_value = pwc_hothaps_ann, SECTOR = "SUNF_R", rast_boundary = country_raster)
+    ctry_pwc = helps.grid_to_region(grid_annual_value = pwc_hothaps_ann, SECTOR = "SUNF_R", rast_boundary = country_raster)
     
     reg_WB_raster = robjects.r['reg_WB_raster']
-    glu_pwc = helps.G2R(grid_annual_value = pwc_hothaps_ann, SECTOR = "SUNF_R", rast_boundary = reg_WB_raster)
+    glu_pwc = helps.grid_to_region(grid_annual_value = pwc_hothaps_ann, SECTOR = "SUNF_R", rast_boundary = reg_WB_raster)
 
 
 The above code is a simple conversion of the R code to Python code using rpy2. 

@@ -87,7 +87,7 @@ bootstrap lands and run the following code:
         helps = rpackages.importr('HELPS')
 
         # generate a heat stress raster brick for the desired resolution
-        heat_stress_raster = helps.HeatStress(
+        heat_stress_raster = helps.cal_heat_stress(
             TempRes = "month", 
             SECTOR = "SUNF_R", 
             HS = helps.WBGT_ESI, 
@@ -106,7 +106,7 @@ bootstrap lands and run the following code:
         helps = rpackages.importr('HELPS')
 
         # generate physical work capacity raster brick
-        physical_work_capacity_raster = helps.PWC(
+        physical_work_capacity_raster = helps.cal_pwc(
             WBGT = heat_stress_raster,  
             LHR = helps.LHR_Hothaps, 
             workload = "high"
@@ -121,7 +121,7 @@ bootstrap lands and run the following code:
         helps = rpackages.importr('HELPS')
 
         # aggregate physical work capacity to annual values and reformat to a data frame
-        annualized_physical_work_capacity_df = helps.MON2ANN(
+        annualized_physical_work_capacity_df = helps.monthly_to_annual(
             input_rack = physical_work_capacity_raster, 
             SECTOR = "SUNF_R"
         )
@@ -137,7 +137,7 @@ bootstrap lands and run the following code:
         country_raster = robjects.r['country_raster']
 
         # map annual physical work capacity to gridded countries
-        country_physical_work_capacity_df = helps.G2R(
+        country_physical_work_capacity_df = helps.grid_to_region(
             grid_annual_value = annualized_physical_work_capacity_df, 
             SECTOR = "SUNF_R", 
             rast_boundary = country_raster
@@ -154,7 +154,7 @@ bootstrap lands and run the following code:
         reg_WB_raster = robjects.r['reg_WB_raster']
         
         # map annual physical work capacity to gridded water basins
-        basin_physical_work_capacity_df = helps.G2R(
+        basin_physical_work_capacity_df = helps.grid_to_region(
             grid_annual_value = annualized_physical_work_capacity_df, 
             SECTOR = "SUNF_R", 
             rast_boundary = reg_WB_raster
