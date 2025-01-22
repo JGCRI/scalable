@@ -138,7 +138,7 @@ class ScalableClient(Client):
         resources = None
         if tag is not None:
             resources = {tag: n}
-        return super().map(func, parameters, resources=resources, **kwargs)
+        return super().map(func, *parameters, resources=resources, **kwargs)
     
     def get_versions(self, check=False, packages = None):
         """Return version info for the scheduler, all workers and myself
