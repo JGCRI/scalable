@@ -107,6 +107,35 @@ RUN pip3 install /scalable/.
 RUN pip3 install --force-reinstall importlib_metadata==6.8.0
 RUN pip3 install --force-reinstall numpy==1.26.4
 
+
+FROM build_env AS helps
+RUN apt-get -y update && apt -y upgrade && apt-get -y -f install
+RUN apt install --fix-missing -y software-properties-common
+RUN add-apt-repository ppa:ubuntugis/ppa
+RUN apt-get update
+ENV R_LIBS_USER /usr/lib/R/site-library
+RUN chmod a+w /usr/lib/R/site-library
+RUN apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev libudunits2-dev libproj-dev libavfilter-dev \
+    libbz2-dev liblzma-dev libfontconfig1-dev libharfbuzz-dev libfribidi-dev libgeos-dev libgdal-dev
+RUN git clone https://github.com/JGCRI/HELPS.git /HELPS
+RUN    echo "import rpy2.robjects.packages as rpackages" >> /install_script.py \
+    && echo "utils = rpackages.importr('utils')" >> /install_script.py \
+    && echo "utils.install_packages('devtools')" >> /install_script.py \
+    && echo "utils.install_packages('arrow')" >> /install_script.py \
+    && echo "utils.install_packages('assertthat')" >> /install_script.py 
+RUN python3 /install_script.py
+RUN    echo "import rpy2.robjects.packages as rpackages" >> /install_script.py \
+    && echo "devtools = rpackages.importr('devtools')" >> /install_script.py \
+    && echo "devtools.install_github('JGCRI/HELPS', dependencies=True)" >> /install_script.py 
+RUN python3 /install_script.py
+RUN    echo "import rpy2.robjects.packages as rpackages" > /install_script.py \
+    && echo "helps = rpackages.importr('HELPS')" >> /install_script.py 
+RUN python3 /install_script.py
+COPY --from=scalable /scalable /scalable
+RUN pip3 install /scalable/.
+RUN pip3 install --force-reinstall xarray==2024.5.0
+RUN pip3 install --force-reinstall numpy==1.26.4    
+
 FROM build_env AS hector
 RUN apt-get -y update && apt -y upgrade
 RUN python3 -m pip install pyhector
