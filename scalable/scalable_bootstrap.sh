@@ -326,7 +326,7 @@ ssh -L $DASH_PORT:$host:$DASH_PORT -t $user@$host \
     python3() {
         ./communicator -s $COMM_PORT >> logs/communicator.log &
         COMMUNICATOR_PID=\\\$!
-        apptainer exec --userns --compat --env COMM_PORT=$COMM_PORT --env DASH_PORT=$DASH_PORT --home ~/$work_dir --cwd ~/$work_dir ~/$work_dir/containers/scalable_container.sif bash -i -c python3 \\\$@
+        apptainer exec --userns --compat --env COMM_PORT=$COMM_PORT --env DASH_PORT=$DASH_PORT --home ~/$work_dir --cwd ~/$work_dir ~/$work_dir/containers/scalable_container.sif bash -i -c \\\"python3 \\\$@\\\"
         kill -9 \\\$COMMUNICATOR_PID
     } \" ); 
 }"
