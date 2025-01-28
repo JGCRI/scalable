@@ -116,7 +116,7 @@ class Job(ProcessInterface, abc.ABC):
         shared_lock=None,
         use_run_scripts=True,
         run_scripts_path=None,
-        cluster=None,
+        preload_script=None,
     ):
         """
         Parameters
@@ -198,7 +198,7 @@ class Job(ProcessInterface, abc.ABC):
         self.hardware = hardware
         self.name = name
         self.shared_lock = shared_lock
-        self.cluster = cluster
+        self.use_run_scripts = use_run_scripts
         self.job_id = None        
 
         super().__init__()
@@ -245,6 +245,8 @@ class Job(ProcessInterface, abc.ABC):
             command_args.extend(["--local-directory", local_directory])
         if tag is not None:
             command_args.extend(["--resources", f"\'{tag}\'=1"])
+        if preload_script is not None:
+            command_args.extend(["--preload", f"\"preload_script\""])
         if worker_extra_args is not None:
             command_args.extend(worker_extra_args)
         
@@ -391,6 +393,7 @@ class JobQueueCluster(SpecCluster):
         comm_port=None,
         logs_location=None,
         suppress_logs=False,
+        preload_script=None,
         **job_kwargs
     ):
         
@@ -448,6 +451,7 @@ class JobQueueCluster(SpecCluster):
                 )
         
         self.comm_port = comm_port
+        self.preload_script = preload_script
         self.hardware = HardwareResources()
         self.shared_lock = asyncio.Lock()
         self.launched = []
@@ -495,6 +499,7 @@ class JobQueueCluster(SpecCluster):
         job_kwargs["logs_location"] = self.logs_location
         job_kwargs["launched"] = self.launched
         job_kwargs["removed"] = self.removed
+        job_kwargs["preload_script"] = self.preload_script
         self._job_kwargs = job_kwargs
 
         worker = {"cls": self.job_cls, "options": self._job_kwargs}
