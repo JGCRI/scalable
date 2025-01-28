@@ -246,7 +246,7 @@ class Job(ProcessInterface, abc.ABC):
         if tag is not None:
             command_args.extend(["--resources", f"\'{tag}\'=1"])
         if preload_script is not None:
-            command_args.extend(["--preload", f"\"preload_script\""])
+            command_args.extend(["--preload", f"\"{preload_script}\""])
         if worker_extra_args is not None:
             command_args.extend(worker_extra_args)
         
