@@ -65,6 +65,24 @@ def salloc_command(account=None, chdir=None, clusters=None, exclusive=True, gpus
     command.append("--no-shell")
     return command
 
+def apptainer_module_command(apptainer_version):
+    """Make the command to load the apptainer module.
+
+    Parameters
+    ----------
+    apptainer_version : str, optional
+        The version of the apptainer module to load.
+
+    Returns
+    -------
+    list
+        The command to load the apptainer module.
+    """
+    command = f"module load apptainer"
+    if apptainer_version is not None:
+        command += f"/{apptainer_version}"
+    return shlex.split(command, posix=False)
+
 def memory_command():
     """Make the command to get the memory available on the node.
     

@@ -51,8 +51,10 @@ class SlurmJob(Job):
         if logs_location is not None:
             self.log_file = os.path.abspath(os.path.join(logs_location, f"{self.name}-{self.tag}.log"))
         
-        self.send_command = self.container.get_command(worker_env_vars)
-        self.send_command.extend(self.command_args)
+        apptainer_version = os.getenv("APPTAINER_VERSION", None)
+
+        self.send_command = apptainer_module_command(apptainer_version) + [";"] + \
+                            self.container.get_command(worker_env_vars) + self.command_args
     
     async def _srun_command(self, command):
         prefix = ["srun", f"--jobid={self.job_id}"]
@@ -62,9 +64,11 @@ class SlurmJob(Job):
     
     async def _ssh_command(self, command):
         prefix = ["ssh", self.job_node]
+        suffix = []
         if self.log_file:
-            suffix = [f">> {self.log_file}", "2>&1", "&"]
-            command = command + suffix
+            suffix = [f">> {self.log_file}", "2>&1"]
+        suffix.append("&")
+        command = command + suffix
         command = list(map(str, command))
         command_str = " ".join(command)
         command = prefix + [f"\"{command_str}\""]
