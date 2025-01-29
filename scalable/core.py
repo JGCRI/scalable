@@ -47,6 +47,8 @@ cluster_parameters = """
         Defaults to class name. 
     queue : str
         Destination queue for each worker job. 
+    preload_script : str
+        The path to a script that will be run by each worker before it launches.
     run_scripts_path : str
         The path where the run scripts are located. Defaults to ./run_scripts.
         The run scripts should be in the format <worker tag>_script.sh.
@@ -246,7 +248,7 @@ class Job(ProcessInterface, abc.ABC):
         if tag is not None:
             command_args.extend(["--resources", f"\'{tag}\'=1"])
         if preload_script is not None:
-            command_args.extend(["--preload", f"\"{preload_script}\""])
+            command_args.extend(["--preload", f"\'{preload_script}\'"])
         if worker_extra_args is not None:
             command_args.extend(worker_extra_args)
         
