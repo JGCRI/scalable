@@ -128,8 +128,7 @@ class SlurmJob(Job):
             asyncio.get_event_loop().create_task(self.check_launched_worker())
             self.hardware.utilize_resources(self.job_node, self.cpus, self.memory, self.job_id)
             self.launched.append((self.name, self.tag))
-
-        logger.debug("Starting job: %s", self.job_id)
+        
         await ProcessInterface.start(self)
 
     async def close(self):
@@ -174,25 +173,26 @@ class SlurmCluster(JobQueueCluster):
         This closes all running jobs and the scheduler. Pending jobs belonging
         to the user are also cancelled."""
         active_jobs = self.hardware.get_active_jobids()
-        jobs_command = "squeue -o \"%i %t\" -u $(whoami) | sed '1d'"
-        result = subprocess.run(jobs_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-        if result.returncode == 0:
-            jobs_states = result.stdout.decode('utf-8').split('\n')
+        jobs_command = ["squeue", "-o", "\'%i %t\'", "-u", "$(whoami)", "|", "sed", "\'1d\'"]
+        result = asyncio.run(self.job_cls._call(jobs_command, self.comm_port))
+        result = None if result == "" else result
+        if result is not None:    
+            jobs_states = result.split('\n')
             jobid_states = [job.split() for job in jobs_states if job]
             for job_info in jobid_states:
                 if job_info[1] == "PD":
                     active_jobs.append(job_info[0])
         for job_id in active_jobs:
-            cancel_job_command = f"scancel {job_id}"
-            result = subprocess.run(cancel_job_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            cancel_job_command = ["scancel", job_id]
+            result = asyncio.run(self.job_cls._call(cancel_job_command, self.comm_port))
+            result = None if result == "" else result
             logger.info(f"Cancelling job: {job_id}")
             logger.info(f"Result: {result}")
-            logger.info(f"return code: {result.returncode}")
-            if result.returncode == 0:
+            if result is None:
                 self.hardware.remove_jobid_nodes(job_id)
                 logger.info(f"Cancelled job: {job_id}")
             else:
-                logger.error(f"Failed to cancel job: {job_id}")
+                logger.error(f"Failed to cancel job: {result}")
         
         return super().close(timeout)
     
