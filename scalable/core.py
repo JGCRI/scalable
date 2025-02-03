@@ -400,7 +400,7 @@ class JobQueueCluster(SpecCluster):
     ):
         
         if comm_port is None:
-            comm_port = os.getenv("COMM_PORT")
+            comm_port = os.getenv("COMM_PORT", None)
         if comm_port is None:
             raise ValueError(
                 "Communicator port not given. You must specify the communicator port "
