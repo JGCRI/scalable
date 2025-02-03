@@ -185,6 +185,9 @@ class SlurmCluster(JobQueueCluster):
         for job_id in active_jobs:
             cancel_job_command = f"scancel {job_id}"
             result = subprocess.run(cancel_job_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            logger.info(f"Cancelling job: {job_id}")
+            logger.info(f"Result: {result}")
+            logger.info(f"return code: {result.returncode}")
             if result.returncode == 0:
                 self.hardware.remove_jobid_nodes(job_id)
                 logger.info(f"Cancelled job: {job_id}")
