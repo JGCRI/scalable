@@ -585,6 +585,7 @@ class JobQueueCluster(SpecCluster):
         can_remove = [worker.name for worker in self.scheduler.idle.values() if tag in worker.name]
         if n > len(can_remove):
             can_remove.extend([worker_name for worker_name in list(self.worker_spec.keys()) if tag in worker_name])
+            can_remove = list(set(can_remove))
         current = len(can_remove)
         if n > current:
             logger.warning(f"Cannot remove {n} workers. Only {current} workers found, removing all.")
