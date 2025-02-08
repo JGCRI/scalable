@@ -31,6 +31,7 @@ class SlurmJob(Job):
         logs_location=None,
         shared_lock=None,
         worker_env_vars=None,
+        active_job_ids=None,
         **base_class_kwargs
     ):
         super().__init__(
@@ -44,9 +45,11 @@ class SlurmJob(Job):
                                         partition=queue, time=walltime)
         
         self.job_name = job_name
+        self.active_job_ids = active_job_ids
         self.job_id = None
         self.job_node = None
         self.log_file = None
+        self.deleted = False
 
         if logs_location is not None:
             self.log_file = os.path.abspath(os.path.join(logs_location, f"{self.name}-{self.tag}.log"))
@@ -105,6 +108,7 @@ class SlurmJob(Job):
                 out = await self._run_command(self.slurm_cmd)
                 job_id = await self._run_command(jobid_command(self.job_name))
                 self.job_id = job_id
+                self.active_job_ids.append(job_id)
                 nodelist = await self._run_command(nodelist_command(self.job_name))
                 nodes = parse_nodelist(nodelist)
                 worker_memories = await self._srun_command(memory_command())
@@ -135,6 +139,8 @@ class SlurmJob(Job):
         """Close function for the worker.
         
         The worker releases the resources it was utilizing and removes itself."""
+        if self.deleted:
+            return
         async with self.shared_lock:
             if self.hardware.is_assigned(self.job_id):
                 match = await self._check_valid_job_id(self.job_id)
@@ -148,6 +154,7 @@ class SlurmJob(Job):
             cluster = self._cluster()
             if self.tag in self.removed and self.removed[self.tag] > 0:
                 self.removed[self.tag] -= 1
+                self.deleted = True
             elif cluster.status not in (Status.closing, Status.closed):
                 cluster.loop.call_later(RECOVERY_DELAY, cluster._correct_state)
 
@@ -172,22 +179,11 @@ class SlurmCluster(JobQueueCluster):
 
         This closes all running jobs and the scheduler. Pending jobs belonging
         to the user are also cancelled."""
-        active_jobs = self.hardware.get_active_jobids()
-        jobs_command = ["squeue", "-o", "\'%i %t\'", "-u", "$(whoami)", "|", "sed", "\'1d\'"]
-        result = asyncio.run(self.job_cls._call(jobs_command, self.comm_port))
-        result = None if result == "" else result
-        if result is not None:    
-            jobs_states = result.split('\n')
-            jobid_states = [job.split() for job in jobs_states if job]
-            for job_info in jobid_states:
-                if job_info[1] == "PD":
-                    active_jobs.append(job_info[0])
+        active_jobs = self.active_job_ids
         for job_id in active_jobs:
             cancel_job_command = ["scancel", job_id]
             result = asyncio.run(self.job_cls._call(cancel_job_command, self.comm_port))
             result = None if result == "" else result
-            logger.info(f"Cancelling job: {job_id}")
-            logger.info(f"Result: {result}")
             if result is None:
                 self.hardware.remove_jobid_nodes(job_id)
                 logger.info(f"Cancelled job: {job_id}")

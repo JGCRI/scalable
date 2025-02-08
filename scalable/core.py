@@ -233,7 +233,7 @@ class Job(ProcessInterface, abc.ABC):
 
         # common
         command_args.extend(["--name", self.name])
-        command_args.extend(["--nthreads", self.cpus])
+        command_args.extend(["--nthreads", 1])
         command_args.extend(["--memory-limit", f"{self.worker_memory}GB"])
 
         #  distributed.cli.dask_worker specific
@@ -462,6 +462,7 @@ class JobQueueCluster(SpecCluster):
         self.specifications = {}
         self.model_configs = ModelConfig(path_overwrite=config_overwrite)
         self.exited = False
+        self.active_job_ids = []
 
         default_scheduler_options = {
             "protocol": protocol,
@@ -502,6 +503,7 @@ class JobQueueCluster(SpecCluster):
         job_kwargs["launched"] = self.launched
         job_kwargs["removed"] = self.removed
         job_kwargs["preload_script"] = self.preload_script
+        job_kwargs["active_job_ids"] = self.active_job_ids
         self._job_kwargs = job_kwargs
 
         worker = {"cls": self.job_cls, "options": self._job_kwargs}
