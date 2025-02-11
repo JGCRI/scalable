@@ -98,9 +98,9 @@ class ModelConfig:
         if path is None:
             self.path = os.path.abspath(os.path.join(cwd, "config_dict.yaml"))
         dockerfile_path = os.path.abspath(os.path.join(cwd, "Dockerfile"))
-        list_avial_command = \
-        f"sed -n 's/^FROM[[:space:]]\+[^ ]\+[[:space:]]\+AS[[:space:]]\+\([^ ]\+\)$/\\1/p' {dockerfile_path}"
-        result = subprocess.run(list_avial_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        list_avail_command = r"sed -n 's/^FROM[[:space:]]\+[^ ]\+[[:space:]]\+AS[[:space:]]\+\([^ ]\+\)$/\\1/p' " +\
+              dockerfile_path
+        result = subprocess.run(list_avail_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         if result.returncode == 0:
             avail_containers = result.stdout.decode('utf-8').split('\n')
             try:
