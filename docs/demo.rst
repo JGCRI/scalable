@@ -24,14 +24,21 @@ be useful for running complex experiments and analysis.
 
 
     ## Adding containers to the cluster
+
+    ## Note that the gcam container is added with 6 cpus as the gcam program can
+    ## use multiple threads and it is assumed that it's interanally set to use 
+    ## just 6 threads in this case. This number can be changed in the input 
+    ## configuration file.
     cluster.add_container(tag="gcam", cpus=6, memory="20G", dirs={"/qfs/people/lamb678/work/gcam-core/exe":"/gcam-core/exe", 
                                                                 "/qfs/people/lamb678/work/gcam-core/input":"/gcam-core/input", 
                                                                 "/qfs/people/lamb678/work/gcam-core/output":"/gcam-core/output", 
                                                                 "/qfs":"/qfs"})
 
-    cluster.add_container(tag="stitches", cpus=6, memory="50G", dirs={"/qfs":"/qfs", "/rcfs":"/rcfs"})
+    ## On the other hand, both stitches and xanthos containers are added with 
+    ## just 1 cpu as they are not expected to use multiple threads.
+    cluster.add_container(tag="stitches", cpus=1, memory="50G", dirs={"/qfs":"/qfs", "/rcfs":"/rcfs"})
 
-    cluster.add_container(tag="xanthos", cpus=6, memory="20G", dirs={"/qfs":"/qfs", "/rcfs":"/rcfs", 
+    cluster.add_container(tag="xanthos", cpus=1, memory="20G", dirs={"/qfs":"/qfs", "/rcfs":"/rcfs", 
                                                                     "/rcfs/projects/gcims/projects/scalable/":"/scratch"})
 
 
