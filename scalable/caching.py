@@ -104,7 +104,7 @@ class ObjectType(GenericType):
     def __hash__(self) -> int:
         digest = 0
         x = xxh32(seed=SEED)
-        if isinstance(self.value, list):
+        if isinstance(self.value, (list, tuple)):
             value_list = self.value
             for element in value_list:
                 x.update(hash_to_bytes(hash(convert_to_type(element))))
@@ -187,6 +187,8 @@ def convert_to_type(arg):
         ret = ValueType(arg)
     elif isinstance(arg, (np.ndarray, pd.DataFrame)):
         ret = UtilityType(arg)
+    elif isinstance(arg, (list, dict, tuple)):
+        ret = ObjectType(arg)
     else:
         logger.warning(f"Could not identify type for argument: {arg}. Using default hash function. " 
                     "For more reliable performance, either wrap the argument in a class with a defined"
