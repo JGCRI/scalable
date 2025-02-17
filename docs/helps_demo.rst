@@ -74,17 +74,39 @@ scalable_bootstrap and selecting the new target. It will be built locally and
 uploaded automatically to the remote system. 
 
 The next step would be to make functions to actually run the helps package. 
-This is relatively simple, just launch python3 in the terminal where the 
-bootstrap lands and run the following code:
+As mentioned in the guide linked above though, using rpy2 to run R code may 
+cause some issues and the best way to avoid it is to import everything needed 
+in a preload script. In this case, the following preload script should work:
+
+.. code-block:: python
+
+    def dask_setup(worker):
+        import rpy2.robjects.packages as rpackages
+        import rpy2.robjects as r
+        from rpy2.robjects import StrVector
+        helps = rpackages.importr('HELPS')
+        worker.imports = {}
+        worker.imports['HELPS'] = helps
+        worker.imports['country_raster'] = r.r['country_raster']
+        worker.imports['reg_WB_raster'] = r.r['reg_WB_raster']
+
+After passing the path to the preload script above to the container, the worker 
+object can be imported in the target functions to then use the needed R objects.
+Please note that all the R objects that are needed should be imported in the
+preload script beforehand. 
+
+The following code is an example of how the HELPS package can be used with 
+scalable, and includes the target functions which will be ran on the remote 
+system:
 
 .. code-block:: python
 
     from scalable import *
 
     def run_heatstress(hurs_file_name, tas_file_name, rsds_file_name, target_year):
-        import rpy2.robjects.packages as rpackages
+        worker = get_worker()
 
-        helps = rpackages.importr('HELPS')
+        helps = worker.imports['HELPS']
 
         # generate a heat stress raster brick for the desired resolution
         heat_stress_raster = helps.cal_heat_stress(
@@ -101,9 +123,9 @@ bootstrap lands and run the following code:
 
 
     def run_physical_work_capacity(heat_stress_raster):
-        import rpy2.robjects.packages as rpackages
+        worker = get_worker()
 
-        helps = rpackages.importr('HELPS')
+        helps = worker.imports['HELPS']
 
         # generate physical work capacity raster brick
         physical_work_capacity_raster = helps.cal_pwc(
@@ -116,9 +138,9 @@ bootstrap lands and run the following code:
 
 
     def run_annualized_physical_work_capacity(physical_work_capacity_raster):
-        import rpy2.robjects.packages as rpackages
+        worker = get_worker()
 
-        helps = rpackages.importr('HELPS')
+        helps = worker.imports['HELPS']
 
         # aggregate physical work capacity to annual values and reformat to a data frame
         annualized_physical_work_capacity_df = helps.monthly_to_annual(
@@ -130,11 +152,10 @@ bootstrap lands and run the following code:
 
 
     def run_country_physical_work_capacity(annualized_physical_work_capacity_df):
-        import rpy2.robjects.packages as rpackages
-        import rpy2.robjects as robjects
+        worker = get_worker()
 
-        helps = rpackages.importr('HELPS')
-        country_raster = robjects.r['country_raster']
+        helps = worker.imports['HELPS']
+        country_raster = worker.imports['country_raster']
 
         # map annual physical work capacity to gridded countries
         country_physical_work_capacity_df = helps.grid_to_region(
@@ -147,11 +168,10 @@ bootstrap lands and run the following code:
 
 
     def run_basin_physical_work_capacity(annualized_physical_work_capacity_df):
-        import rpy2.robjects.packages as rpackages
-        import rpy2.robjects as robjects
+        worker = get_worker()
 
-        helps = rpackages.importr('HELPS')
-        reg_WB_raster = robjects.r['reg_WB_raster']
+        helps = worker.imports['HELPS']
+        reg_WB_raster = worker.imports['reg_WB_raster']
         
         # map annual physical work capacity to gridded water basins
         basin_physical_work_capacity_df = helps.grid_to_region(
@@ -180,8 +200,10 @@ bootstrap lands and run the following code:
 
         cluster = SlurmCluster(queue='short', walltime='02:00:00', account='GCIMS', silence_logs=False)
 
-        ## Adding the helps container specifications (can be changed as needed)        
-        cluster.add_container(tag="helps", cpus=4, memory="8G", dirs={"/path1":"/path1", "/path2":"/path2"})
+        ## Adding the helps container specifications. R is almost always single 
+        ## threaded so the number of cpus is set to 1. The memory is set to 8G.     
+        cluster.add_container(tag="helps", cpus=1, memory="8G", preload_script='/path/to/preload_script.py', 
+        dirs={"/path1":"/path1", "/path2":"/path2"})
 
         ## Adding workers to the cluster
         cluster.add_workers(n=num_years, tag="helps")
