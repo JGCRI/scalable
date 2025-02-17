@@ -24,6 +24,27 @@ git repo should be cloned to the preferred working directory.
     [user@localhost <local_work_dir>]$ pip install ./scalable
 
 
+If a warning related to the python scripts path not being in the PATH 
+environment variable, similar to the one below, is shown:
+
+.. code-block:: bash
+
+    WARNING: The script scalable_bootstrap.exe is installed in '/path_to_python/Pythonxxx/Scripts' which is not on PATH.
+    Consider adding this directory to PATH or, if you prefer to suppress this warning, use --no-warn-script-location.
+
+Then the path to the scripts directory should be added to the environment 
+(as suggested) to prevent any issues with running the bootstrap script.
+
+To do so, just copy the path shown and run the following command to add it to
+the PATH environment variable:
+
+.. code-block:: bash
+
+    [user@localhost ~]$  echo "export PATH=\$PATH:'/path_to_python/Pythonxxx/Scripts'" >> ~/.bashrc && source ~/.bashrc
+
+This would only need to be ran once to prevent the warning from showing up 
+again.
+
 Compatibility Requirements
 --------------------------
 
