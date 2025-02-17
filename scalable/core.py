@@ -618,7 +618,8 @@ class JobQueueCluster(SpecCluster):
             A dictionary of path-on-worker:path-on-host pairs where 
             path-on-worker is a path mounted to path-on-host. When the worker
             tries to access path-on-worker, it essentially accesssing 
-            path-on-work. List of volume/bind mounts.
+            path-on-work. List of volume/bind mounts. '/tmp' is mounted to the 
+            same path on the host by default.
         path : str
             The path at which the container is located at
         cpus : int
