@@ -49,6 +49,30 @@ by other workers. Therefore, whenever this issue is encountered, it is
 recommended to set the scheduler to be "synchronous" which means that it will 
 pickle the task and run it on the same specified worker. 
 
+Deadlocks and Stuck Workers
+---------------------------
+
+Another issue that can occasionally be encountered is deadlocks. It is possible 
+that a worker can get stuck processing a function forever. This issue is quite 
+subtle to debug as the worker can just genuinely be processing instead of being 
+stuck. The best way to recognize this issue is if the function is taking a lot 
+longer than expected. The most common cause of this issue is a deadlock. And 
+the most common cause of a deadlock is assigning multiple CPUs to a container 
+which is only running functions which use a single CPU. In other words, 
+reserving multiple CPUs for single-threaded functions can cause deadlocks. 
+
+When multiple CPUs are assigned to a container in the following way:
+
+.. code-block:: python
+
+    cluster.add_container(tag="container_tag", cpus=2, memory="50G", dirs={"/qfs":"/qfs", "/rcfs":"/rcfs"})
+
+The scalable backend assigns a threadpool with 2 threads to any worker with the 
+same tag as the container. However, if the functions running on the worker are 
+single-threaded, there could be two instances of the function assigned to the 
+worker which can occasionally cause a deadlock. To prevent this, please ensure 
+that the correct amount of CPUs are assigned to the container. 
+
 General Errors
 --------------
 

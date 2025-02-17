@@ -160,8 +160,14 @@ if [[ "$transfer" =~ [Yy]|^[Yy][Ee]|^[Yy][Ee][Ss]$ ]]; then
     done
 fi
 
-echo -e "${YELLOW}To reinstall any directory or file already on remote, \
-please delete it from remote and run this script again${NC}"
+echo -e "${YELLOW}To reinstall any directory or file already on remote, please \
+delete it from remote and run this script again.${NC}"
+echo -e "${YELLOW}If containers are chosen to be built, then it may take a \
+significant amount of time.${NC}"
+echo -e "${YELLOW}Please feel free to continue other work and leave this \
+script running in the background.${NC}" 
+echo -e "${YELLOW}Once the containers are built, you will be automatically \
+logged into the host or $host.${NC}"
 
 flush
 ssh -t $user@$host \
@@ -326,7 +332,7 @@ ssh -L $DASH_PORT:$host:$DASH_PORT -t $user@$host \
     python3() {
         ./communicator -s $COMM_PORT >> logs/communicator.log &
         COMMUNICATOR_PID=\\\$!
-        apptainer exec --userns --compat --env COMM_PORT=$COMM_PORT --env DASH_PORT=$DASH_PORT --home ~/$work_dir --cwd ~/$work_dir ~/$work_dir/containers/scalable_container.sif bash -i -c python3 \\\$@
+        apptainer exec --userns --compat --env APPTAINER_VERSION=$APPTAINER_VERSION --env COMM_PORT=$COMM_PORT --env DASH_PORT=$DASH_PORT --home ~/$work_dir --cwd ~/$work_dir ~/$work_dir/containers/scalable_container.sif bash -i -c \\\"python3 \\\$@\\\"
         kill -9 \\\$COMMUNICATOR_PID
     } \" ); 
 }"

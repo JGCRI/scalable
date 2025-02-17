@@ -1,5 +1,6 @@
 
 from dask.distributed import Security
+from distributed import get_worker
 
 from ._version import get_versions
 from .caching import *

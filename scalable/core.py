@@ -116,7 +116,7 @@ class Job(ProcessInterface, abc.ABC):
         shared_lock=None,
         use_run_scripts=True,
         run_scripts_path=None,
-        cluster=None,
+        preload_script=None,
     ):
         """
         Parameters
@@ -198,7 +198,7 @@ class Job(ProcessInterface, abc.ABC):
         self.hardware = hardware
         self.name = name
         self.shared_lock = shared_lock
-        self.cluster = cluster
+        self.use_run_scripts = use_run_scripts
         self.job_id = None        
 
         super().__init__()
@@ -209,6 +209,8 @@ class Job(ProcessInterface, abc.ABC):
             cpus = container_info['CPUs']
         if memory is None:
             memory = container_info['Memory']
+        if preload_script is None:
+            preload_script = container_info['PreloadScript']
         self.cpus = cpus
         self.memory = memory
         processes = 1        
@@ -231,7 +233,7 @@ class Job(ProcessInterface, abc.ABC):
 
         # common
         command_args.extend(["--name", self.name])
-        command_args.extend(["--nthreads", self.cpus])
+        command_args.extend(["--nthreads", 1])
         command_args.extend(["--memory-limit", f"{self.worker_memory}GB"])
 
         #  distributed.cli.dask_worker specific
@@ -245,6 +247,8 @@ class Job(ProcessInterface, abc.ABC):
             command_args.extend(["--local-directory", local_directory])
         if tag is not None:
             command_args.extend(["--resources", f"\'{tag}\'=1"])
+        if preload_script is not None:
+            command_args.extend(["--preload", f"\'{preload_script}\'"])
         if worker_extra_args is not None:
             command_args.extend(worker_extra_args)
         
@@ -395,7 +399,7 @@ class JobQueueCluster(SpecCluster):
     ):
         
         if comm_port is None:
-            comm_port = os.getenv("COMM_PORT")
+            comm_port = os.getenv("COMM_PORT", None)
         if comm_port is None:
             raise ValueError(
                 "Communicator port not given. You must specify the communicator port "
@@ -456,6 +460,7 @@ class JobQueueCluster(SpecCluster):
         self.specifications = {}
         self.model_configs = ModelConfig(path_overwrite=config_overwrite)
         self.exited = False
+        self.active_job_ids = []
 
         default_scheduler_options = {
             "protocol": protocol,
@@ -495,6 +500,7 @@ class JobQueueCluster(SpecCluster):
         job_kwargs["logs_location"] = self.logs_location
         job_kwargs["launched"] = self.launched
         job_kwargs["removed"] = self.removed
+        job_kwargs["active_job_ids"] = self.active_job_ids
         self._job_kwargs = job_kwargs
 
         worker = {"cls": self.job_cls, "options": self._job_kwargs}
@@ -578,6 +584,7 @@ class JobQueueCluster(SpecCluster):
         can_remove = [worker.name for worker in self.scheduler.idle.values() if tag in worker.name]
         if n > len(can_remove):
             can_remove.extend([worker_name for worker_name in list(self.worker_spec.keys()) if tag in worker_name])
+            can_remove = list(set(can_remove))
         current = len(can_remove)
         if n > current:
             logger.warning(f"Cannot remove {n} workers. Only {current} workers found, removing all.")
@@ -594,7 +601,7 @@ class JobQueueCluster(SpecCluster):
         if self.asynchronous:
             return NoOpAwaitable()
 
-    def add_container(self, tag, dirs, path=None, cpus=None, memory=None):
+    def add_container(self, tag, dirs, path=None, cpus=1, memory=None, preload_script=None):
         """Add containers to enable them launching as workers. 
         
         The required dependencies for the workers are assumed to be in the 
@@ -611,20 +618,29 @@ class JobQueueCluster(SpecCluster):
             A dictionary of path-on-worker:path-on-host pairs where 
             path-on-worker is a path mounted to path-on-host. When the worker
             tries to access path-on-worker, it essentially accesssing 
-            path-on-work. List of volume/bind mounts.
+            path-on-work. List of volume/bind mounts. '/tmp' is mounted to the 
+            same path on the host by default.
         path : str
             The path at which the container is located at
         cpus : int
-            The number of cpus/processor cores to be reserved for this container
+            The number of cpus/processor cores to be reserved for this 
+            container. Note that this should be 1 if the container is only 
+            going to run single-threaded functions or programs. Set it to more 
+            than 1 only if the container will run multi-threaded functions. 
+            It needs to be ensured by the user that the function uses multiple 
+            threads, even if it's launching an external program.
         memory : str
             The amount of memory to be reserved for this container
+        preload_script : str
+            The path to a script that will be run by each worker before it 
+            launches.
         """
         tag = tag.lower()
         self.model_configs.update_dict(tag, 'Dirs', dirs)
         if path:
             self.model_configs.update_dict(tag, 'Path', path)
-        if cpus:
-            self.model_configs.update_dict(tag, 'CPUs', cpus)
+        self.model_configs.update_dict(tag, 'CPUs', cpus)
+        self.model_configs.update_dict(tag, 'PreloadScript', preload_script)
         if memory:
             self.model_configs.update_dict(tag, 'Memory', memory)
         self.containers[tag] = Container(name=tag, spec_dict=self.model_configs.config_dict[tag])

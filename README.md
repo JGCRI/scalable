@@ -1,5 +1,5 @@
 # Scalable 
-[v0.6.2](https://github.com/JGCRI/scalable/tree/0.6.2)
+[v1.0.0](https://github.com/JGCRI/scalable/tree/1.0.0)
 
 Scalable is a Python library which aids in running complex workflows on HPCs by orchestrating multiple containers, requesting appropriate HPC jobs to the scheduler, and providing a python environment for distributed computing. It's designed to be primarily used with JGCRI Climate Models but can be easily adapted for any arbitrary uses.
 
@@ -21,6 +21,23 @@ Alternatively, the git repo can be cloned directly and installed locally. The gi
 [user@localhost <local_work_dir>]$ git clone https://github.com/JGCRI/scalable.git
 [user@localhost <local_work_dir>]$ pip install ./scalable
 ```
+
+If a warning related to the python scripts path not being in the PATH environment variable, similar to the one below, is shown:
+
+```bash
+WARNING: The script scalable_bootstrap.exe is installed in '/path_to_python/Pythonxxx/Scripts' which is not on PATH.
+Consider adding this directory to PATH or, if you prefer to suppress this warning, use --no-warn-script-location.
+```
+
+Then the path to the scripts directory should be added to the environment (as suggested) to prevent any issues with running the bootstrap script.
+
+To do so, just copy the path shown and run the following command to add it to the PATH environment variable:
+
+```bash
+[user@localhost ~]$  echo "export PATH=\$PATH:'/path_to_python/Pythonxxx/Scripts'" >> ~/.bashrc && source ~/.bashrc
+```
+
+This would only need to be ran once to prevent the warning from showing up again.
 
 ## Setup
 

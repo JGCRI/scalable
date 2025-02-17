@@ -98,9 +98,9 @@ class ModelConfig:
         if path is None:
             self.path = os.path.abspath(os.path.join(cwd, "config_dict.yaml"))
         dockerfile_path = os.path.abspath(os.path.join(cwd, "Dockerfile"))
-        list_avial_command = \
-        f"sed -n 's/^FROM[[:space:]]\+[^ ]\+[[:space:]]\+AS[[:space:]]\+\([^ ]\+\)$/\\1/p' {dockerfile_path}"
-        result = subprocess.run(list_avial_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        list_avail_command = r"sed -n 's/^FROM[[:space:]]\+[^ ]\+[[:space:]]\+AS[[:space:]]\+\([^ ]\+\)$/\\1/p' " +\
+              dockerfile_path
+        result = subprocess.run(list_avail_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         if result.returncode == 0:
             avail_containers = result.stdout.decode('utf-8').split('\n')
             try:
@@ -541,7 +541,8 @@ class Container:
             'Path': '/home/user/work/containers/container.sif',
             'Dirs': {
             '/home/work/inputs': '/inputs'
-            '/home/work/shared': '/shared'}}
+            '/home/work/shared': '/shared'}
+            'PreloadScript': '/home/user/work/preload.py'}
         """
         self.name = name
         self.cpus = spec_dict['CPUs']
@@ -551,7 +552,9 @@ class Container:
         self.path = spec_dict['Path']
         if spec_dict['Dirs'] is None:
             spec_dict['Dirs'] = {}
+        spec_dict['Dirs']['/tmp'] = '/tmp'
         self.directories = spec_dict['Dirs']
+        self.preload_script = spec_dict['PreloadScript']
 
     def add_directory(self, src, dst=None):
         """Mount a host's directory to a path in the container.
@@ -588,6 +591,7 @@ class Container:
         ret['Memory'] = self.memory
         ret['Path'] = self.path
         ret['Dirs'] = self.directories
+        ret['PreloadScript'] = self.preload_script
         return ret
 
     def get_command(self, env_vars=None):

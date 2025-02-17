@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.abspath('../scalable'))
 project = 'Scalable'
 copyright = '2024, Joint Global Change Research Institute'
 author = 'Shashank Lamba, Pralit Patel'
-release = '0.6.2'
+release = '1.0.0'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

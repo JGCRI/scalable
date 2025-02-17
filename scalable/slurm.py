@@ -31,6 +31,7 @@ class SlurmJob(Job):
         logs_location=None,
         shared_lock=None,
         worker_env_vars=None,
+        active_job_ids=None,
         **base_class_kwargs
     ):
         super().__init__(
@@ -44,15 +45,19 @@ class SlurmJob(Job):
                                         partition=queue, time=walltime)
         
         self.job_name = job_name
+        self.active_job_ids = active_job_ids
         self.job_id = None
         self.job_node = None
         self.log_file = None
+        self.deleted = False
 
         if logs_location is not None:
             self.log_file = os.path.abspath(os.path.join(logs_location, f"{self.name}-{self.tag}.log"))
         
-        self.send_command = self.container.get_command(worker_env_vars)
-        self.send_command.extend(self.command_args)
+        apptainer_version = os.getenv("APPTAINER_VERSION", None)
+
+        self.send_command = apptainer_module_command(apptainer_version) + [";"] + \
+                            self.container.get_command(worker_env_vars) + self.command_args
     
     async def _srun_command(self, command):
         prefix = ["srun", f"--jobid={self.job_id}"]
@@ -62,9 +67,11 @@ class SlurmJob(Job):
     
     async def _ssh_command(self, command):
         prefix = ["ssh", self.job_node]
+        suffix = []
         if self.log_file:
-            suffix = [f">> {self.log_file}", "2>&1", "&"]
-            command = command + suffix
+            suffix = [f">> {self.log_file}", "2>&1"]
+        suffix.append("&")
+        command = command + suffix
         command = list(map(str, command))
         command_str = " ".join(command)
         command = prefix + [f"\"{command_str}\""]
@@ -101,6 +108,7 @@ class SlurmJob(Job):
                 out = await self._run_command(self.slurm_cmd)
                 job_id = await self._run_command(jobid_command(self.job_name))
                 self.job_id = job_id
+                self.active_job_ids.append(job_id)
                 nodelist = await self._run_command(nodelist_command(self.job_name))
                 nodes = parse_nodelist(nodelist)
                 worker_memories = await self._srun_command(memory_command())
@@ -124,14 +132,15 @@ class SlurmJob(Job):
             asyncio.get_event_loop().create_task(self.check_launched_worker())
             self.hardware.utilize_resources(self.job_node, self.cpus, self.memory, self.job_id)
             self.launched.append((self.name, self.tag))
-
-        logger.debug("Starting job: %s", self.job_id)
+        
         await ProcessInterface.start(self)
 
     async def close(self):
         """Close function for the worker.
         
         The worker releases the resources it was utilizing and removes itself."""
+        if self.deleted:
+            return
         async with self.shared_lock:
             if self.hardware.is_assigned(self.job_id):
                 match = await self._check_valid_job_id(self.job_id)
@@ -145,6 +154,7 @@ class SlurmJob(Job):
             cluster = self._cluster()
             if self.tag in self.removed and self.removed[self.tag] > 0:
                 self.removed[self.tag] -= 1
+                self.deleted = True
             elif cluster.status not in (Status.closing, Status.closed):
                 cluster.loop.call_later(RECOVERY_DELAY, cluster._correct_state)
 
@@ -169,23 +179,16 @@ class SlurmCluster(JobQueueCluster):
 
         This closes all running jobs and the scheduler. Pending jobs belonging
         to the user are also cancelled."""
-        active_jobs = self.hardware.get_active_jobids()
-        jobs_command = "squeue -o \"%i %t\" -u $(whoami) | sed '1d'"
-        result = subprocess.run(jobs_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-        if result.returncode == 0:
-            jobs_states = result.stdout.decode('utf-8').split('\n')
-            jobid_states = [job.split() for job in jobs_states if job]
-            for job_info in jobid_states:
-                if job_info[1] == "PD":
-                    active_jobs.append(job_info[0])
+        active_jobs = self.active_job_ids
         for job_id in active_jobs:
-            cancel_job_command = f"scancel {job_id}"
-            result = subprocess.run(cancel_job_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-            if result.returncode == 0:
+            cancel_job_command = ["scancel", job_id]
+            result = asyncio.run(self.job_cls._call(cancel_job_command, self.comm_port))
+            result = None if result == "" else result
+            if result is None:
                 self.hardware.remove_jobid_nodes(job_id)
                 logger.info(f"Cancelled job: {job_id}")
             else:
-                logger.error(f"Failed to cancel job: {job_id}")
+                logger.error(f"Failed to cancel job: {result}")
         
         return super().close(timeout)
     
