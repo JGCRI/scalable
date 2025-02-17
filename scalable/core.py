@@ -47,8 +47,6 @@ cluster_parameters = """
         Defaults to class name. 
     queue : str
         Destination queue for each worker job. 
-    preload_script : str
-        The path to a script that will be run by each worker before it launches.
     run_scripts_path : str
         The path where the run scripts are located. Defaults to ./run_scripts.
         The run scripts should be in the format <worker tag>_script.sh.
@@ -211,6 +209,8 @@ class Job(ProcessInterface, abc.ABC):
             cpus = container_info['CPUs']
         if memory is None:
             memory = container_info['Memory']
+        if preload_script is None:
+            preload_script = container_info['PreloadScript']
         self.cpus = cpus
         self.memory = memory
         processes = 1        
@@ -395,7 +395,6 @@ class JobQueueCluster(SpecCluster):
         comm_port=None,
         logs_location=None,
         suppress_logs=False,
-        preload_script=None,
         **job_kwargs
     ):
         
@@ -453,7 +452,6 @@ class JobQueueCluster(SpecCluster):
                 )
         
         self.comm_port = comm_port
-        self.preload_script = preload_script
         self.hardware = HardwareResources()
         self.shared_lock = asyncio.Lock()
         self.launched = []
@@ -502,7 +500,6 @@ class JobQueueCluster(SpecCluster):
         job_kwargs["logs_location"] = self.logs_location
         job_kwargs["launched"] = self.launched
         job_kwargs["removed"] = self.removed
-        job_kwargs["preload_script"] = self.preload_script
         job_kwargs["active_job_ids"] = self.active_job_ids
         self._job_kwargs = job_kwargs
 
@@ -604,7 +601,7 @@ class JobQueueCluster(SpecCluster):
         if self.asynchronous:
             return NoOpAwaitable()
 
-    def add_container(self, tag, dirs, path=None, cpus=None, memory=None):
+    def add_container(self, tag, dirs, path=None, cpus=1, memory=None, preload_script=None):
         """Add containers to enable them launching as workers. 
         
         The required dependencies for the workers are assumed to be in the 
@@ -625,16 +622,24 @@ class JobQueueCluster(SpecCluster):
         path : str
             The path at which the container is located at
         cpus : int
-            The number of cpus/processor cores to be reserved for this container
+            The number of cpus/processor cores to be reserved for this 
+            container. Note that this should be 1 if the container is only 
+            going to run single-threaded functions or programs. Set it to more 
+            than 1 only if the container will run multi-threaded functions. 
+            It needs to be ensured by the user that the function uses multiple 
+            threads, even if it's launching an external program.
         memory : str
             The amount of memory to be reserved for this container
+        preload_script : str
+            The path to a script that will be run by each worker before it 
+            launches.
         """
         tag = tag.lower()
         self.model_configs.update_dict(tag, 'Dirs', dirs)
         if path:
             self.model_configs.update_dict(tag, 'Path', path)
-        if cpus:
-            self.model_configs.update_dict(tag, 'CPUs', cpus)
+        self.model_configs.update_dict(tag, 'CPUs', cpus)
+        self.model_configs.update_dict(tag, 'PreloadScript', preload_script)
         if memory:
             self.model_configs.update_dict(tag, 'Memory', memory)
         self.containers[tag] = Container(name=tag, spec_dict=self.model_configs.config_dict[tag])

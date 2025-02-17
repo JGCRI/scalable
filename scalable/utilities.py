@@ -541,7 +541,8 @@ class Container:
             'Path': '/home/user/work/containers/container.sif',
             'Dirs': {
             '/home/work/inputs': '/inputs'
-            '/home/work/shared': '/shared'}}
+            '/home/work/shared': '/shared'}
+            'PreloadScript': '/home/user/work/preload.py'}
         """
         self.name = name
         self.cpus = spec_dict['CPUs']
@@ -552,6 +553,7 @@ class Container:
         if spec_dict['Dirs'] is None:
             spec_dict['Dirs'] = {}
         self.directories = spec_dict['Dirs']
+        self.preload_script = spec_dict['PreloadScript']
 
     def add_directory(self, src, dst=None):
         """Mount a host's directory to a path in the container.
@@ -588,6 +590,7 @@ class Container:
         ret['Memory'] = self.memory
         ret['Path'] = self.path
         ret['Dirs'] = self.directories
+        ret['PreloadScript'] = self.preload_script
         return ret
 
     def get_command(self, env_vars=None):
