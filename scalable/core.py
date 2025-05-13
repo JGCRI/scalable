@@ -542,17 +542,34 @@ class JobQueueCluster(SpecCluster):
                         "Please add a container with this tag to the cluster by using "
                         "add_container() and try again.")
             return
+        # NOTE: worker_spec is a DASK internal dict which is manipulated to 
+        # add "custom" workers to the cluster. This dict is in the form:
+        # {worker_name: worker_spec}
+        # where worker_name is the name of the worker and worker_spec is a
+        # dictionary containing the worker specifications.
+
+        # With "vanilla" Dask, the worker_spec dict for all the worker_names 
+        # is the same or similar. However, in this case, the worker_spec is 
+        # customized for each worker enabling hetereogeneous clusters.
         tags = [tag for _ in range(n)]
         for key, value in self.workers.items():
+            # Remove workers that are closing or closed
             if value.status in (Status.closing, Status.closed, Status.closing_gracefully):
                 del self.worker_spec[key]
         for tag in tags:
+            # If the tag is in the removed dictionary with a positive value, it 
+            # means that workers with this tag are slated for removal. So, 
+            # the add operation is skipped for as many as to be removed.
             if tag in self.removed:
                 if self.removed[tag] > 0:
                     self.removed[tag] -= 1
                     continue
+            # Get a new worker specification depending on the tag.
             new_worker = self.new_worker_spec(tag)
+            # Update the worker_spec dictionary with the new worker spec.
             self.worker_spec.update(dict(new_worker))
+        # "Correct state" of the cluster so that the new worker is recognized 
+        # and launched by the scheduler.
         self.loop.add_callback(self._correct_state)
         if self.asynchronous:
             return NoOpAwaitable() 
@@ -581,7 +598,11 @@ class JobQueueCluster(SpecCluster):
                         "Please add a container with this tag to the cluster by using "
                         "add_container() and try again.")
             return
+        # Get list of idle workers with the given tag.
         can_remove = [worker.name for worker in self.scheduler.idle.values() if tag in worker.name]
+        # If the number of workers to be removed is greater than the number of
+        # idle workers, then add the number of needed workers regardless of 
+        # their status.
         if n > len(can_remove):
             can_remove.extend([worker_name for worker_name in list(self.worker_spec.keys()) if tag in worker_name])
             can_remove = list(set(can_remove))
@@ -593,10 +614,17 @@ class JobQueueCluster(SpecCluster):
         if n != 0 and self.status not in (Status.closing, Status.closed):
             if tag not in self.removed:
                 self.removed[tag] = 0
+            # Add the number of workers to be removed to the removed dictionary. 
+            # This is done to ensure any related objects are removed and 
+            # bookkeeping is maintained. See add_workers() and SlurmJob.close().
             self.removed[tag] += n
+            # Retire the workers from the scheduler. 
             self.loop.spawn_callback(self.scheduler.retire_workers, names=can_remove)
+            # Delete the worker specs from the worker_spec dictionary.
             for i in range(n):
                 del self.worker_spec[can_remove[i]]
+            # "Correct state" of the cluster so that the objects are related 
+            # data can be removed (internally calls SlurmJob.close()).
             self.loop.add_callback(self._correct_state)
         if self.asynchronous:
             return NoOpAwaitable()
@@ -685,6 +713,7 @@ class JobQueueCluster(SpecCluster):
                                 "Please add a container with this tag to the cluster by using"
                                 "add_container() and try again. User error at this point shouldn't happen."
                                 "Likely a bug.")
+            # Different spec is returned based on the tag
             self.specifications[tag]["options"] = copy.copy(self.new_spec["options"])
             self.specifications[tag]["options"]["container"] = self.containers[tag]
             self.specifications[tag]["options"]["tag"] = tag
