@@ -552,7 +552,8 @@ class Container:
         self.path = spec_dict['Path']
         if spec_dict['Dirs'] is None:
             spec_dict['Dirs'] = {}
-        spec_dict['Dirs']['/tmp'] = '/tmp'
+        if '/scratch' not in spec_dict['Dirs']:
+            spec_dict['Dirs']['/scratch'] = '/tmp'
         self.directories = spec_dict['Dirs']
         self.preload_script = spec_dict['PreloadScript']
 
