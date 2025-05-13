@@ -92,25 +92,39 @@ class SlurmJob(Job):
         by this function. Called by the parent classes when scaling the workers.
         """
         logger.debug("Starting worker: %s", self.name)
-
+        # All workers are async so a lock is needed to prevent race conditions
+        # while updating shared data
         async with self.shared_lock:
+            # Check if the worker has a "job_id". A "job_id" corresponds to a 
+            # SLURM job. If the worker does not have a "job_id", it means that 
+            # the worker is not running on a SLURM job or that the physical 
+            # resources are not available. 
             while self.job_id is None:
+                # Get an available node
                 self.job_node = self.hardware.get_available_node(self.cpus, self.memory)
+                # If no available node, break
                 if self.job_node is None:
                     break
+                # Get the node's job id and check if it is still valid
                 job_id = self.hardware.get_node_jobid(self.job_node)
                 match = await self._check_valid_job_id(job_id)
                 if match is None:
                     self.hardware.remove_jobid_nodes(job_id)
                 else:
                     self.job_id = match.groupdict().get("job_id")
+                # Keep repeating until a valid node is found or none are found
+            # If the worker does not have a job node, it means that it didn't 
+            # find it and a new job needs to be created with one.
             if self.job_node == None:
+                # Run slurm commands to create a new job
                 out = await self._run_command(self.slurm_cmd)
+                # Parse job ids and nodes of the new job creation
                 job_id = await self._run_command(jobid_command(self.job_name))
                 self.job_id = job_id
                 self.active_job_ids.append(job_id)
                 nodelist = await self._run_command(nodelist_command(self.job_name))
                 nodes = parse_nodelist(nodelist)
+                # Get the memory and cpu allocation for each node
                 worker_memories = await self._srun_command(memory_command())
                 worker_cpus = await self._srun_command(core_command())
                 worker_memories = worker_memories.split('\n')
@@ -119,6 +133,7 @@ class SlurmJob(Job):
                     node = nodes[index]
                     alloc_memory = int(worker_memories[index])
                     alloc_cpus = int(worker_cpus[index])
+                    # Assign the new resources given by the slurm job 
                     if not self.hardware.assign_resources(node=node, cpus=alloc_cpus, memory=alloc_memory, jobid=self.job_id):
                         stored_job_id = self.hardware.get_node_jobid(node)
                         match = await self._check_valid_job_id(stored_job_id)
@@ -127,10 +142,18 @@ class SlurmJob(Job):
                             assert self.hardware.assign_resources(node=node, cpus=alloc_cpus, memory=alloc_memory, jobid=self.job_id)
                         else:
                             raise ValueError(f"Node {node} is already assigned to job {stored_job_id}")
+                # Finally, the worker is assigned to the job node
                 self.job_node = self.hardware.get_available_node(self.cpus, self.memory)
+            # Send the command to launch the worker on the node
             _ = await self._ssh_command(self.send_command)
             asyncio.get_event_loop().create_task(self.check_launched_worker())
+            # Mark resources as utilized
             self.hardware.utilize_resources(self.job_node, self.cpus, self.memory, self.job_id)
+            # Add the worker to the "launched" list. This list is used to 
+            # determine if the worker had already been launched in the past. 
+            # This is important because it can determine if the worker 
+            # was launched and then died instead of still waiting for the 
+            # connection. 
             self.launched.append((self.name, self.tag))
         
         await ProcessInterface.start(self)
@@ -142,19 +165,37 @@ class SlurmJob(Job):
         if self.deleted:
             return
         async with self.shared_lock:
+            # Check if the worker has a job id.
             if self.hardware.is_assigned(self.job_id):
+                # If the job id is not valid, just remove the job id from the 
+                # hardware bookkeeping.
                 match = await self._check_valid_job_id(self.job_id)
                 if match is None:
                     self.hardware.remove_jobid_nodes(self.job_id)
+                # If the job id is valid, release the resources. 
                 else:
                     self.hardware.release_resources(self.job_node, self.cpus, self.memory, self.job_id)
+                    # If however, no active nodes (no workers on any of the 
+                    # nodes in the id) remain after the resources were released, 
+                    # then close the job altogether. This makes it so the last 
+                    # worker removed from the job will close the job.
                     if not self.hardware.has_active_nodes(self.job_id):
                         self.hardware.remove_jobid_nodes(self.job_id)
                         await SlurmJob._close_job(self.job_id, self.cancel_command, self.comm_port)
             cluster = self._cluster()
+            # If a tag exists in the removed dict with a value greater than 0,
+            # it means that that many workers are to be removed from the 
+            # cluster with the same tag. So, if the tag of the worker is in
+            # the removed dict, then it was supposed to be removed. Deleted is 
+            # set to true to prevent running this function again if called.
             if self.tag in self.removed and self.removed[self.tag] > 0:
                 self.removed[self.tag] -= 1
                 self.deleted = True
+            # If that's not the case, then this worker was not supposed to be 
+            # removed but it died for some other reason. In that case, 
+            # the worker needs to be brought back to life. The cluster will 
+            # "correct its state" by making sure that the number of workers 
+            # needed matches the number of workers running after the delay. 
             elif cluster.status not in (Status.closing, Status.closed):
                 cluster.loop.call_later(RECOVERY_DELAY, cluster._correct_state)
 
