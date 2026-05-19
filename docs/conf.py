@@ -13,8 +13,8 @@ sys.path.insert(0, os.path.abspath('../scalable'))
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'Scalable'
-copyright = '2024, Joint Global Change Research Institute'
-author = 'Shashank Lamba, Pralit Patel'
+copyright = '2026, Battelle Memorial Institute'
+author = 'Shashank Lamba, Pralit Patel, Chris Vernon'
 
 # Pull the release version from the installed package metadata so the docs
 # stay in sync with pyproject.toml's [project.version] without having to be
@@ -52,3 +52,7 @@ autodoc_default_options = {
 html_theme = 'furo'
 html_static_path = ['_static']
 html_css_files = ['custom.css']
+html_title = 'Scalable Documentation'
+
+# GitHub Pages compatibility
+html_baseurl = 'https://jgcri.github.io/scalable/'

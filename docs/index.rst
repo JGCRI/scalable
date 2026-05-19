@@ -6,31 +6,29 @@
 Scalable Documentation
 ======================
 
-Scalable is a Python library for running complex workflows on HPC systems
-efficiently and with minimal manual intervention. It uses a dask backend and a 
-range of custom programs to achieve this. The figure below shows the general 
-architecture of Scalable.
+Scalable is a Python library for orchestrating multi-step workflows on HPC
+systems with minimal manual overhead. It combines Dask-based task execution,
+scheduler-aware worker provisioning, and optional containerized runtimes so
+workloads can run reproducibly across heterogeneous environments.
+
+The diagram below shows the high-level architecture.
 
 .. image:: images/scalable_architecture.png
    :align: center
 
-These questions can help answering if Scalable would be useful for you:
+Scalable is a strong fit when your project needs one or more of the following:
 
-* Is your workflow ran on a HPC system and takes a significant amount of time?
-* Does your workflow involve pipelines, where outputs from certain functions or 
-  models are passed as inputs to other functions or models?
-* Do you want the hardware allocation to be done automatically?
+* Long-running or resource-intensive workflows on shared HPC infrastructure.
+* Pipeline-style execution where outputs from one stage feed downstream stages.
+* Automatic or programmatic scaling of workers and hardware allocations.
 
+Scalable supports running functions in distinct software environments via
+container images. A multi-stage Dockerfile can define multiple worker profiles,
+each with different dependencies, models, or tools, and worker counts can be
+managed per profile when scaling out a cluster.
 
-Scalable could be useful if one of more of the above questions are affirmative.
-To incorporate the ability to run functions under different environments, 
-docker containers can be used. A Dockerfile with multiple targets can be used
-to make multiple containers, each with different installed libraries and models.
-When adding workers to cluster, it can be specified how many workers of
-each type should be added.
-
-Contents:
----------
+Contents
+--------
 
 .. toctree::
    :caption: Getting Started

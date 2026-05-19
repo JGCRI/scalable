@@ -1,26 +1,31 @@
 How to Contribute
 =================
 
-Contributions are welcome and encouraged.
+Contributions are welcome and appreciated. This page outlines practical ways to
+contribute and the expected pull request workflow.
 
 Ways to contribute
 ------------------
 
-* Report bugs or request features by opening an issue on GitHub.
-* Improve documentation with clarifications, examples, or fixes.
-* Submit code improvements with tests for bug fixes and new behavior.
+You can help by:
+
+* Reporting bugs and usability issues.
+* Proposing features or architecture improvements.
+* Improving documentation clarity, examples, and cross-links.
+* Submitting code fixes or enhancements with tests.
 
 Contribution workflow
 ---------------------
 
-#. Fork the repository.
-#. Create a branch for your change.
-#. Make your update and run tests locally.
-#. Open a pull request describing the motivation, approach, and impact.
+#. Fork the repository and create a focused branch.
+#. Make changes in small, reviewable commits.
+#. Run tests locally before opening a pull request.
+#. Update documentation and examples when behavior changes.
+#. Open a pull request describing the problem, approach, and validation steps.
 
 Issue tracker
 -------------
 
-Open issues here:
+Open issues and feature requests at:
 
 `https://github.com/JGCRI/scalable/issues <https://github.com/JGCRI/scalable/issues>`_
