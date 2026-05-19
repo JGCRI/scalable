@@ -1,15 +1,50 @@
-import dill
+import functools
+import hashlib
 import os
 import pickle
 import types
+import warnings
 
+import dill
 import numpy as np
 import pandas as pd
-
 from diskcache import Cache
 from xxhash import xxh32
 
-from .common import SEED, cachedir, logger
+from .common import logger, settings
+
+
+def _seed():
+    """Return the active xxhash seed (process-singleton override-friendly)."""
+    return settings.seed
+
+
+def _cache_dir():
+    """Return the active cache directory (process-singleton override-friendly)."""
+    return settings.cache_dir
+
+
+@functools.lru_cache(maxsize=8)
+def _shared_cache(directory):
+    """Return a shared :class:`diskcache.Cache` keyed by directory.
+
+    Previously :func:`cacheable` opened ``Cache(directory=cachedir)`` on every
+    call, which performed a synchronous ``mkdir`` + sqlite open per
+    invocation. Re-using a single ``Cache`` per directory is both faster and
+    safer (diskcache itself is process-safe).
+    """
+    return Cache(directory=directory)
+
+
+#: Module-level switch controlling whether :func:`convert_to_type` will
+#: attempt to interpret string arguments as filesystem paths and hash them
+#: as ``FileType`` / ``DirType``. The historic default was ``True``, which
+#: silently invalidated cache keys when files moved or were renamed and made
+#: it impossible to pass arbitrary strings that happened to look like paths.
+#: New code should pass an explicit ``arg_types={"x": FileType}`` instead.
+#: This module-level toggle exists to make the deprecation gradual rather
+#: than abrupt.
+PATH_SNIFFING_ENABLED = bool(int(os.environ.get("SCALABLE_PATH_SNIFFING", "1")))
 
 
 class GenericType:
@@ -35,19 +70,19 @@ class FileType(GenericType):
 
     def __hash__(self) -> int:
         if os.path.exists(self.value):
-            digest = 0
+            x = xxh32(seed=_seed())
+            x.update(str(os.path.basename(self.value)).encode('utf-8'))
             with open(self.value, 'rb') as file:
-                x = xxh32(seed=SEED)
-                x.update(str(os.path.basename(self.value)).encode('utf-8'))
-                x.update(file.read())
-                digest = x.intdigest()
-        else:
-            raise ValueError("File does not exist..")
-        return digest
+                # Stream the file in chunks so we don't load multi-GB files
+                # entirely into memory just to hash them.
+                for chunk in iter(lambda: file.read(1024 * 1024), b""):
+                    x.update(chunk)
+            return x.intdigest()
+        raise ValueError(f"File does not exist: {self.value!r}")
 
 class DirType(GenericType):
     """The DirType class is used to hash directories.
-    
+
     Parameters
     ----------
     value : str
@@ -55,94 +90,85 @@ class DirType(GenericType):
     """
 
     def __hash__(self) -> int:
-        if os.path.exists(self.value):
-            digest = 0
-            x = xxh32(seed=SEED)
-            x.update(str(os.path.basename(self.value)).encode('utf-8'))
-            filenames = os.listdir(self.value)
-            filenames = sorted(filenames)
-            for filename in filenames:
-                x.update(filename.encode('utf-8'))
-                path = os.path.join(self.value, filename)
-                if os.path.isfile(path):
-                    with open(path, 'rb') as file:
-                        x.update(file.read())
-                elif os.path.isdir(path):
-                    x.update(hash_to_bytes(hash(DirType(path))))
-            digest = x.intdigest()
-        else:
-            raise ValueError("Directory does not exist..")
-        return digest
+        if not os.path.exists(self.value):
+            raise ValueError(f"Directory does not exist: {self.value!r}")
+        x = xxh32(seed=_seed())
+        x.update(str(os.path.basename(self.value)).encode('utf-8'))
+        for filename in sorted(os.listdir(self.value)):
+            x.update(filename.encode('utf-8'))
+            path = os.path.join(self.value, filename)
+            if os.path.isfile(path):
+                with open(path, 'rb') as file:
+                    for chunk in iter(lambda: file.read(1024 * 1024), b""):
+                        x.update(chunk)
+            elif os.path.isdir(path):
+                x.update(hash_to_bytes(hash(DirType(path))))
+        return x.intdigest()
 
 class ValueType(GenericType):
-    """The ValueType class is used to hash generic values such as int, str, 
-    float, bytes, etc. 
-    
-    Parameters
-    ----------
-    value : Any
-        The value to be hashed.
-    """
+    """Hash for generic primitive values (int, str, float, bytes, bool)."""
 
     def __hash__(self) -> int:
-        digest = 0
-        x = xxh32(seed=SEED)
+        x = xxh32(seed=_seed())
         x.update(str(self.value).encode('utf-8'))
-        digest = x.intdigest()
-        return digest
+        return x.intdigest()
 
 class ObjectType(GenericType):
-    """The ObjectType class is used to hash objects, with primary support for 
-    lists and dicts. Pickle is used to hash such objects.
-    
-    Parameters
-    ----------
-    value : Any
-        The object to be hashed.
+    """Hash for composite objects (lists, tuples, dicts, fall-through pickle).
+
+    Notes
+    -----
+    The original implementation silently swallowed *any* exception when
+    sorting dict keys. We narrow that to :class:`TypeError` and log a debug
+    message so unexpected errors surface during development.
     """
 
     def __hash__(self) -> int:
-        digest = 0
-        x = xxh32(seed=SEED)
+        x = xxh32(seed=_seed())
         if isinstance(self.value, (list, tuple)):
-            value_list = self.value
-            for element in value_list:
+            for element in self.value:
                 x.update(hash_to_bytes(hash(convert_to_type(element))))
         elif isinstance(self.value, dict):
-            keys = self.value.keys()
+            keys = list(self.value.keys())
             try:
                 keys = sorted(keys)
-            except:
-                pass
+            except TypeError:
+                logger.debug(
+                    "Dict keys not totally orderable; hashing in insertion order."
+                )
             for key in keys:
                 x.update(hash_to_bytes(hash(convert_to_type(key))))
                 x.update(hash_to_bytes(hash(convert_to_type(self.value[key]))))
         else:
-            x.update(pickle.dumps(self.value))
-        digest = x.intdigest()
-        return digest
+            try:
+                x.update(pickle.dumps(self.value))
+            except (pickle.PicklingError, TypeError) as exc:
+                raise TypeError(
+                    f"ObjectType cannot hash {type(self.value).__name__}; "
+                    "wrap it in a custom GenericType subclass with a defined "
+                    "__hash__ or pass arg_types= to @cacheable."
+                ) from exc
+        return x.intdigest()
 
 class UtilityType(GenericType):
-    """The UtilityType class is used to hash utility data types such as numpy 
-    arrays and pandas dataframes. 
+    """Hash for numpy arrays and pandas dataframes.
 
-    More utility data types can be added as needed.
-
-    Parameters
-    ----------
-    value : Any
-        The utility data type to be hashed.
+    More utility data types can be added by subclassing or registering.
     """
 
     def __hash__(self) -> int:
-        digest = 0
-        x = xxh32(seed=SEED)
+        x = xxh32(seed=_seed())
         if isinstance(self.value, np.ndarray):
+            # Include dtype + shape so two arrays with the same byte stream
+            # but different shapes hash differently.
+            x.update(str(self.value.dtype).encode('utf-8'))
+            x.update(str(self.value.shape).encode('utf-8'))
             x.update(self.value.tobytes())
         elif isinstance(self.value, pd.DataFrame):
             x.update(pickle.dumps(self.value))
-        digest = x.intdigest()
-        return digest
+        else:  # pragma: no cover - defensive; predicate in convert_to_type guards us
+            raise TypeError(f"UtilityType does not support {type(self.value).__name__}")
+        return x.intdigest()
     
 def hash_to_bytes(hash):
     """Converts a hash (or int) to bytes.
@@ -160,41 +186,69 @@ def hash_to_bytes(hash):
     return hash.to_bytes((hash.bit_length() + 7) // 8, 'big')
 
 def convert_to_type(arg):
-    """Converts a given argument to a hashable type. 
-    
-    An attempt is made to identify the type of the argument but it's 
-    correctness is not guaranteed for exotic data types/representations.
-    
-    Parameters
-    ----------
-    arg : Any
-        The argument to be converted.
-    
-    Returns
-    -------
-    GenericType/ValueType/FileType/DirType/ObjectType/UtilityType
-        The hashable type class.
+    """Convert ``arg`` to a hashable :class:`GenericType` subclass.
+
+    The mapping is heuristic. For deterministic cache keys, prefer
+    annotating arguments explicitly via ``@cacheable(arg_types={...})``.
+
+    Path sniffing
+    -------------
+    Historically, any string that resolved to an existing file or directory
+    was wrapped as :class:`FileType` / :class:`DirType`, which silently:
+
+    * read entire files into the hash, making cache keys depend on file
+      contents that were never mentioned in the function signature, and
+    * conflated literal string arguments with paths (e.g. passing
+      ``"/etc"`` would hash the entire ``/etc`` directory).
+
+    Path sniffing now emits a :class:`DeprecationWarning` on first use per
+    process. Disable it by setting ``SCALABLE_PATH_SNIFFING=0`` in the
+    environment, or — preferred — by passing an explicit ``arg_types=``
+    mapping to :func:`cacheable`.
     """
-    ret = None
     if isinstance(arg, str):
-        if os.path.isfile(arg):
-            ret = FileType(arg)
-        elif os.path.isdir(arg):
-            ret = DirType(arg)
-        else:
-            ret = ValueType(arg)
-    elif isinstance(arg, (int, float, bool, bytes)):
-        ret = ValueType(arg)
-    elif isinstance(arg, (np.ndarray, pd.DataFrame)):
-        ret = UtilityType(arg)
-    elif isinstance(arg, (list, dict, tuple)):
-        ret = ObjectType(arg)
-    else:
-        logger.warning(f"Could not identify type for argument: {arg}. Using default hash function. " 
-                    "For more reliable performance, either wrap the argument in a class with a defined"
-                    " __hash__() function or open an issue on the scalable Github: github.com/JGCRI/scalable.")
-        ret = ObjectType(arg)
-    return ret
+        if PATH_SNIFFING_ENABLED:
+            try:
+                is_file = os.path.isfile(arg)
+                is_dir = (not is_file) and os.path.isdir(arg)
+            except (OSError, ValueError):
+                is_file = is_dir = False
+            if is_file or is_dir:
+                _warn_path_sniffing_once(arg)
+                return FileType(arg) if is_file else DirType(arg)
+        return ValueType(arg)
+    if isinstance(arg, (int, float, bool, bytes)):
+        return ValueType(arg)
+    if isinstance(arg, (np.ndarray, pd.DataFrame)):
+        return UtilityType(arg)
+    if isinstance(arg, (list, dict, tuple)):
+        return ObjectType(arg)
+    logger.warning(
+        "Could not identify type for argument of type %s. Falling back to "
+        "ObjectType (pickle). For deterministic cache keys, pass arg_types= "
+        "to @cacheable.",
+        type(arg).__name__,
+    )
+    return ObjectType(arg)
+
+
+_PATH_SNIFFING_WARNED = False
+
+
+def _warn_path_sniffing_once(value):
+    """Emit a single DeprecationWarning per process for path-sniffing usage."""
+    global _PATH_SNIFFING_WARNED
+    if _PATH_SNIFFING_WARNED:
+        return
+    _PATH_SNIFFING_WARNED = True
+    warnings.warn(
+        "Implicit path-sniffing in convert_to_type() is deprecated. "
+        f"Argument {value!r} was treated as a file/dir path because it "
+        "resolved on disk. Pass arg_types={...: FileType/DirType} explicitly "
+        "to @cacheable, or set SCALABLE_PATH_SNIFFING=0 to disable.",
+        DeprecationWarning,
+        stacklevel=3,
+    )
 
 def cacheable(return_type=None, void=False, check_output=False, recompute=False, store=True, **arg_types):
     """Decorator function to cache the output of a function.
@@ -264,75 +318,107 @@ def cacheable(return_type=None, void=False, check_output=False, recompute=False,
     if isinstance(return_type, types.FunctionType):
         func = return_type
         return_type = None
+
     def decorator(func):
+        # Compute the function-identity component of the cache key once at
+        # decoration time. ``dill.source.getsource`` raises for lambdas,
+        # functools.partial, REPL definitions, etc. — fall back to a stable
+        # fingerprint built from the qualified name + bytecode in those cases.
+        try:
+            func_source = dill.source.getsource(func)
+            func_fingerprint = func_source.encode("utf-8")
+        except (OSError, TypeError) as exc:
+            logger.debug(
+                "dill.source.getsource(%s) failed (%s); falling back to "
+                "qualname+bytecode fingerprint.",
+                getattr(func, "__qualname__", repr(func)),
+                exc,
+            )
+            qualname = getattr(func, "__qualname__", repr(func))
+            module = getattr(func, "__module__", "?") or "?"
+            code = getattr(func, "__code__", None)
+            bytecode = code.co_code if code is not None else b""
+            func_fingerprint = (
+                f"{module}.{qualname}".encode()
+                + b"\x00"
+                + hashlib.sha256(bytecode).digest()
+            )
+
+        x = xxh32(seed=_seed())
+        x.update(func_fingerprint)
+        func_digest = x.intdigest()
+
+        @functools.wraps(func)
         def inner(*args, **kwargs):
-            keys = []
-            x = xxh32(seed=SEED)
-            func_str = dill.source.getsource(func)
-            x.update(func_str.encode('utf-8'))
-            keys.append(x.intdigest())
-            arg_names = func.__code__.co_varnames[:func.__code__.co_argcount]
+            keys = [func_digest]
+            code = getattr(func, "__code__", None)
+            if code is not None:
+                arg_names = code.co_varnames[: code.co_argcount]
+            else:  # pragma: no cover - builtins / C-level callables
+                arg_names = ()
             default_values = {}
-            if func.__defaults__:
-                default_values = dict(zip(arg_names[-len(func.__defaults__):], func.__defaults__))
+            if getattr(func, "__defaults__", None):
+                default_values = dict(
+                    zip(arg_names[-len(func.__defaults__):], func.__defaults__)
+                )
             final_args = {}
-            for index in range(len(args)):
-                arg = args[index]
-                arg_name = arg_names[index]
-                final_args[arg_name] = arg
+            for index, arg in enumerate(args):
+                if index < len(arg_names):
+                    final_args[arg_names[index]] = arg
+                else:
+                    final_args[f"__pos_{index}"] = arg
             for keyword, arg in kwargs.items():
                 final_args[keyword] = arg
             for keyword, arg in default_values.items():
-                if keyword not in final_args:
-                    final_args[keyword] = arg
+                final_args.setdefault(keyword, arg)
             for keyword, arg in final_args.items():
-                wrapped_arg = None
                 if keyword in arg_types:
-                    arg_type = arg_types[keyword]
-                    wrapped_arg = arg_type(arg)
+                    wrapped_arg = arg_types[keyword](arg)
                 else:
                     wrapped_arg = convert_to_type(arg)
                 keys.append(hash(ValueType(keyword)))
                 keys.append(hash(wrapped_arg))
-            ret = None
+
             key = hash(ObjectType(sorted(keys)))
-            disk = Cache(directory=cachedir)
+            disk = _shared_cache(_cache_dir())
+            ret = None
             if key in disk and not recompute:
                 value = disk.get(key)
                 if value is None:
-                    raise KeyError(f"Key for function {func.__name__} could not be found.")
-                stored_digest = value[0]
-                new_digest = 0
+                    raise KeyError(
+                        f"Key for function {func.__name__} could not be found."
+                    )
+                stored_digest, stored_value = value[0], value[1]
                 if check_output:
                     if return_type is None:
-                        new_digest = hash(convert_to_type(value[1]))
+                        new_digest = hash(convert_to_type(stored_value))
                     else:
-                        new_digest = hash(return_type(value[1]))
+                        new_digest = hash(return_type(stored_value))
                     if new_digest == stored_digest:
-                        ret = value[1]
-                    elif not disk.delete(key, True):
-                        logger.warning(f"{func.__name__} could not be deleted from cache after hash"
-                                    " mismatch.")
+                        ret = stored_value
+                    elif not disk.delete(key, retry=True):
+                        logger.warning(
+                            "%s could not be deleted from cache after hash "
+                            "mismatch.",
+                            func.__name__,
+                        )
                 else:
-                    ret = value[1]             
+                    ret = stored_value
             if ret is None:
                 ret = func(*args, **kwargs)
                 if store:
-                    new_digest = 0
                     if return_type is None:
                         new_digest = hash(convert_to_type(ret))
                     else:
                         new_digest = hash(return_type(ret))
-                    value = [new_digest, ret]
-                    if not disk.add(key=key, value=value, retry=True):
-                        logger.warning(f"{func.__name__} could not be added to cache.")
-            disk.close()
+                    if not disk.add(key=key, value=[new_digest, ret], retry=True):
+                        logger.warning(
+                            "%s could not be added to cache.", func.__name__
+                        )
             return ret
-        ret = inner
-        if void:
-            ret = func
-        return ret
-    ret = decorator
+
+        return func if void else inner
+
     if func is not None:
-        ret = decorator(func)
-    return ret
+        return decorator(func)
+    return decorator

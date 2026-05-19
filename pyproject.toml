@@ -1,17 +1,20 @@
 [build-system]
-requires = ["setuptools >= 74.1.2", "versioneer", "tomli; python_version < \"3.11\"", "wheel"]
+requires = ["setuptools >= 74.1.2", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "scalable"
-dynamic = ["version"]
+version = "1.1.0"
 description = "Assist with running models on job queing systems like Slurm"
 authors = [
     { name = "Shashank Lamba", email = "shashank.lamba@pnnl.gov" },
-    { name = "Pralit Patel", email = "pralit.patel@pnnl.gov" }
+    { name = "Pralit Patel", email = "pralit.patel@pnnl.gov" },
+    { name = "Chris Vernon", email = "chris.vernon@pnnl.gov" }
+
 ]
 maintainers = [
-    { name = "Shashank Lamba", email = "shashank.lamba@pnnl.gov" }
+    { name = "Chris Vernon", email = "chris.vernon@pnnl.gov" },
+    { name = "Pralit Patel", email = "pralit.patel@pnnl.gov" },
 ]
 readme = "README.md"
 license = {file = "LICENSE.md"}
@@ -24,12 +27,10 @@ dependencies = [
     "distributed >= 2022.02.0",
     "joblib >= 1.3.2",
     "xxhash >= 3.4.1",
-    "versioneer >= 0.29",
-    "numpy >= 1.26.4", 
-    "pandas >= 2.2.3"
+    "numpy >= 1.26.4",
+    "pandas >= 2.2.3",
 ]
 classifiers = [
-    "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
     "Topic :: System :: Distributed Computing",
     "License :: OSI Approved :: BSD License",
@@ -38,14 +39,22 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3 :: Only",
 ]
 
 [project.optional-dependencies]
 test = [
     "cryptography",
-    "pytest",
-    "pytest-asyncio",
+    "pytest >= 7.0",
+    "pytest-asyncio >= 0.21",
+    "hypothesis >= 6.0",
+]
+dev = [
+    "scalable[test]",
+    "ruff >= 0.4",
+    "mypy >= 1.8",
+    "pytest-cov >= 4.0",
 ]
 
 [project.urls]
@@ -54,13 +63,81 @@ test = [
 [project.scripts]
 scalable_bootstrap = "scalable.utilities:run_bootstrap"
 
+[tool.setuptools]
+packages = ["scalable"]
+
 [tool.setuptools.package-data]
 scalable = ["scalable_bootstrap.sh", "Dockerfile"]
 
-[tool.versioneer]
-VCS = "git"
-style = "pep440"
-versionfile_source = "scalable/_version.py"
-versionfile_build = "scalable/_version.py"
-tag_prefix = ""
-parentdir_prefix = "scalable-"
+# ---------------------------------------------------------------------------
+# Test runner configuration
+# ---------------------------------------------------------------------------
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+filterwarnings = [
+    # Treat our own DeprecationWarnings as errors so refactors that surface
+    # them are caught in CI; project dependencies are excluded.
+    "error::DeprecationWarning:scalable.*",
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+markers = [
+    "slow: marks tests as slow (deselect with -m 'not slow')",
+    "integration: requires external scheduler/runtime",
+]
+asyncio_mode = "auto"
+
+# ---------------------------------------------------------------------------
+# Lint / formatter configuration
+# ---------------------------------------------------------------------------
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+extend-exclude = [
+    "build",
+    "dist",
+]
+
+[tool.ruff.lint]
+# Start with a conservative set; tighten over time as the medium-term
+# refactor lands. The legacy code carries a lot of trailing whitespace and
+# star-import baggage that we explicitly defer to that work.
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = [
+    "E501",   # line too long; handled by formatter
+    "B008",   # function call in default arg (Dask APIs use this pattern)
+    "W291",   # legacy trailing whitespace; cleaned up incrementally
+    "W292",   # no newline at end of file; legacy artifact
+    "W293",   # blank line contains whitespace; legacy artifact
+    "F405",   # may be undefined from star imports; star-imports themselves
+              # are explicitly silenced per-file below
+    "UP006",  # PEP 585 typing.List → list (defer until type pass)
+    "UP007",  # Optional[X] → X | None (defer until type pass)
+    "UP015",  # redundant open mode (legacy)
+    "UP032",  # f-string conversion (defer; some emit warnings on 3.9)
+    "B026",   # star-arg after keyword (legacy in utilities.run_bootstrap)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["B011", "B017", "F401", "F841"]
+"scalable/__init__.py" = ["F401", "F403"]
+"scalable/core.py" = ["F401", "F403"]
+"scalable/slurm.py" = ["F401", "F403"]
+"scalable/caching.py" = ["F401"]
+
+# ---------------------------------------------------------------------------
+# Type-checker configuration (lenient bootstrap; will tighten in M-tier)
+# ---------------------------------------------------------------------------
+
+[tool.mypy]
+python_version = "3.9"
+files = ["scalable"]
+ignore_missing_imports = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_optional = true
+check_untyped_defs = false

@@ -1,16 +1,27 @@
+import asyncio
 import os
-
+import re
+import warnings
 from collections.abc import Awaitable
+
 from distributed.core import Status
 from distributed.deploy.spec import ProcessInterface
 
 from .common import logger
 from .core import Job, JobQueueCluster, cluster_parameters, job_parameters
-from .support import *
-from .utilities import *
+from .support import *  # noqa: F401,F403 - re-exported helpers
+from .utilities import *  # noqa: F401,F403 - re-exported helpers
 
 DEFAULT_REQUEST_QUANTITY = 1
 RECOVERY_DELAY = 3
+
+
+def _try_get_running_loop():
+    """Return the running event loop, or ``None`` if we're not inside one."""
+    try:
+        return asyncio.get_running_loop()
+    except RuntimeError:
+        return None
 
 class SlurmJob(Job):
 
@@ -113,11 +124,13 @@ class SlurmJob(Job):
                 else:
                     self.job_id = match.groupdict().get("job_id")
                 # Keep repeating until a valid node is found or none are found
-            # If the worker does not have a job node, it means that it didn't 
+            # If the worker does not have a job node, it means that it didn't
             # find it and a new job needs to be created with one.
-            if self.job_node == None:
-                # Run slurm commands to create a new job
-                out = await self._run_command(self.slurm_cmd)
+            if self.job_node is None:
+                # Run slurm commands to create a new job. We don't capture
+                # the output here because the job id and node list are
+                # retrieved by separate ``squeue`` invocations below.
+                await self._run_command(self.slurm_cmd)
                 # Parse job ids and nodes of the new job creation
                 job_id = await self._run_command(jobid_command(self.job_name))
                 self.job_id = job_id
@@ -146,7 +159,15 @@ class SlurmJob(Job):
                 self.job_node = self.hardware.get_available_node(self.cpus, self.memory)
             # Send the command to launch the worker on the node
             _ = await self._ssh_command(self.send_command)
-            asyncio.get_event_loop().create_task(self.check_launched_worker())
+            loop = _try_get_running_loop()
+            if loop is not None:
+                loop.create_task(self.check_launched_worker())
+            else:  # pragma: no cover - SpecCluster always runs us inside a loop
+                logger.debug(
+                    "No running event loop while starting %s; skipping "
+                    "launch watchdog.",
+                    self.name,
+                )
             # Mark resources as utilized
             self.hardware.utilize_resources(self.job_node, self.cpus, self.memory, self.job_id)
             # Add the worker to the "launched" list. This list is used to 
@@ -216,40 +237,82 @@ class SlurmCluster(JobQueueCluster):
     job_cls = SlurmJob
 
     def close(self, timeout: float | None = None) -> Awaitable[None] | None:
-        """Close the cluster
+        """Close the cluster.
 
         This closes all running jobs and the scheduler. Pending jobs belonging
-        to the user are also cancelled."""
-        active_jobs = self.active_job_ids
+        to the user are also cancelled.
+
+        The method is robust whether or not it is called from an active event
+        loop:
+
+        * In a synchronous context (no running loop), each ``scancel`` is
+          dispatched via :func:`asyncio.run`.
+        * In an asynchronous context (a running loop), the cancellations are
+          scheduled as background tasks; we **do not** call
+          :func:`asyncio.run` because doing so raises
+          ``RuntimeError: asyncio.run() cannot be called from a running event
+          loop``.
+        """
+        active_jobs = list(self.active_job_ids)
+        loop = _try_get_running_loop()
+
         for job_id in active_jobs:
-            cancel_job_command = ["scancel", job_id]
-            result = asyncio.run(self.job_cls._call(cancel_job_command, self.comm_port))
-            result = None if result == "" else result
-            if result is None:
-                self.hardware.remove_jobid_nodes(job_id)
-                logger.info(f"Cancelled job: {job_id}")
-            else:
-                logger.error(f"Failed to cancel job: {result}")
-        
+            cancel_job_command = ["scancel", str(job_id)]
+            coro = self.job_cls._call(cancel_job_command, self.comm_port)
+            try:
+                if loop is None:
+                    result = asyncio.run(coro)
+                    self._handle_cancel_result(job_id, result)
+                else:
+                    task = loop.create_task(coro)
+                    task.add_done_callback(
+                        lambda t, jid=job_id: self._handle_cancel_result(
+                            jid,
+                            t.result() if t.exception() is None else "",
+                        )
+                    )
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.error("Error while cancelling job %s: %s", job_id, exc)
+
         return super().close(timeout)
-    
+
+    def _handle_cancel_result(self, job_id, result):
+        """Bookkeeping for a single ``scancel`` result.
+
+        Parameters
+        ----------
+        job_id : str
+            Slurm job id we attempted to cancel.
+        result : str
+            Stdout from the ``scancel`` invocation. Empty string indicates
+            success.
+        """
+        if not result:
+            self.hardware.remove_jobid_nodes(job_id)
+            logger.info("Cancelled job: %s", job_id)
+        else:
+            logger.error("Failed to cancel job %s: %s", job_id, result)
+
     @staticmethod
     def set_default_request_quantity(nodes):
-        """Set the default number of nodes to request when scaling the cluster.
+        """Set the process-global default number of nodes per Slurm job.
 
-        Static Function. Does not require an instance of the class.
-
-        If set to 1 (the original default), the cluster will request one 
-        hardware node at a time when scaling. If set to a higher number, like 5,
-        the cluster will request 5 hardware nodes at a time when scaling. This
-        is helpful when each worker may need almost all the resources of a 
-        node and it is more efficient to request multiple nodes at once.
+        .. deprecated::
+            Pass ``request_quantity=`` to a future ``SlurmScheduler`` (medium-
+            term plan item M2) instead. The class-level mutation persists
+            across tests and prevents per-cluster customization.
 
         Parameters
         ----------
         nodes : int
             Number of nodes to request when scaling the cluster.
         """
+        warnings.warn(
+            "SlurmCluster.set_default_request_quantity mutates a process-wide "
+            "global; per-cluster configuration support is planned. The static "
+            "setter will be removed once the SlurmScheduler refactor lands.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         global DEFAULT_REQUEST_QUANTITY
         DEFAULT_REQUEST_QUANTITY = nodes
-    

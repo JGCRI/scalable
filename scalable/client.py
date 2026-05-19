@@ -2,7 +2,6 @@ from dask.typing import no_default
 from distributed import Client
 from distributed.diagnostics.plugin import SchedulerPlugin
 
-from .common import logger
 from .slurm import SlurmCluster
 
 

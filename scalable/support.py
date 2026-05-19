@@ -78,7 +78,7 @@ def apptainer_module_command(apptainer_version):
     list
         The command to load the apptainer module.
     """
-    command = f"module load apptainer"
+    command = "module load apptainer"
     if apptainer_version is not None:
         command += f"/{apptainer_version}"
     return shlex.split(command, posix=False)

@@ -14,10 +14,17 @@ import (
 	"strings"
 )
 
-// Changing CONNECTION_TYPE is not recommended
-
+// Changing CONNECTION_TYPE is not recommended.
+//
+// The default bind/dial host is the loopback interface (127.0.0.1). The
+// communicator is intentionally a per-host helper and exposing it on all
+// interfaces (0.0.0.0) would let any process on the cluster network drive
+// arbitrary shell commands as the user that started the server. To opt in to
+// the legacy 0.0.0.0 behaviour for testing on a closed network, set the
+// SCALABLE_COMM_BIND_ALL=1 environment variable.
 const (
-	DEFAULT_HOST     = "0.0.0.0"
+	DEFAULT_HOST     = "127.0.0.1"
+	LEGACY_BIND_ALL  = "0.0.0.0"
 	DEFAULT_PORT     = "1919"
 	CONNECTION_TYPE  = "tcp"
 	NUM_PORT_RETRIES = 5
@@ -36,11 +43,16 @@ func main() {
 		listen_port = arguments[1]
 	}
 	if arguments[0] == "-s" {
+		bindHost := DEFAULT_HOST
+		if os.Getenv("SCALABLE_COMM_BIND_ALL") == "1" {
+			fmt.Println("WARNING: SCALABLE_COMM_BIND_ALL=1 set; binding on 0.0.0.0 (insecure)")
+			bindHost = LEGACY_BIND_ALL
+		}
 		loop := 0
-		server, err := net.Listen(CONNECTION_TYPE, DEFAULT_HOST+":"+listen_port)
+		server, err := net.Listen(CONNECTION_TYPE, bindHost+":"+listen_port)
 		for err != nil && loop < NUM_PORT_RETRIES && argslen <= 1 {
 			listen_port = strconv.Itoa(rand.Intn(40000-2000) + 2000)
-			server, err = net.Listen(CONNECTION_TYPE, DEFAULT_HOST+":"+listen_port)
+			server, err = net.Listen(CONNECTION_TYPE, bindHost+":"+listen_port)
 			loop++
 		}
 		if err != nil {
@@ -48,7 +60,7 @@ func main() {
 			os.Exit(1)
 		}
 		defer server.Close()
-		fmt.Println("Listening on " + DEFAULT_HOST + ":" + listen_port)
+		fmt.Println("Listening on " + bindHost + ":" + listen_port)
 		for {
 			client, err := server.Accept()
 			if err != nil {
@@ -58,6 +70,8 @@ func main() {
 			handleRequest(client)
 		}
 	} else if arguments[0] == "-c" {
+		// Always dial loopback; the client is expected to run on the same
+		// host as the server.
 		client, err := net.Dial(CONNECTION_TYPE, DEFAULT_HOST+":"+listen_port)
 		if err != nil {
 			fmt.Println("Couldn't connect to server")
