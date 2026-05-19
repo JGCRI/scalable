@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+No notable changes yet.
+
+## [2.0.0a1] - 2026-05-19
+
 ### Added
 
 - New workflow architecture figure in [`docs/images/scalable_architecture.png`](docs/images/scalable_architecture.png).
@@ -17,6 +21,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - deterministic ``manifest.lock`` fingerprint generation
   - provider abstraction with ``LocalProvider`` and ``SlurmProvider``
   - docs pages: [`docs/manifest.rst`](docs/manifest.rst) and [`docs/providers.rst`](docs/providers.rst)
+- Provider abstractions and neutral planning data structures:
+  - ``DeploymentProvider`` protocol
+  - ``DeploymentSpec``, ``ScalePlan``, ``ResourceRequest``, and ``ClusterHandle``
+- New CLI subcommands and namespace stubs:
+  - ``scalable validate``
+  - ``scalable plan --dry-run``
+  - reserved stubs: ``run``, ``diagnose``, ``explain``, ``init-component``, ``compose``, ``report``
+- Example manifests for docs and CI validation:
+  - [`docs/examples/scalable.minimal.yaml`](docs/examples/scalable.minimal.yaml)
+  - [`docs/examples/scalable.gcam_stitches.yaml`](docs/examples/scalable.gcam_stitches.yaml)
 
 ### Changed
 
@@ -28,11 +42,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated container conda Python baseline to 3.11 in [`scalable/Dockerfile`](scalable/Dockerfile).
 - Expanded top-level exports in [`scalable/__init__.py`](scalable/__init__.py) to include
   ``ScalableSession``, ``DeploymentProvider``, ``LocalProvider``, and ``SlurmProvider``.
+- Package version now targets v2 alpha in [`pyproject.toml`](pyproject.toml) with
+  ``version = "2.0.0a1"``.
+- Global settings in [`scalable/common.py`](scalable/common.py) now include
+  ``manifest_path`` and ``target`` with env overrides ``SCALABLE_MANIFEST`` and
+  ``SCALABLE_TARGET``.
+- CI now includes:
+  - version branch triggers (``version/**``)
+  - macOS matrix coverage for LocalProvider paths
+  - a dedicated docs-manifest validation and dry-run planning job
+
+### Deprecated
+
+- Legacy ``ModelConfig`` Dockerfile/config auto-discovery path now emits a
+  ``DeprecationWarning`` when used outside the manifest adapter context;
+  manifest-driven configuration via ``scalable.yaml`` is the preferred path.
 
 ### Documentation
 
 - Added [`DISCLAIMER.md`](DISCLAIMER.md).
 - Updated [`LICENSE.md`](LICENSE.md) to BSD-3-Clause wording.
+- Added and cross-linked:
+  - [`docs/manifest.rst`](docs/manifest.rst)
+  - [`docs/providers.rst`](docs/providers.rst)
+  - v2 manifest-first usage examples in [`README.md`](README.md)
+  - onboarding links in [`docs/getting_started.rst`](docs/getting_started.rst)
 
 ## [1.1.0]
 
@@ -193,4 +227,5 @@ Most changes are source-compatible. Two situations to be aware of:
    loopback.
 
 [1.1.0]: https://github.com/JGCRI/scalable/compare/1.0.0...1.1.0
-[Unreleased]: https://github.com/JGCRI/scalable/compare/1.1.0...HEAD
+[2.0.0a1]: https://github.com/JGCRI/scalable/compare/1.1.0...version/2.0.0-phase1-provider-manifest
+[Unreleased]: https://github.com/JGCRI/scalable/compare/version/2.0.0-phase1-provider-manifest...HEAD
