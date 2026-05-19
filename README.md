@@ -114,6 +114,13 @@ scalable validate ./scalable.yaml
 scalable plan ./scalable.yaml --target local --dry-run --output plan.json
 ```
 
+Generate a telemetry report from completed runs:
+
+```bash
+scalable report --latest
+scalable report --latest --format json --output report.json
+```
+
 Use the session API:
 
 ```python
@@ -122,6 +129,21 @@ from scalable import ScalableSession
 session = ScalableSession.from_yaml("./scalable.yaml", target="local")
 plan = session.plan(dry_run=True)
 print(plan.manifest_lock)
+```
+
+Use deterministic history-based advising:
+
+```python
+from scalable import ResourceAdvisor
+
+advisor = ResourceAdvisor.from_history("./.scalable/runs")
+recommendation = advisor.recommend(
+    task="run_gcam",
+    target="local",
+    confidence=0.95,
+)
+print(recommendation.workers)
+print(recommendation.resources)
 ```
 
 At runtime, create a cluster, register container targets, scale workers, and submit functions.

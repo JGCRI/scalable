@@ -47,6 +47,8 @@ Contents
    workers
    manifest
    providers
+   telemetry
+   advising
    caching
    functions
 

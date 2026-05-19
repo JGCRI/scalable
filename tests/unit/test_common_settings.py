@@ -25,6 +25,9 @@ def test_settings_defaults():
     assert s.seed == common.DEFAULT_SEED
     assert s.manifest_path == "./scalable.yaml"
     assert s.target is None
+    assert s.runs_dir == "./.scalable/runs"
+    assert s.telemetry_enabled is True
+    assert s.telemetry_parquet is False
 
 
 def test_settings_env_overrides(monkeypatch):
@@ -32,6 +35,9 @@ def test_settings_env_overrides(monkeypatch):
     monkeypatch.setenv("SCALABLE_SEED", "42")
     monkeypatch.setenv("SCALABLE_MANIFEST", "/tmp/scalable.yaml")
     monkeypatch.setenv("SCALABLE_TARGET", "local")
+    monkeypatch.setenv("SCALABLE_RUNS_DIR", "/tmp/scalable-runs")
+    monkeypatch.setenv("SCALABLE_TELEMETRY", "0")
+    monkeypatch.setenv("SCALABLE_TELEMETRY_PARQUET", "1")
 
     # Reload to pick up env vars in field defaults.
     from scalable import common as common_mod
@@ -41,6 +47,9 @@ def test_settings_env_overrides(monkeypatch):
     assert s.seed == 42
     assert s.manifest_path == "/tmp/scalable.yaml"
     assert s.target == "local"
+    assert s.runs_dir == "/tmp/scalable-runs"
+    assert s.telemetry_enabled is False
+    assert s.telemetry_parquet is True
 
 
 def test_legacy_module_aliases_match_singleton():
