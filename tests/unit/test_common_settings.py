@@ -23,11 +23,15 @@ def test_settings_defaults():
     s = common.Settings()
     assert s.cache_dir == "./cache"
     assert s.seed == common.DEFAULT_SEED
+    assert s.manifest_path == "./scalable.yaml"
+    assert s.target is None
 
 
 def test_settings_env_overrides(monkeypatch):
     monkeypatch.setenv("SCALABLE_CACHE_DIR", "/tmp/scalable-test-cache")
     monkeypatch.setenv("SCALABLE_SEED", "42")
+    monkeypatch.setenv("SCALABLE_MANIFEST", "/tmp/scalable.yaml")
+    monkeypatch.setenv("SCALABLE_TARGET", "local")
 
     # Reload to pick up env vars in field defaults.
     from scalable import common as common_mod
@@ -35,6 +39,8 @@ def test_settings_env_overrides(monkeypatch):
     s = common_mod.Settings()
     assert s.cache_dir == "/tmp/scalable-test-cache"
     assert s.seed == 42
+    assert s.manifest_path == "/tmp/scalable.yaml"
+    assert s.target == "local"
 
 
 def test_legacy_module_aliases_match_singleton():

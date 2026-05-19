@@ -30,6 +30,7 @@ __all__ = ["logger", "settings", "Settings", "SEED", "cachedir", "DEFAULT_SEED"]
 
 DEFAULT_SEED: int = 987654321
 DEFAULT_CACHE_DIR: str = "./cache"
+DEFAULT_MANIFEST_PATH: str = "./scalable.yaml"
 
 
 @dataclass
@@ -51,6 +52,10 @@ class Settings:
     seed: int = field(
         default_factory=lambda: int(os.environ.get("SCALABLE_SEED", DEFAULT_SEED))
     )
+    manifest_path: str = field(
+        default_factory=lambda: os.environ.get("SCALABLE_MANIFEST", DEFAULT_MANIFEST_PATH)
+    )
+    target: str | None = field(default_factory=lambda: os.environ.get("SCALABLE_TARGET"))
 
 
 #: Process-wide settings singleton. Mutating attributes on this instance

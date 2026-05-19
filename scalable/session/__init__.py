@@ -10,4 +10,6 @@ advice onto the same surface without breaking the constructor signatures.
 
 from __future__ import annotations
 
-__all__: list[str] = []
+from .session import ScalableSession
+
+__all__ = ["ScalableSession"]

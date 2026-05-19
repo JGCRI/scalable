@@ -2,9 +2,9 @@ name: tests
 
 on:
   push:
-    branches: [develop, master, main]
+    branches: [develop, master, main, 'version/**']
   pull_request:
-    branches: [develop, master, main]
+    branches: [develop, master, main, 'version/**']
   workflow_dispatch:
 
 concurrency:
@@ -18,12 +18,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
-        python-version: ["3.11", "3.12", "3.13"]
+        include:
+          - os: ubuntu-latest
+            python-version: "3.11"
+          - os: ubuntu-latest
+            python-version: "3.12"
+          - os: ubuntu-latest
+            python-version: "3.13"
+          - os: macos-latest
+            python-version: "3.11"
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # versioneer needs tags
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -37,6 +44,32 @@ jobs:
 
       - name: Run unit tests
         run: pytest tests/unit -v
+
+  validate-example-manifests:
+    name: validate example manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[test]
+
+      - name: Validate docs examples
+        run: |
+          scalable validate docs/examples/scalable.minimal.yaml --target local
+          scalable validate docs/examples/scalable.gcam_stitches.yaml --target local
+
+      - name: Plan docs examples (dry-run)
+        run: |
+          scalable plan docs/examples/scalable.minimal.yaml --target local --dry-run --output /tmp/plan-minimal.json
+          scalable plan docs/examples/scalable.gcam_stitches.yaml --target local --dry-run --output /tmp/plan-gcam-stitches.json
 
   lint:
     name: ruff + mypy

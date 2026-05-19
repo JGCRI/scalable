@@ -95,6 +95,7 @@ Next Steps
 
 After setup:
 
+* For declarative workflows, start with :doc:`manifest` and :doc:`providers`.
 * Review the :ref:`api_section` for worker, caching, and function interfaces.
 * Run examples from :ref:`demos_section`.
 * Use :ref:`how_tos_section` for targeted implementation guidance.

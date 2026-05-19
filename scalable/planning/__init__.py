@@ -13,4 +13,6 @@ test-pinned so Phase 2 telemetry can durably reference manifests.
 
 from __future__ import annotations
 
-__all__: list[str] = []
+from .dryrun import DryRunPlan, build_dry_run_plan, compute_manifest_lock
+
+__all__ = ["DryRunPlan", "build_dry_run_plan", "compute_manifest_lock"]

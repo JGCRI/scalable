@@ -10,6 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - New workflow architecture figure in [`docs/images/scalable_architecture.png`](docs/images/scalable_architecture.png).
+- Manifest-driven v2 entry points:
+  - ``ScalableSession.from_yaml(...)`` lifecycle API
+  - ``scalable validate`` CLI command
+  - ``scalable plan --dry-run`` CLI command
+  - deterministic ``manifest.lock`` fingerprint generation
+  - provider abstraction with ``LocalProvider`` and ``SlurmProvider``
+  - docs pages: [`docs/manifest.rst`](docs/manifest.rst) and [`docs/providers.rst`](docs/providers.rst)
 
 ### Changed
 
@@ -19,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Raised minimum supported Python version to 3.11 in [`pyproject.toml`](pyproject.toml).
 - Updated CI test matrix in [`.github/workflows/tests.yml`](.github/workflows/tests.yml) to run Python 3.11–3.12 only.
 - Updated container conda Python baseline to 3.11 in [`scalable/Dockerfile`](scalable/Dockerfile).
+- Expanded top-level exports in [`scalable/__init__.py`](scalable/__init__.py) to include
+  ``ScalableSession``, ``DeploymentProvider``, ``LocalProvider``, and ``SlurmProvider``.
 
 ### Documentation
 
