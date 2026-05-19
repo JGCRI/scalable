@@ -179,10 +179,15 @@ def func3(param):
 
 In the example above, the functions will wait 5, 3, and 10 seconds for the first time they are computed. However, their results will be cached due to the decorator and so, if the functions are ran again with the same arguments, their results are going to be returned from memory instead and they wouldn't sleep. There are arguments which directly can be given to the cacheable decorator. **It is always recommended to specify the return type and the type of arguments for each use.** This ensures expected functioning of the module and for correct caching.
 
-## Contact
+## How to Contribute
 
-For any contribution, questions, or requests, please feel free to [open an issue](https://github.com/JGCRI/scalable/issues) or contact us directly:\
-**Shashank Lamba** [shashank.lamba@pnnl.gov](mailto:shashank.lamba@pnnl.gov)\
-**Pralit Patel** [pralit.patel@pnnl.gov](mailto:pralit.patel@pnnl.gov)
+Contributions are welcome. To contribute to Scalable:
+
+1. Fork the repository.
+2. Create a feature branch.
+3. Make your changes and add/update tests where appropriate.
+4. Open a pull request with a clear description of the change.
+
+For questions, requests, or bug reports, please [open an issue](https://github.com/JGCRI/scalable/issues).
 
 ## [License](https://github.com/JGCRI/scalable/blob/master/LICENSE.md)

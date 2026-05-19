@@ -7,7 +7,7 @@ name = "scalable"
 version = "1.1.0"
 description = "Assist with running models on job queing systems like Slurm"
 authors = [
-    { name = "Shashank Lamba", email = "shashank.lamba@pnnl.gov" },
+    { name = "Shashank Lamba" },
     { name = "Pralit Patel", email = "pralit.patel@pnnl.gov" },
     { name = "Chris Vernon", email = "chris.vernon@pnnl.gov" }
 

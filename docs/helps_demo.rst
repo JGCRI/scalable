@@ -246,7 +246,7 @@ system:
 
 This code will run the HELPS package on the remote HPC system. The entire guide 
 highlights the process of adding a new container with a new R package and 
-scaling it using Scalable. Please feel free to reach out for any more help 
-regarding the same or open an issue on the Scalable GitHub repository. 
+scaling it using Scalable. For questions or troubleshooting, please open an 
+issue on the Scalable GitHub repository. 
 
 
