@@ -44,10 +44,10 @@ Use one container profile per software environment.
         cpus=6,
         memory="20G",
         dirs={
-            "/qfs/people/lamb678/work/gcam-core/exe": "/gcam-core/exe",
-            "/qfs/people/lamb678/work/gcam-core/input": "/gcam-core/input",
-            "/qfs/people/lamb678/work/gcam-core/output": "/gcam-core/output",
-            "/qfs": "/qfs",
+            "/path/to/gcam-core/exe": "/gcam-core/exe",
+            "/path/to/gcam-core/input": "/gcam-core/input",
+            "/path/to/gcam-core/output": "/gcam-core/output",
+            "/path/to/shared/data": "/data",
         },
     )
 
@@ -58,7 +58,7 @@ Use one container profile per software environment.
         tag="stitches",
         cpus=1,
         memory="50G",
-        dirs={"/qfs": "/qfs", "/rcfs": "/rcfs"},
+        dirs={"/path/to/shared/data": "/data", "/path/to/archive/data": "/archive"},
     )
 
 .. code-block:: python
@@ -69,9 +69,9 @@ Use one container profile per software environment.
         cpus=1,
         memory="20G",
         dirs={
-            "/qfs": "/qfs",
-            "/rcfs": "/rcfs",
-            "/rcfs/projects/gcims/projects/scalable/": "/scratch",
+            "/path/to/shared/data": "/data",
+            "/path/to/archive/data": "/archive",
+            "/path/to/project/scratch": "/scratch",
         },
     )
 
@@ -100,7 +100,7 @@ Define each function once, then submit them in dependency order.
         import os
 
         conn = gcamreader.LocalDBConn(os.path.dirname(db_path), os.path.basename(db_path))
-        query = gcamreader.parse_batch_query("/qfs/people/lamb678/sample-queries.xml")[2]
+        query = gcamreader.parse_batch_query("/path/to/sample-queries.xml")[2]
         return conn.runQuery(query)
 
 .. code-block:: python
@@ -204,7 +204,7 @@ Step 6: Submit GCAM and database extraction tasks
 
     future1 = sc_client.submit(
         run_gcam,
-        "/qfs/people/lamb678/work/gcam-core/exe/configuration_ref.xml",
+        "/path/to/gcam-core/exe/configuration_ref.xml",
         2100,
         n=1,
         tag="gcam",
@@ -242,7 +242,7 @@ Step 9: Run stitches and fetch final output
     future4 = sc_client.submit(
         run_stitches,
         future3,
-        '/rcfs/projects/gcims/projects/scalable/',
+        '/path/to/output/directory/',
         n=1,
         tag='stitches',
     )

@@ -29,15 +29,15 @@ reported directory to your shell profile.
 
 .. code-block:: bash
 
-    WARNING: The script scalable_bootstrap.exe is installed in '/path_to_python/Pythonxxx/Scripts' which is not on PATH.
+    WARNING: The script scalable_bootstrap.exe is installed in '/path/to/python/scripts' which is not on PATH.
     Consider adding this directory to PATH or, if you prefer to suppress this warning, use --no-warn-script-location.
 
 For example:
 
 .. code-block:: bash
 
-    echo "export PATH=\$PATH:/path_to_python/Pythonxxx/Scripts" >> ~/.bashrc
-    source ~/.bashrc
+    echo "export PATH=\$PATH:/path/to/python/scripts" >> <shell_profile>
+    source <shell_profile>
 
 This only needs to be done once per environment.
 
