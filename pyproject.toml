@@ -33,7 +33,7 @@ dependencies = [
 classifiers = [
     "Intended Audience :: Science/Research",
     "Topic :: System :: Distributed Computing",
-    "License :: OSI Approved :: BSD License",
+    "License :: OSI Approved :: BSD-3-Clause",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
