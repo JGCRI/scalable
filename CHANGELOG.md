@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Expanded demo documentation context and examples in [`docs/demo.rst`](docs/demo.rst).
 - Replaced repo-specific paths with generic paths in documentation for portability.
 - Updated block-style demo formatting in documentation.
+- Raised minimum supported Python version to 3.11 in [`pyproject.toml`](pyproject.toml).
+- Updated CI test matrix in [`.github/workflows/tests.yml`](.github/workflows/tests.yml) to run Python 3.11–3.12 only.
+- Updated container conda Python baseline to 3.11 in [`scalable/Dockerfile`](scalable/Dockerfile).
 
 ### Documentation
 

@@ -2,7 +2,6 @@ import os
 import re
 import shlex
 from datetime import datetime
-from typing import Any
 
 
 def salloc_command(

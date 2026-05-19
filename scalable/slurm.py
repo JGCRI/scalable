@@ -3,7 +3,6 @@ import os
 import re
 import warnings
 from collections.abc import Awaitable
-from typing import Match
 
 from distributed.core import Status
 from distributed.deploy.spec import ProcessInterface
@@ -90,7 +89,7 @@ class SlurmJob(Job):
         out = await self._run_command(command)
         return out
     
-    async def _check_valid_job_id(self, job_id: str) -> Match[str] | None:
+    async def _check_valid_job_id(self, job_id: str) -> re.Match[str] | None:
         out = await self._run_command(jobcheck_command(job_id))
         match = re.search(self.job_id_regexp, out)
         return match

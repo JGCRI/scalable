@@ -4,7 +4,8 @@ import os
 import pickle
 import types
 import warnings
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import dill
 import numpy as np
@@ -367,7 +368,7 @@ def cacheable(
             default_values = {}
             if getattr(func, "__defaults__", None):
                 default_values = dict(
-                    zip(arg_names[-len(func.__defaults__):], func.__defaults__)
+                    zip(arg_names[-len(func.__defaults__):], func.__defaults__, strict=False)
                 )
             final_args = {}
             for index, arg in enumerate(args):

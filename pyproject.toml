@@ -18,7 +18,7 @@ maintainers = [
 ]
 readme = "README.md"
 license = {file = "LICENSE.md"}
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 dependencies = [
     "cryptography >= 42.0.8",
     "dask >= 2022.02.0",
@@ -35,8 +35,6 @@ classifiers = [
     "Topic :: System :: Distributed Computing",
     "License :: OSI Approved :: BSD-3-Clause",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -95,7 +93,7 @@ markers = [
 
 [tool.ruff]
 line-length = 100
-target-version = "py39"
+target-version = "py311"
 extend-exclude = [
     "build",
     "dist",
@@ -117,7 +115,7 @@ ignore = [
     "UP006",  # PEP 585 typing.List → list (defer until type pass)
     "UP007",  # Optional[X] → X | None (defer until type pass)
     "UP015",  # redundant open mode (legacy)
-    "UP032",  # f-string conversion (defer; some emit warnings on 3.9)
+    "UP032",  # f-string conversion (defer in legacy paths)
     "B026",   # star-arg after keyword (legacy in utilities.run_bootstrap)
 ]
 
@@ -133,7 +131,7 @@ ignore = [
 # ---------------------------------------------------------------------------
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.11"
 files = ["scalable"]
 ignore_missing_imports = true
 warn_redundant_casts = true

@@ -23,7 +23,7 @@ RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
 RUN chmod +x Miniconda3-latest-Linux-x86_64.sh \
     && ./Miniconda3-latest-Linux-x86_64.sh -b
 RUN eval "$(/root/miniconda3/bin/conda shell.bash hook)" \
-    && conda install -y -c conda-forge python=3.10.12 \
+    && conda install -y -c conda-forge python=3.11 \
     && conda update conda \
     && apt-get autoclean \
     && rm -rf /var/lib/apt/lists/* /var/log/dpkg.log \
