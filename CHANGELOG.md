@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- New workflow architecture figure in [`docs/images/scalable_architecture.png`](docs/images/scalable_architecture.png).
+
+### Changed
+
+- Expanded demo documentation context and examples in [`docs/demo.rst`](docs/demo.rst).
+- Replaced repo-specific paths with generic paths in documentation for portability.
+- Updated block-style demo formatting in documentation.
+
+### Documentation
+
+- Added [`DISCLAIMER.md`](DISCLAIMER.md).
+- Updated [`LICENSE.md`](LICENSE.md) to BSD-3-Clause wording.
+
 ## [1.1.0]
 
 This release covers the **short-term** tier of the architectural improvement plan
@@ -164,3 +181,4 @@ Most changes are source-compatible. Two situations to be aware of:
    loopback.
 
 [1.1.0]: https://github.com/JGCRI/scalable/compare/1.0.0...1.1.0
+[Unreleased]: https://github.com/JGCRI/scalable/compare/1.1.0...HEAD
