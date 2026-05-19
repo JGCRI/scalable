@@ -1,0 +1,34 @@
+version: 1
+project:
+  name: gcam-stitches-demo
+
+targets:
+  local:
+    provider: local
+    max_workers: 2
+    threads_per_worker: 1
+    processes: false
+    containers: none
+
+  hpc:
+    provider: slurm
+    queue: short
+    account: GCIMS
+    walltime: 02:00:00
+    interface: ib0
+    comm_port: 50051
+
+components:
+  gcam:
+    cpus: 2
+    memory: 8G
+  stitches:
+    cpus: 1
+    memory: 4G
+
+tasks:
+  run_gcam:
+    component: gcam
+  run_stitches:
+    component: stitches
+

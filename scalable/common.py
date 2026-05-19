@@ -30,6 +30,8 @@ __all__ = ["logger", "settings", "Settings", "SEED", "cachedir", "DEFAULT_SEED"]
 
 DEFAULT_SEED: int = 987654321
 DEFAULT_CACHE_DIR: str = "./cache"
+DEFAULT_MANIFEST_PATH: str = "./scalable.yaml"
+DEFAULT_RUNS_DIR: str = "./.scalable/runs"
 
 
 @dataclass
@@ -43,6 +45,16 @@ class Settings:
     seed:
         Seed for ``xxhash`` digests. Changing this invalidates every existing
         cache entry, so it should be treated as a one-time deployment choice.
+    cache_remote_uri:
+        Remote storage URI for the opt-in remote cache backend (Phase 3).
+        Set via ``SCALABLE_CACHE_REMOTE`` env var. When ``None``, only local
+        disk caching is used.
+    default_storage:
+        Default artifact/output storage URI override. Takes precedence over
+        the ``project.default_storage`` manifest field.
+    runs_dir_remote:
+        Remote storage URI for persisting run telemetry. When set, telemetry
+        is also synced to this remote location.
     """
 
     cache_dir: str = field(
@@ -50,6 +62,39 @@ class Settings:
     )
     seed: int = field(
         default_factory=lambda: int(os.environ.get("SCALABLE_SEED", DEFAULT_SEED))
+    )
+    manifest_path: str = field(
+        default_factory=lambda: os.environ.get("SCALABLE_MANIFEST", DEFAULT_MANIFEST_PATH)
+    )
+    target: str | None = field(default_factory=lambda: os.environ.get("SCALABLE_TARGET"))
+    runs_dir: str = field(
+        default_factory=lambda: os.environ.get("SCALABLE_RUNS_DIR", DEFAULT_RUNS_DIR)
+    )
+    telemetry_enabled: bool = field(
+        default_factory=lambda: bool(int(os.environ.get("SCALABLE_TELEMETRY", "1")))
+    )
+    telemetry_parquet: bool = field(
+        default_factory=lambda: bool(int(os.environ.get("SCALABLE_TELEMETRY_PARQUET", "0")))
+    )
+    # Phase 3 additions
+    cache_remote_uri: str | None = field(
+        default_factory=lambda: os.environ.get("SCALABLE_CACHE_REMOTE")
+    )
+    default_storage: str | None = field(
+        default_factory=lambda: os.environ.get("SCALABLE_DEFAULT_STORAGE")
+    )
+    runs_dir_remote: str | None = field(
+        default_factory=lambda: os.environ.get("SCALABLE_RUNS_DIR_REMOTE")
+    )
+    # Phase 4 AI additions
+    ai_backend: str = field(
+        default_factory=lambda: os.environ.get("SCALABLE_AI_BACKEND", "none")
+    )
+    ai_model: str | None = field(
+        default_factory=lambda: os.environ.get("SCALABLE_AI_MODEL")
+    )
+    ai_endpoint: str | None = field(
+        default_factory=lambda: os.environ.get("SCALABLE_AI_ENDPOINT")
     )
 
 

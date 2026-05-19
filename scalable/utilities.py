@@ -5,6 +5,7 @@ import sys
 import threading
 import warnings
 from collections.abc import Mapping
+from contextlib import contextmanager
 from importlib.resources import files
 from typing import Any
 
@@ -14,6 +15,29 @@ from dask.utils import parse_bytes
 from .common import logger
 
 comm_port_regex = r'0\.0\.0\.0:(\d{1,5})'
+
+# Set to True when legacy ModelConfig initialization is invoked via the
+# manifest adapter/provider compatibility path. Direct user calls remain
+# deprecated and emit DeprecationWarning.
+_MODELCONFIG_ADAPTER_CONTEXT: bool = False
+
+
+@contextmanager
+def model_config_adapter_context() -> Any:
+    """Temporarily suppress ModelConfig deprecation warnings.
+
+    This context is used by the manifest-to-legacy adapter path introduced in
+    Phase 1. Direct usage of :class:`ModelConfig` outside this context is
+    deprecated in favor of ``scalable.yaml`` + manifest parsing.
+    """
+
+    global _MODELCONFIG_ADAPTER_CONTEXT
+    previous = _MODELCONFIG_ADAPTER_CONTEXT
+    _MODELCONFIG_ADAPTER_CONTEXT = True
+    try:
+        yield
+    finally:
+        _MODELCONFIG_ADAPTER_CONTEXT = previous
 
 async def get_cmd_comm(
     port: int, communicator_path: str | None = None
@@ -105,11 +129,22 @@ class ModelConfig:
             fresh data or older data such as previously set binded directories.
             Defaults to True so a new config_dict is made.
         """
+        if not _MODELCONFIG_ADAPTER_CONTEXT:
+            warnings.warn(
+                "ModelConfig Dockerfile discovery is deprecated and will be "
+                "replaced by scalable.yaml manifest parsing. Use "
+                "scalable.manifest.parser.parse_manifest(...) and provider "
+                "adapters instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         # HARDCODING CURRENT DIRECTORY
         self.config_dict = {}
         cwd = os.getcwd()
         if path is None:
             self.path = os.path.abspath(os.path.join(cwd, "config_dict.yaml"))
+        else:
+            self.path = os.path.abspath(path)
         dockerfile_path = os.path.abspath(os.path.join(cwd, "Dockerfile"))
         list_avail_command = (
             r"sed -n 's/^FROM[[:space:]]\+[^ ]\+[[:space:]]\+AS[[:space:]]\+\([^ ]\+\)$/\\1/p' "

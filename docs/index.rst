@@ -45,6 +45,16 @@ Contents
    :maxdepth: 1
 
    workers
+   manifest
+   overlays
+   providers
+   cloud
+   kubernetes
+   artifacts
+   cost
+   telemetry
+   advising
+   ai_assistants
    caching
    functions
 

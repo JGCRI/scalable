@@ -26,6 +26,9 @@ def _isolate_scalable_env(tmp_path, monkeypatch):
     monkeypatch.delenv("SCALABLE_CACHE_DIR", raising=False)
     monkeypatch.delenv("SCALABLE_SEED", raising=False)
     monkeypatch.delenv("SCALABLE_LOG_LEVEL", raising=False)
+    monkeypatch.delenv("SCALABLE_RUNS_DIR", raising=False)
+    monkeypatch.delenv("SCALABLE_TELEMETRY", raising=False)
+    monkeypatch.delenv("SCALABLE_TELEMETRY_PARQUET", raising=False)
     monkeypatch.delenv("COMM_PORT", raising=False)
     yield
 
