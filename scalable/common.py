@@ -92,7 +92,7 @@ if _env_level:
 # names but back them with the singleton via module-level descriptors so any
 # mutation goes through the dataclass.
 
-def __getattr__(name: str):  # pragma: no cover - exercised via tests
+def __getattr__(name: str) -> int | str:  # pragma: no cover - exercised via tests
     if name == "cachedir":
         return settings.cache_dir
     if name == "SEED":

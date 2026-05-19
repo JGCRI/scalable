@@ -4,6 +4,7 @@ import os
 import pickle
 import types
 import warnings
+from typing import Any, Callable
 
 import dill
 import numpy as np
@@ -14,18 +15,18 @@ from xxhash import xxh32
 from .common import logger, settings
 
 
-def _seed():
+def _seed() -> int:
     """Return the active xxhash seed (process-singleton override-friendly)."""
     return settings.seed
 
 
-def _cache_dir():
+def _cache_dir() -> str:
     """Return the active cache directory (process-singleton override-friendly)."""
     return settings.cache_dir
 
 
 @functools.lru_cache(maxsize=8)
-def _shared_cache(directory):
+def _shared_cache(directory: str) -> Cache:
     """Return a shared :class:`diskcache.Cache` keyed by directory.
 
     Previously :func:`cacheable` opened ``Cache(directory=cachedir)`` on every
@@ -56,7 +57,7 @@ class GenericType:
         The value to be hashed.
     """
 
-    def __init__(self, value):
+    def __init__(self, value: Any) -> None:
         self.value = value
 
 class FileType(GenericType):
@@ -170,7 +171,7 @@ class UtilityType(GenericType):
             raise TypeError(f"UtilityType does not support {type(self.value).__name__}")
         return x.intdigest()
     
-def hash_to_bytes(hash):
+def hash_to_bytes(hash: int) -> bytes:
     """Converts a hash (or int) to bytes.
     
     Parameters
@@ -185,7 +186,7 @@ def hash_to_bytes(hash):
     """
     return hash.to_bytes((hash.bit_length() + 7) // 8, 'big')
 
-def convert_to_type(arg):
+def convert_to_type(arg: Any) -> GenericType:
     """Convert ``arg`` to a hashable :class:`GenericType` subclass.
 
     The mapping is heuristic. For deterministic cache keys, prefer
@@ -235,7 +236,7 @@ def convert_to_type(arg):
 _PATH_SNIFFING_WARNED = False
 
 
-def _warn_path_sniffing_once(value):
+def _warn_path_sniffing_once(value: str) -> None:
     """Emit a single DeprecationWarning per process for path-sniffing usage."""
     global _PATH_SNIFFING_WARNED
     if _PATH_SNIFFING_WARNED:
@@ -250,7 +251,14 @@ def _warn_path_sniffing_once(value):
         stacklevel=3,
     )
 
-def cacheable(return_type=None, void=False, check_output=False, recompute=False, store=True, **arg_types):
+def cacheable(
+    return_type: type[GenericType] | Callable[..., Any] | None = None,
+    void: bool = False,
+    check_output: bool = False,
+    recompute: bool = False,
+    store: bool = True,
+    **arg_types: type[GenericType],
+) -> Callable[[Callable[..., Any]], Callable[..., Any]] | Callable[..., Any]:
     """Decorator function to cache the output of a function.
     
     This function is used to cache other functions' outputs for certain 

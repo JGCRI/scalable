@@ -1,3 +1,10 @@
+"""Client extensions for scalable clusters."""
+
+from __future__ import annotations
+
+from collections.abc import Iterable
+from typing import Any
+
 from dask.typing import no_default
 from distributed import Client
 from distributed.diagnostics.plugin import SchedulerPlugin
@@ -6,9 +13,18 @@ from .slurm import SlurmCluster
 
 
 class SlurmSchedulerPlugin(SchedulerPlugin):
-    def __init__(self, cluster):
+    """Scheduler plugin placeholder used for Slurm-backed clients."""
+
+    def __init__(self, cluster: Any) -> None:
+        """Initialize the plugin.
+
+        Parameters
+        ----------
+        cluster : Any
+            Cluster reference used by distributed callbacks.
+        """
         self.cluster = cluster
-        super().__init__()    
+        super().__init__()
 
 class ScalableClient(Client):
     """Client for submitting tasks to a Dask cluster. Inherits the dask
@@ -20,12 +36,20 @@ class ScalableClient(Client):
         The cluster object to connect to for submitting tasks. 
     """
 
-    def __init__(self, cluster, *args, **kwargs):
-        super().__init__(address = cluster, *args, **kwargs)
+    def __init__(self, cluster: Any, *args: Any, **kwargs: Any) -> None:
+        """Initialize a client bound to an existing cluster/scheduler."""
+        super().__init__(address=cluster, *args, **kwargs)
         if isinstance(cluster, SlurmCluster):
             self.register_scheduler_plugin(SlurmSchedulerPlugin(None))
-    
-    def submit(self, func, *args, tag=None, n=1, **kwargs):
+
+    def submit(
+        self,
+        func: Any,
+        *args: Any,
+        tag: str | None = None,
+        n: int = 1,
+        **kwargs: Any,
+    ) -> Any:
         """Submit a function to be ran by workers in the cluster.
 
         Parameters
@@ -66,7 +90,7 @@ class ScalableClient(Client):
             resources = {tag: n}
         return super().submit(func, resources=resources, *args, **kwargs)
     
-    def cancel(self, futures, *args, **kwargs):
+    def cancel(self, futures: Any, *args: Any, **kwargs: Any) -> Any:
         """
         Cancel running futures
         This stops future tasks from being scheduled if they have not yet run
@@ -84,7 +108,7 @@ class ScalableClient(Client):
         """
         return super().cancel(futures, *args, **kwargs)
     
-    def close(self, timeout=no_default):
+    def close(self, timeout: Any = no_default) -> Any:
         """Close this client
 
         Clients will also close automatically when your Python session ends
@@ -98,7 +122,14 @@ class ScalableClient(Client):
         """
         return super().close(timeout)
     
-    def map(self, func, *parameters, tag, n, **kwargs):
+    def map(
+        self,
+        func: Any,
+        *parameters: Iterable[Any],
+        tag: str | None = None,
+        n: int = 1,
+        **kwargs: Any,
+    ) -> Any:
         """Map a function on multiple sets of arguments to run the function
         multiple times with different inputs. 
 
@@ -139,7 +170,9 @@ class ScalableClient(Client):
             resources = {tag: n}
         return super().map(func, *parameters, resources=resources, **kwargs)
     
-    def get_versions(self, check=False, packages = None):
+    def get_versions(
+        self, check: bool = False, packages: list[str] | None = None
+    ) -> Any:
         """Return version info for the scheduler, all workers and myself
 
         Parameters

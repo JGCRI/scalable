@@ -4,7 +4,9 @@ import subprocess
 import sys
 import threading
 import warnings
+from collections.abc import Mapping
 from importlib.resources import files
+from typing import Any
 
 import yaml
 from dask.utils import parse_bytes
@@ -13,7 +15,9 @@ from .common import logger
 
 comm_port_regex = r'0\.0\.0\.0:(\d{1,5})'
 
-async def get_cmd_comm(port, communicator_path=None):
+async def get_cmd_comm(
+    port: int, communicator_path: str | None = None
+) -> asyncio.subprocess.Process:
     """Returns a running process of the command communicator.
 
     The communicator is used by the containerized cluster to send commands to 
@@ -46,7 +50,15 @@ async def get_cmd_comm(port, communicator_path=None):
     )
     return proc
 
-def run_bootstrap():
+def run_bootstrap() -> None:
+    """Run the packaged bootstrap shell script and propagate exit status.
+
+    Raises
+    ------
+    SystemExit
+        Raised with a non-zero code when the bootstrap command fails or is
+        interrupted.
+    """
     bootstrap_location = files('scalable').joinpath('scalable_bootstrap.sh')
     try:
         result = subprocess.run([os.environ.get("SHELL"), bootstrap_location.as_posix()], stdin=sys.stdin, 
@@ -79,7 +91,7 @@ class ModelConfig:
         Update any of the stored information in the config_dict.
     """
 
-    def __init__(self, path=None, path_overwrite=True):
+    def __init__(self, path: str | None = None, path_overwrite: bool = True) -> None:
         """
         
         Parameters
@@ -143,7 +155,7 @@ class ModelConfig:
                 yaml.dump(self.config_dict, config)
             
 
-    def update_dict(self, tag, key, value):
+    def update_dict(self, tag: str, key: str, value: Any) -> None:
         """Update information stored about a container in the config_dict. 
 
         Raises
@@ -162,7 +174,7 @@ class ModelConfig:
             logger.error("Please try again")
 
     @staticmethod
-    def default_spec():
+    def default_spec() -> dict[str, int | str]:
         """Return a default specification for a container.
         
         Returns
@@ -227,7 +239,9 @@ class HardwareResources:
     #: :meth:`check_availability` will allow further reservations.
     MIN_MEMORY = 20
 
-    def __init__(self, *, min_cpus=None, min_memory=None):
+    def __init__(
+        self, *, min_cpus: int | None = None, min_memory: int | None = None
+    ) -> None:
         """Initialize an empty resource ledger.
 
         Parameters
@@ -254,7 +268,7 @@ class HardwareResources:
     # Mutators
     # ------------------------------------------------------------------
 
-    def assign_resources(self, node, cpus, memory, jobid):
+    def assign_resources(self, node: str, cpus: int, memory: int, jobid: str) -> bool:
         """Store the information of an allocated node.
 
         Parameters
@@ -284,7 +298,7 @@ class HardwareResources:
             self.active.setdefault(jobid, set())
             return True
 
-    def remove_jobid_nodes(self, jobid):
+    def remove_jobid_nodes(self, jobid: str) -> None:
         """Remove all the nodes belonging to the given jobid."""
         with self._lock:
             self.active.pop(jobid, None)
@@ -296,7 +310,7 @@ class HardwareResources:
                 self.available.pop(node, None)
                 self.nodes.remove(node)
 
-    def utilize_resources(self, node, cpus, memory, jobid):
+    def utilize_resources(self, node: str, cpus: int, memory: int, jobid: str) -> None:
         """Mark the given cpus and memory in the given node as unavailable.
 
         Raises
@@ -318,7 +332,7 @@ class HardwareResources:
             self.available[node]["memory"] -= memory
             self.active[self.available[node]["jobid"]].add(node)
 
-    def release_resources(self, node, cpus, memory, jobid):
+    def release_resources(self, node: str, cpus: int, memory: int, jobid: str) -> None:
         """Mark the given cpus and memory in the given node as available.
 
         Raises
@@ -351,7 +365,7 @@ class HardwareResources:
     # Accessors
     # ------------------------------------------------------------------
 
-    def get_node_jobid(self, node):
+    def get_node_jobid(self, node: str) -> str:
         """Get the jobid of the allocation request for the given node.
 
         Raises
@@ -364,12 +378,12 @@ class HardwareResources:
                 raise ValueError("The given node doesn't exist. Please try again.\n")
             return self.assigned[node]["jobid"]
 
-    def check_availability(self, node, cpus, memory):
+    def check_availability(self, node: str, cpus: int, memory: int) -> bool:
         """Check if a node has the given amount of cpus and memory available."""
         with self._lock:
             return self._check_availability_locked(node, cpus, memory)
 
-    def _check_availability_locked(self, node, cpus, memory):
+    def _check_availability_locked(self, node: str, cpus: int, memory: int) -> bool:
         """Internal availability check that assumes the lock is held."""
         if node not in self.available:
             return False
@@ -379,7 +393,7 @@ class HardwareResources:
             and (specs["memory"] - memory) >= self._min_memory
         )
 
-    def get_available_node(self, cpus, memory):
+    def get_available_node(self, cpus: int, memory: int) -> str | None:
         """Get a node which can accommodate the given cpus and memory.
 
         Returns
@@ -394,13 +408,13 @@ class HardwareResources:
                     return node
             return None
 
-    def has_active_nodes(self, jobid):
+    def has_active_nodes(self, jobid: str) -> bool:
         """Check if the given jobid has any nodes with reserved resources."""
         with self._lock:
             entry = self.active.get(jobid)
             return bool(entry)
 
-    def is_assigned(self, jobid):
+    def is_assigned(self, jobid: str) -> bool:
         """Check if the given jobid corresponds to a tracked job.
 
         Notes
@@ -410,7 +424,7 @@ class HardwareResources:
         with self._lock:
             return jobid in self.active
 
-    def get_active_jobids(self):
+    def get_active_jobids(self) -> list[str]:
         """Return a list of all jobids currently tracked."""
         with self._lock:
             return list(self.active.keys())
@@ -420,7 +434,7 @@ class HardwareResources:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def set_min_free_cpus(cpus):
+    def set_min_free_cpus(cpus: int) -> None:
         """Set the class-default minimum free CPUs.
 
         .. deprecated::
@@ -437,7 +451,7 @@ class HardwareResources:
         HardwareResources.MIN_CPUS = cpus
 
     @staticmethod
-    def set_min_free_memory(memory):
+    def set_min_free_memory(memory: int) -> None:
         """Set the class-default minimum free memory.
 
         .. deprecated::
@@ -453,7 +467,7 @@ class HardwareResources:
 
 
 
-def _parse_memory_to_gb(value, *, default=0):
+def _parse_memory_to_gb(value: str | int | float | None, *, default: int = 0) -> int:
     """Parse a memory string/int into integer gigabytes.
 
     Examples
@@ -531,7 +545,13 @@ class Container:
     _runtime_directives = {"apptainer": "exec", "docker": "run"}
     _runtime = "apptainer"
 
-    def __init__(self, name, spec_dict, *, runtime=None):
+    def __init__(
+        self,
+        name: str,
+        spec_dict: dict[str, Any],
+        *,
+        runtime: str | None = None,
+    ) -> None:
         """Initialize a container description from a spec dict.
 
         Parameters
@@ -567,13 +587,13 @@ class Container:
         # default don't change this instance's behaviour.
         self._runtime_directives_local = dict(Container._runtime_directives)
 
-    def add_directory(self, src, dst=None):
+    def add_directory(self, src: str, dst: str | None = None) -> None:
         """Bind-mount ``src`` (host) to ``dst`` (container, defaults to ``src``)."""
         if dst is None:
             dst = src
         self.directories[src] = dst
 
-    def get_info_dict(self):
+    def get_info_dict(self) -> dict[str, Any]:
         """Return a dictionary describing the container.
 
         Returns
@@ -591,7 +611,7 @@ class Container:
             "PreloadScript": self.preload_script,
         }
 
-    def get_command(self, env_vars=None):
+    def get_command(self, env_vars: Mapping[str, Any] | None = None) -> list[str]:
         """Return the argv used to launch this container."""
         command = [self.get_runtime(), self.get_runtime_directive()]
         # Apptainer-specific flags. Docker users will need a different builder.
@@ -612,7 +632,7 @@ class Container:
     # Runtime accessors (per-instance)
     # ------------------------------------------------------------------
 
-    def get_runtime(self):
+    def get_runtime(self) -> str:
         """Return this container's runtime name."""
         if not self.runtime:
             raise ValueError(
@@ -620,7 +640,7 @@ class Container:
             )
         return self.runtime
 
-    def get_runtime_directive(self):
+    def get_runtime_directive(self) -> str:
         """Return the runtime directive (``exec``/``run``/...) for this instance."""
         if self.runtime not in self._runtime_directives_local:
             raise ValueError(
@@ -634,7 +654,7 @@ class Container:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def set_runtime(runtime):
+    def set_runtime(runtime: str) -> None:
         """Set the *process-wide default* container runtime.
 
         .. deprecated::
@@ -651,7 +671,7 @@ class Container:
         Container._runtime = runtime
 
     @staticmethod
-    def set_runtime_directive(runtime, directive):
+    def set_runtime_directive(runtime: str, directive: str) -> None:
         """Register a runtime→directive mapping at the process level.
 
         .. deprecated::
@@ -667,7 +687,7 @@ class Container:
         Container._runtime_directives[runtime] = directive
 
     @staticmethod
-    def register_runtime_directive(runtime, directive):
+    def register_runtime_directive(runtime: str, directive: str) -> None:
         """Register a runtime→directive mapping at the class default level.
 
         New :class:`Container` instances will pick up the registration via

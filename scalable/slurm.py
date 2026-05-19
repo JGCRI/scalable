@@ -3,6 +3,7 @@ import os
 import re
 import warnings
 from collections.abc import Awaitable
+from typing import Match
 
 from distributed.core import Status
 from distributed.deploy.spec import ProcessInterface
@@ -16,7 +17,7 @@ DEFAULT_REQUEST_QUANTITY = 1
 RECOVERY_DELAY = 3
 
 
-def _try_get_running_loop():
+def _try_get_running_loop() -> asyncio.AbstractEventLoop | None:
     """Return the running event loop, or ``None`` if we're not inside one."""
     try:
         return asyncio.get_running_loop()
@@ -44,7 +45,7 @@ class SlurmJob(Job):
         worker_env_vars=None,
         active_job_ids=None,
         **base_class_kwargs
-    ):
+    ) -> None:
         super().__init__(
             scheduler=scheduler, name=name, hardware=hardware, comm_port=comm_port, \
             container=container, tag=tag, shared_lock=shared_lock, **base_class_kwargs
@@ -70,13 +71,13 @@ class SlurmJob(Job):
         self.send_command = apptainer_module_command(apptainer_version) + [";"] + \
                             self.container.get_command(worker_env_vars) + self.command_args
     
-    async def _srun_command(self, command):
+    async def _srun_command(self, command: list[str]) -> str:
         prefix = ["srun", f"--jobid={self.job_id}"]
         command = prefix + command
         out = await self._run_command(command)
         return out
     
-    async def _ssh_command(self, command):
+    async def _ssh_command(self, command: list[str]) -> str:
         prefix = ["ssh", self.job_node]
         suffix = []
         if self.log_file:
@@ -89,12 +90,12 @@ class SlurmJob(Job):
         out = await self._run_command(command)
         return out
     
-    async def _check_valid_job_id(self, job_id):
+    async def _check_valid_job_id(self, job_id: str) -> Match[str] | None:
         out = await self._run_command(jobcheck_command(job_id))
         match = re.search(self.job_id_regexp, out)
         return match
 
-    async def start(self):
+    async def start(self) -> None:
         """Start function for the worker.
 
         The worker sets itself up by requesting or consuming necessary 
@@ -179,7 +180,7 @@ class SlurmJob(Job):
         
         await ProcessInterface.start(self)
 
-    async def close(self):
+    async def close(self) -> None:
         """Close function for the worker.
         
         The worker releases the resources it was utilizing and removes itself."""
@@ -276,7 +277,7 @@ class SlurmCluster(JobQueueCluster):
 
         return super().close(timeout)
 
-    def _handle_cancel_result(self, job_id, result):
+    def _handle_cancel_result(self, job_id: str, result: str) -> None:
         """Bookkeeping for a single ``scancel`` result.
 
         Parameters
@@ -294,7 +295,7 @@ class SlurmCluster(JobQueueCluster):
             logger.error("Failed to cancel job %s: %s", job_id, result)
 
     @staticmethod
-    def set_default_request_quantity(nodes):
+    def set_default_request_quantity(nodes: int) -> None:
         """Set the process-global default number of nodes per Slurm job.
 
         .. deprecated::

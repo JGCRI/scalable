@@ -8,6 +8,7 @@ import shlex
 import sys
 import tempfile
 from contextlib import suppress
+from typing import Any
 
 from distributed.core import Status
 from distributed.deploy.spec import ProcessInterface, SpecCluster
@@ -114,7 +115,7 @@ class Job(ProcessInterface, abc.ABC):
         use_run_scripts=True,
         run_scripts_path=None,
         preload_script=None,
-    ):
+    ) -> None:
         """
         Parameters
         ----------
@@ -265,11 +266,11 @@ class Job(ProcessInterface, abc.ABC):
 
         self._command_template = " ".join(map(str, command_args))
     
-    async def _run_command(self, command):
+    async def _run_command(self, command: list[str]) -> str:
         out = await self._call(command, self.comm_port)
         return out
 
-    def _job_id_from_submit_output(self, out):
+    def _job_id_from_submit_output(self, out: str) -> str:
         match = re.search(self.job_id_regexp, out)
         if match is None:
             msg = (
@@ -290,12 +291,12 @@ class Job(ProcessInterface, abc.ABC):
 
         return job_id
 
-    async def close(self):
+    async def close(self) -> None:
         """Close the current worker. """
         logger.debug("Stopping worker: %s job: %s", self.name, self.job_id)
         await self._close_job(self.job_id, self.cancel_command, self.comm_port)
 
-    async def check_launched_worker(self):
+    async def check_launched_worker(self) -> None:
         """Verify the worker registered with the scheduler within the threshold.
 
         Notes
@@ -331,13 +332,13 @@ class Job(ProcessInterface, abc.ABC):
             await self.close()
 
     @classmethod
-    async def _close_job(cls, job_id, cancel_command, port):
+    async def _close_job(cls, job_id: str, cancel_command: str, port: int) -> None:
         with suppress(RuntimeError):  # deleting job when job already gone
             await cls._call(shlex.split(cancel_command) + [job_id], port)
         logger.debug("Closed job %s", job_id)
 
     @staticmethod
-    async def _call(cmd, port):
+    async def _call(cmd: list[str], port: int) -> str:
         """Call a command using asyncio.create_subprocess_exec.
 
         This centralizes calls out to the command line, providing consistent
@@ -434,7 +435,7 @@ class JobQueueCluster(SpecCluster):
         logs_location=None,
         suppress_logs=False,
         **job_kwargs
-    ):
+    ) -> None:
         
         if comm_port is None:
             comm_port = os.getenv("COMM_PORT", None)
@@ -558,7 +559,7 @@ class JobQueueCluster(SpecCluster):
             name=name,
         )
 
-    def add_workers(self, tag=None, n=0):
+    def add_workers(self, tag: str | None = None, n: int = 0) -> Any:
         """Add workers to the cluster.  
 
         Parameters
@@ -615,7 +616,7 @@ class JobQueueCluster(SpecCluster):
         if self.asynchronous:
             return NoOpAwaitable() 
         
-    def remove_workers(self, tag=None, n=0):
+    def remove_workers(self, tag: str | None = None, n: int = 0) -> Any:
         """Remove workers from the cluster.
 
         Parameters
@@ -670,7 +671,15 @@ class JobQueueCluster(SpecCluster):
         if self.asynchronous:
             return NoOpAwaitable()
 
-    def add_container(self, tag, dirs, path=None, cpus=1, memory=None, preload_script=None):
+    def add_container(
+        self,
+        tag: str,
+        dirs: dict[str, str],
+        path: str | None = None,
+        cpus: int = 1,
+        memory: str | None = None,
+        preload_script: str | None = None,
+    ) -> None:
         """Add containers to enable them launching as workers. 
         
         The required dependencies for the workers are assumed to be in the 
@@ -714,7 +723,7 @@ class JobQueueCluster(SpecCluster):
             self.model_configs.update_dict(tag, 'Memory', memory)
         self.containers[tag] = Container(name=tag, spec_dict=self.model_configs.config_dict[tag])
 
-    def _new_worker_name(self, worker_number):
+    def _new_worker_name(self, worker_number: int) -> str:
         """Returns new worker name.
 
         Base worker name on cluster name. This makes it easier to use job
@@ -734,7 +743,7 @@ class JobQueueCluster(SpecCluster):
             cluster_name=self._name, worker_number=worker_number
         )
     
-    def new_worker_spec(self, tag):
+    def new_worker_spec(self, tag: str) -> dict[str, dict[str, Any]]:
         """Return name and spec for the next worker
 
         Parameters
@@ -766,7 +775,7 @@ class JobQueueCluster(SpecCluster):
 
         return {new_worker_name: self.specifications[tag]}
     
-    def _get_worker_security(self, security):
+    def _get_worker_security(self, security: Any) -> Any:
         """Dump temporary parts of the security object into a 
         shared_temp_directory.
         """
@@ -837,7 +846,13 @@ class JobQueueCluster(SpecCluster):
 
         return security
 
-    def scale(self, n=None, jobs=0, memory=None, cores=None):
+    def scale(
+        self,
+        n: int | None = None,
+        jobs: int = 0,
+        memory: str | None = None,
+        cores: int | None = None,
+    ) -> Any:
         """Scale cluster to specified configurations.
 
         Parameters
@@ -866,7 +881,7 @@ class JobQueueCluster(SpecCluster):
         """
         return super().scale(n=n, jobs=jobs, memory=memory, cores=cores)
 
-    def shutdown(self):
+    def shutdown(self) -> Any:
         """Mark the cluster as exiting and scale workers to zero.
 
         This is the explicit, non-deprecated replacement for the previous
