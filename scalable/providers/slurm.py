@@ -10,6 +10,11 @@ from __future__ import annotations
 import os
 import re
 
+from scalable.manifest.adapter import (
+    add_components_to_legacy_cluster,
+    build_slurm_cluster_kwargs,
+    create_legacy_slurm_cluster,
+)
 from scalable.manifest.validate import ValidationIssue, ValidationReport, validate_manifest
 from scalable.slurm import SlurmCluster
 
@@ -109,30 +114,9 @@ class SlurmProvider(DeploymentProvider):
             )
             raise ValueError(f"invalid slurm deployment spec: {details}")
 
-        options = spec.target.options
-        cluster_kwargs = {
-            "queue": options.get("queue"),
-            "account": options.get("account"),
-            "walltime": options.get("walltime"),
-            "interface": options.get("interface"),
-            "name": options.get("name"),
-            "logs_location": options.get("logs_location"),
-            "suppress_logs": options.get("suppress_logs", False),
-        }
-        if "comm_port" in options:
-            cluster_kwargs["comm_port"] = options["comm_port"]
-
-        cluster = SlurmCluster(**cluster_kwargs)
-
-        for component_name, component in spec.components.items():
-            cluster.add_container(
-                tag=component_name,
-                dirs=dict(component.mounts),
-                path=component.image,
-                cpus=component.cpus,
-                memory=component.memory,
-                preload_script=component.preload_script,
-            )
+        cluster_kwargs = build_slurm_cluster_kwargs(spec)
+        cluster = create_legacy_slurm_cluster(spec, cluster_cls=SlurmCluster)
+        add_components_to_legacy_cluster(spec, cluster)
 
         def _client_factory():
             from scalable.client import ScalableClient
@@ -180,4 +164,3 @@ def _require_type(
                 code=f"E_BAD_{key.upper()}",
             )
         )
-
