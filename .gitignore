@@ -1,7 +1,8 @@
 # -----------------------------
-# Components
+# Internals
 # -----------------------------
 capabilities/
+plans/
 
 # -----------------------------
 # Python bytecode / caches
