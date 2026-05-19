@@ -51,6 +51,11 @@ def get_provider(name: str) -> DeploymentProvider:
     if normalized in _REGISTRY:
         return _instantiate(_REGISTRY[normalized])
 
+    builtin = _load_builtin_provider(normalized)
+    if builtin is not None:
+        _REGISTRY[normalized] = builtin
+        return _instantiate(builtin)
+
     discovered = _load_provider_entrypoint(normalized)
     if discovered is None:
         known = sorted(iter_provider_names(include_entrypoints=True))
@@ -119,3 +124,18 @@ def _load_provider_entrypoint(name: str) -> ProviderFactory | None:
         )
     return None
 
+
+def _load_builtin_provider(name: str) -> ProviderFactory | None:
+    """Load built-in providers lazily to avoid import-order cycles."""
+    normalized = _normalize_provider_name(name)
+    if normalized == "local":
+        from .local import LocalProvider
+
+        return LocalProvider
+    if normalized == "slurm":
+        try:
+            from .slurm import SlurmProvider
+        except ImportError:
+            return None
+        return SlurmProvider
+    return None

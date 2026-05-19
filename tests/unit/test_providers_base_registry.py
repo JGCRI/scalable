@@ -168,3 +168,9 @@ def test_iter_provider_names_from_runtime_registry() -> None:
 
     assert names == {"dummy"}
 
+
+def test_get_provider_loads_builtin_local_provider_lazily() -> None:
+    provider = get_provider("local")
+
+    assert provider.name == "local"
+    assert "local" in iter_provider_names(include_entrypoints=False)
