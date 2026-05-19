@@ -86,6 +86,16 @@ class Settings:
     runs_dir_remote: str | None = field(
         default_factory=lambda: os.environ.get("SCALABLE_RUNS_DIR_REMOTE")
     )
+    # Phase 4 AI additions
+    ai_backend: str = field(
+        default_factory=lambda: os.environ.get("SCALABLE_AI_BACKEND", "none")
+    )
+    ai_model: str | None = field(
+        default_factory=lambda: os.environ.get("SCALABLE_AI_MODEL")
+    )
+    ai_endpoint: str | None = field(
+        default_factory=lambda: os.environ.get("SCALABLE_AI_ENDPOINT")
+    )
 
 
 #: Process-wide settings singleton. Mutating attributes on this instance

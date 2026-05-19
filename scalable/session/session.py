@@ -77,20 +77,20 @@ class ScalableSession:
         objective: str | None = None,
         policy: str | None = None,
     ) -> DryRunPlan:
-        if objective is not None or policy is not None:
-            raise NotImplementedError(
-                "objective/policy planning is planned for later phases; "
-                "Phase 1 supports deterministic dry-run planning only"
-            )
-
-        _ = dry_run  # Phase 1 currently only supports dry-run behavior.
+        _ = dry_run  # Currently all planning is non-destructive.
 
         report = self.validate()
         if not report.ok:
             details = "; ".join(f"{i.path}: {i.message}" for i in report.errors)
             raise ValueError(f"manifest validation failed: {details}")
 
-        return build_dry_run_plan(self.spec)
+        base_plan = build_dry_run_plan(self.spec)
+
+        # Phase 4: apply objective/policy-based adjustments
+        if objective is not None or policy is not None:
+            return _apply_objective_policy(base_plan, self.spec, objective, policy)
+
+        return base_plan
 
     def start(self, plan: DryRunPlan | None = None) -> ScalableClient:
         if self._client is not None:
@@ -252,3 +252,96 @@ def _resolve_target_name(manifest: ManifestModel, *, requested: str | None) -> s
 
     # Fallback: deterministic first key order from parsed mapping.
     return next(iter(manifest.targets.keys()))
+
+
+#: Supported objectives for heuristic planning
+_SUPPORTED_OBJECTIVES = {"minimize cost", "minimize time", "balance"}
+
+#: Supported policies
+_SUPPORTED_POLICIES = {"safe", "aggressive", "manual"}
+
+
+def _apply_objective_policy(
+    base_plan: DryRunPlan,
+    spec: DeploymentSpec,
+    objective: str | None,
+    policy: str | None,
+) -> DryRunPlan:
+    """Apply objective/policy-based adjustments to a base plan.
+
+    Phase 4 implementation uses heuristic rules. Phase 5 will add
+    ML-backed optimizations using the same API surface.
+    """
+    from dataclasses import replace as dc_replace
+
+    from scalable.providers.base import ResourceRequest, ScalePlan
+
+    effective_objective = (objective or "balance").lower().strip()
+    effective_policy = (policy or "safe").lower().strip()
+
+    if effective_objective not in _SUPPORTED_OBJECTIVES:
+        raise NotImplementedError(
+            f"Unsupported objective: {objective!r}. "
+            f"Supported objectives: {sorted(_SUPPORTED_OBJECTIVES)}"
+        )
+    if effective_policy not in _SUPPORTED_POLICIES:
+        raise NotImplementedError(
+            f"Unsupported policy: {policy!r}. "
+            f"Supported policies: {sorted(_SUPPORTED_POLICIES)}"
+        )
+
+    # Start from base plan values
+    workers = dict(base_plan.scale_plan.workers_by_tag)
+    resources = dict(base_plan.scale_plan.resources_by_tag)
+
+    # Apply objective-based adjustments
+    if effective_objective == "minimize cost":
+        # Reduce worker counts; keep resources tight
+        for tag in workers:
+            workers[tag] = max(1, workers[tag])
+        # With safe policy, add memory margin
+        if effective_policy == "safe":
+            for tag, req in resources.items():
+                resources[tag] = req  # Keep as-is (conservative)
+
+    elif effective_objective == "minimize time":
+        # Scale up workers for parallelism
+        multiplier = 2 if effective_policy == "aggressive" else 1
+        for tag in workers:
+            workers[tag] = max(1, workers[tag] * (1 + multiplier))
+        # With aggressive policy, request more resources
+        if effective_policy == "aggressive":
+            for tag, req in resources.items():
+                new_cpus = req.cpus * 2 if req.cpus else 2
+                resources[tag] = ResourceRequest(
+                    cpus=new_cpus,
+                    memory=req.memory,
+                    walltime=req.walltime,
+                    gpus=req.gpus,
+                )
+
+    elif effective_objective == "balance":
+        # Moderate scaling with safety margins
+        if effective_policy == "safe":
+            pass  # Keep base plan as-is with safety margins
+        elif effective_policy == "aggressive":
+            for tag in workers:
+                workers[tag] = max(1, workers[tag] + 1)
+
+    # manual policy means: use exactly what the manifest says
+    if effective_policy == "manual":
+        workers = dict(base_plan.scale_plan.workers_by_tag)
+        resources = dict(base_plan.scale_plan.resources_by_tag)
+
+    adjusted_plan = ScalePlan(
+        workers_by_tag=workers,
+        resources_by_tag=resources,
+    )
+
+    return DryRunPlan(
+        target_name=base_plan.target_name,
+        provider_name=base_plan.provider_name,
+        manifest_lock=base_plan.manifest_lock,
+        scale_plan=adjusted_plan,
+        task_to_component=base_plan.task_to_component,
+    )
