@@ -7,11 +7,9 @@ import re
 import shlex
 import sys
 import tempfile
-import time
-
 from contextlib import suppress
+from typing import Any
 
-from dask.utils import parse_bytes
 from distributed.core import Status
 from distributed.deploy.spec import ProcessInterface, SpecCluster
 from distributed.scheduler import Scheduler
@@ -19,8 +17,8 @@ from distributed.security import Security
 from distributed.utils import NoOpAwaitable
 
 from .common import logger
-from .support import *
-from .utilities import *
+from .support import *  # noqa: F401,F403 - re-exported for legacy users
+from .utilities import *  # noqa: F401,F403 - re-exported for legacy users
 
 DEFAULT_WORKER_COMMAND = "distributed.cli.dask_worker"
 WORKER_LAUNCH_THRESHOLD_MINS = 2
@@ -105,10 +103,10 @@ class Job(ProcessInterface, abc.ABC):
         death_timeout=None,
         local_directory=None,
         worker_command=DEFAULT_WORKER_COMMAND,
-        worker_extra_args=[],
+        worker_extra_args=None,
         python=sys.executable,
         comm_port=None,
-        hardware=None, 
+        hardware=None,
         tag=None,
         container=None,
         launched=None,
@@ -117,7 +115,7 @@ class Job(ProcessInterface, abc.ABC):
         use_run_scripts=True,
         run_scripts_path=None,
         preload_script=None,
-    ):
+    ) -> None:
         """
         Parameters
         ----------
@@ -179,6 +177,11 @@ class Job(ProcessInterface, abc.ABC):
         if shared_lock is None:
             logger.warning("No shared async lock provided. This could lead to race conditions.")
 
+        # Always work on a fresh list so default-arg mutation cannot leak
+        # between Job instances (the historic ``worker_extra_args=[]`` default
+        # made every Job share the same list).
+        worker_extra_args = list(worker_extra_args) if worker_extra_args else []
+
         if security:
             worker_security_dict = security.get_tls_config_for_role("worker")
             security_command_line_list = [
@@ -189,7 +192,7 @@ class Job(ProcessInterface, abc.ABC):
             ]
             security_command_line = sum(security_command_line_list, [])
             worker_extra_args = worker_extra_args + security_command_line
-        
+
         self.comm_port = comm_port
         self.launched = launched
         self.removed = removed
@@ -220,47 +223,54 @@ class Job(ProcessInterface, abc.ABC):
         if protocol and "--protocol" not in worker_extra_args:
             worker_extra_args.extend(["--protocol", protocol])
 
-        self.worker_memory = parse_bytes(self.memory) if self.memory is not None else None
-        
-        # dask-worker command line build
-        dask_worker_command = "%(run_script)s %(python)s -m %(worker_command)s" % dict(
-            run_script = f"{run_scripts_path}/{self.tag}_script.sh" if use_run_scripts else "",
-            python="python3",
-            worker_command=worker_command
+        # ``self.memory`` is an integer in GB after the Container fix; it can
+        # also legally be ``None`` (no explicit limit). Compose the memory
+        # argument as a single string so we don't depend on parse_bytes
+        # accepting non-string input.
+        self.worker_memory = self.memory  # GB
+        memory_arg = (
+            f"{self.worker_memory}GB" if self.worker_memory is not None else "auto"
         )
+
+        # dask-worker command line build
+        run_script = (
+            f"{run_scripts_path}/{self.tag}_script.sh" if use_run_scripts else ""
+        )
+        dask_worker_command = f"{run_script} python3 -m {worker_command}"
 
         command_args = [dask_worker_command, self.scheduler]
 
-        # common
-        command_args.extend(["--name", self.name])
-        command_args.extend(["--nthreads", 1])
-        command_args.extend(["--memory-limit", f"{self.worker_memory}GB"])
+        # common — every value is coerced to ``str`` so the resulting argv is
+        # uniform and survives the communicator's text-only transport.
+        command_args.extend(["--name", str(self.name)])
+        command_args.extend(["--nthreads", "1"])
+        command_args.extend(["--memory-limit", memory_arg])
 
-        #  distributed.cli.dask_worker specific
+        # distributed.cli.dask_worker specific
         if worker_command == "distributed.cli.dask_worker":
-            command_args.extend(["--nworkers", processes])
-            command_args.extend(["--nanny" if nanny else "--no-nanny"])
+            command_args.extend(["--nworkers", str(processes)])
+            command_args.append("--nanny" if nanny else "--no-nanny")
 
         if death_timeout is not None:
-            command_args.extend(["--death-timeout", death_timeout])
+            command_args.extend(["--death-timeout", str(death_timeout)])
         if local_directory is not None:
-            command_args.extend(["--local-directory", local_directory])
+            command_args.extend(["--local-directory", str(local_directory)])
         if tag is not None:
-            command_args.extend(["--resources", f"\'{tag}\'=1"])
+            command_args.extend(["--resources", f"'{tag}'=1"])
         if preload_script is not None:
-            command_args.extend(["--preload", f"\'{preload_script}\'"])
-        if worker_extra_args is not None:
+            command_args.extend(["--preload", f"'{preload_script}'"])
+        if worker_extra_args:
             command_args.extend(worker_extra_args)
-        
+
         self.command_args = command_args
 
         self._command_template = " ".join(map(str, command_args))
     
-    async def _run_command(self, command):
+    async def _run_command(self, command: list[str]) -> str:
         out = await self._call(command, self.comm_port)
         return out
 
-    def _job_id_from_submit_output(self, out):
+    def _job_id_from_submit_output(self, out: str) -> str:
         match = re.search(self.job_id_regexp, out)
         if match is None:
             msg = (
@@ -281,25 +291,54 @@ class Job(ProcessInterface, abc.ABC):
 
         return job_id
 
-    async def close(self):
+    async def close(self) -> None:
         """Close the current worker. """
         logger.debug("Stopping worker: %s job: %s", self.name, self.job_id)
         await self._close_job(self.job_id, self.cancel_command, self.comm_port)
 
-    async def check_launched_worker(self):
+    async def check_launched_worker(self) -> None:
+        """Verify the worker registered with the scheduler within the threshold.
+
+        Notes
+        -----
+        Reaches into Dask's private ``scheduler._worker_collections`` because
+        there is currently no public hook. The access is guarded so that
+        upstream Dask refactors degrade to "not closing" rather than crashing
+        the watchdog.
+        """
         await asyncio.sleep(WORKER_LAUNCH_THRESHOLD_MINS * 60)
-        if self.name not in self._cluster().scheduler._worker_collections[-1]:
-            logger.error(f"Worker {self.name} did not launch successfully. Closing job...")
+        try:
+            collections = getattr(
+                self._cluster().scheduler, "_worker_collections", None
+            )
+            if collections is None:
+                logger.debug(
+                    "Scheduler does not expose _worker_collections; skipping "
+                    "launch verification for %s",
+                    self.name,
+                )
+                return
+            latest = collections[-1] if collections else {}
+            registered = self.name in latest
+        except Exception:  # pragma: no cover - defensive
+            logger.exception("Failed to verify worker launch for %s", self.name)
+            return
+        if not registered:
+            logger.error(
+                "Worker %s did not launch successfully within %d min. Closing job...",
+                self.name,
+                WORKER_LAUNCH_THRESHOLD_MINS,
+            )
             await self.close()
 
     @classmethod
-    async def _close_job(cls, job_id, cancel_command, port):
+    async def _close_job(cls, job_id: str, cancel_command: str, port: int) -> None:
         with suppress(RuntimeError):  # deleting job when job already gone
             await cls._call(shlex.split(cancel_command) + [job_id], port)
         logger.debug("Closed job %s", job_id)
 
     @staticmethod
-    async def _call(cmd, port):
+    async def _call(cmd: list[str], port: int) -> str:
         """Call a command using asyncio.create_subprocess_exec.
 
         This centralizes calls out to the command line, providing consistent
@@ -385,7 +424,7 @@ class JobQueueCluster(SpecCluster):
         # Scheduler-only keywords
         dashboard_address=None,
         host=None,
-        scheduler_options={},
+        scheduler_options=None,
         scheduler_cls=Scheduler,  # Use local scheduler for now
         # Options for both scheduler and workers
         interface=None,
@@ -396,7 +435,7 @@ class JobQueueCluster(SpecCluster):
         logs_location=None,
         suppress_logs=False,
         **job_kwargs
-    ):
+    ) -> None:
         
         if comm_port is None:
             comm_port = os.getenv("COMM_PORT", None)
@@ -445,11 +484,12 @@ class JobQueueCluster(SpecCluster):
         if security is True:
             try:
                 security = Security.temporary()
-            except ImportError:
+            except ImportError as exc:
                 raise ImportError(
-                    "In order to use TLS without pregenerated certificates `cryptography` is required,"
-                    "please install it using either pip or conda"
-                )
+                    "In order to use TLS without pregenerated certificates "
+                    "`cryptography` is required, please install it using "
+                    "either pip or conda"
+                ) from exc
         
         self.comm_port = comm_port
         self.hardware = HardwareResources()
@@ -468,8 +508,10 @@ class JobQueueCluster(SpecCluster):
             "security": security,
         }
 
-        # scheduler_options overrides parameters common to both workers and scheduler
-        scheduler_options = dict(default_scheduler_options, **scheduler_options)
+        # scheduler_options overrides parameters common to both workers and
+        # scheduler. Default to {} if the caller passed None (which is the
+        # safe replacement for the previous mutable-default ``={}``).
+        scheduler_options = dict(default_scheduler_options, **(scheduler_options or {}))
 
         # Use the same network interface as the workers if scheduler ip has not
         # been set through scheduler_options via 'host' or 'interface'
@@ -517,7 +559,7 @@ class JobQueueCluster(SpecCluster):
             name=name,
         )
 
-    def add_workers(self, tag=None, n=0):
+    def add_workers(self, tag: str | None = None, n: int = 0) -> Any:
         """Add workers to the cluster.  
 
         Parameters
@@ -542,22 +584,39 @@ class JobQueueCluster(SpecCluster):
                         "Please add a container with this tag to the cluster by using "
                         "add_container() and try again.")
             return
+        # NOTE: worker_spec is a DASK internal dict which is manipulated to 
+        # add "custom" workers to the cluster. This dict is in the form:
+        # {worker_name: worker_spec}
+        # where worker_name is the name of the worker and worker_spec is a
+        # dictionary containing the worker specifications.
+
+        # With "vanilla" Dask, the worker_spec dict for all the worker_names 
+        # is the same or similar. However, in this case, the worker_spec is 
+        # customized for each worker enabling hetereogeneous clusters.
         tags = [tag for _ in range(n)]
         for key, value in self.workers.items():
+            # Remove workers that are closing or closed
             if value.status in (Status.closing, Status.closed, Status.closing_gracefully):
                 del self.worker_spec[key]
         for tag in tags:
+            # If the tag is in the removed dictionary with a positive value, it 
+            # means that workers with this tag are slated for removal. So, 
+            # the add operation is skipped for as many as to be removed.
             if tag in self.removed:
                 if self.removed[tag] > 0:
                     self.removed[tag] -= 1
                     continue
+            # Get a new worker specification depending on the tag.
             new_worker = self.new_worker_spec(tag)
+            # Update the worker_spec dictionary with the new worker spec.
             self.worker_spec.update(dict(new_worker))
+        # "Correct state" of the cluster so that the new worker is recognized 
+        # and launched by the scheduler.
         self.loop.add_callback(self._correct_state)
         if self.asynchronous:
             return NoOpAwaitable() 
         
-    def remove_workers(self, tag=None, n=0):
+    def remove_workers(self, tag: str | None = None, n: int = 0) -> Any:
         """Remove workers from the cluster.
 
         Parameters
@@ -581,7 +640,11 @@ class JobQueueCluster(SpecCluster):
                         "Please add a container with this tag to the cluster by using "
                         "add_container() and try again.")
             return
+        # Get list of idle workers with the given tag.
         can_remove = [worker.name for worker in self.scheduler.idle.values() if tag in worker.name]
+        # If the number of workers to be removed is greater than the number of
+        # idle workers, then add the number of needed workers regardless of 
+        # their status.
         if n > len(can_remove):
             can_remove.extend([worker_name for worker_name in list(self.worker_spec.keys()) if tag in worker_name])
             can_remove = list(set(can_remove))
@@ -593,15 +656,30 @@ class JobQueueCluster(SpecCluster):
         if n != 0 and self.status not in (Status.closing, Status.closed):
             if tag not in self.removed:
                 self.removed[tag] = 0
+            # Add the number of workers to be removed to the removed dictionary. 
+            # This is done to ensure any related objects are removed and 
+            # bookkeeping is maintained. See add_workers() and SlurmJob.close().
             self.removed[tag] += n
+            # Retire the workers from the scheduler. 
             self.loop.spawn_callback(self.scheduler.retire_workers, names=can_remove)
+            # Delete the worker specs from the worker_spec dictionary.
             for i in range(n):
                 del self.worker_spec[can_remove[i]]
+            # "Correct state" of the cluster so that the objects are related 
+            # data can be removed (internally calls SlurmJob.close()).
             self.loop.add_callback(self._correct_state)
         if self.asynchronous:
             return NoOpAwaitable()
 
-    def add_container(self, tag, dirs, path=None, cpus=1, memory=None, preload_script=None):
+    def add_container(
+        self,
+        tag: str,
+        dirs: dict[str, str],
+        path: str | None = None,
+        cpus: int = 1,
+        memory: str | None = None,
+        preload_script: str | None = None,
+    ) -> None:
         """Add containers to enable them launching as workers. 
         
         The required dependencies for the workers are assumed to be in the 
@@ -645,7 +723,7 @@ class JobQueueCluster(SpecCluster):
             self.model_configs.update_dict(tag, 'Memory', memory)
         self.containers[tag] = Container(name=tag, spec_dict=self.model_configs.config_dict[tag])
 
-    def _new_worker_name(self, worker_number):
+    def _new_worker_name(self, worker_number: int) -> str:
         """Returns new worker name.
 
         Base worker name on cluster name. This makes it easier to use job
@@ -665,7 +743,7 @@ class JobQueueCluster(SpecCluster):
             cluster_name=self._name, worker_number=worker_number
         )
     
-    def new_worker_spec(self, tag):
+    def new_worker_spec(self, tag: str) -> dict[str, dict[str, Any]]:
         """Return name and spec for the next worker
 
         Parameters
@@ -685,6 +763,7 @@ class JobQueueCluster(SpecCluster):
                                 "Please add a container with this tag to the cluster by using"
                                 "add_container() and try again. User error at this point shouldn't happen."
                                 "Likely a bug.")
+            # Different spec is returned based on the tag
             self.specifications[tag]["options"] = copy.copy(self.new_spec["options"])
             self.specifications[tag]["options"]["container"] = self.containers[tag]
             self.specifications[tag]["options"]["tag"] = tag
@@ -696,7 +775,7 @@ class JobQueueCluster(SpecCluster):
 
         return {new_worker_name: self.specifications[tag]}
     
-    def _get_worker_security(self, security):
+    def _get_worker_security(self, security: Any) -> Any:
         """Dump temporary parts of the security object into a 
         shared_temp_directory.
         """
@@ -767,28 +846,50 @@ class JobQueueCluster(SpecCluster):
 
         return security
 
-    def scale(self, n=None, jobs=0, memory=None, cores=None):
+    def scale(
+        self,
+        n: int | None = None,
+        jobs: int = 0,
+        memory: str | None = None,
+        cores: int | None = None,
+    ) -> Any:
         """Scale cluster to specified configurations.
 
         Parameters
         ----------
         n : int
-           Target number of workers
+            Target number of workers. ``None`` is treated as "no change".
         jobs : int
-           Target number of jobs
+            Target number of jobs.
         memory : str
-           Target amount of memory
+            Target amount of memory.
         cores : int
-           Target number of cores
+            Target number of cores.
 
+        Notes
+        -----
+        Historically this method emitted a warning every time it was called
+        and silently flipped the ``self.exited`` flag whenever ``n`` was 0 or
+        ``None``, which violated the
+        :class:`distributed.deploy.SpecCluster` contract: a Dask consumer
+        calling ``cluster.scale(0)`` would accidentally shut the cluster
+        down. The new behaviour forwards arguments to
+        :meth:`SpecCluster.scale` without side effects on ``self.exited``.
+
+        To explicitly tear the cluster down, call :meth:`shutdown` (or
+        :meth:`close`) instead.
         """
-        logger.warning("This function must only be called internally on exit. " +
-                    "Any calls made explicity or during execution can result " +
-                    "in undefined behavior. " + "If called accidentally, an " +
-                    "immediate shutdown and restart of the cluster is recommended.")
-        if n is None or n == 0:
-            self.exited = True
-            logger.info("Cleaning workers...")
-        return super().scale(jobs, memory=memory, cores=cores)
+        return super().scale(n=n, jobs=jobs, memory=memory, cores=cores)
+
+    def shutdown(self) -> Any:
+        """Mark the cluster as exiting and scale workers to zero.
+
+        This is the explicit, non-deprecated replacement for the previous
+        side-effect of calling ``scale(0)``. Typically followed by a
+        :meth:`close` call.
+        """
+        logger.info("shutdown() requested; scaling cluster to zero workers")
+        self.exited = True
+        return super().scale(0)
     
     

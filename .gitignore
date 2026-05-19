@@ -1,13 +1,107 @@
-build/
+# -----------------------------
+# Internals
+# -----------------------------
+capabilities/
+plans/
+
+# -----------------------------
+# Python bytecode / caches
+# -----------------------------
 __pycache__/
+*.py[cod]
+*$py.class
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.nox/
+.tox/
+.pyre/
+.pytype/
+
+# Coverage / test artifacts
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# pyenv
+.python-version
+
+# -----------------------------
+# Build / packaging artifacts
+# -----------------------------
+build/
+dist/
+site/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Existing repo-specific packaging output
 scalable.egg-info/
-scalable/__pycache__/
-scalable/custom_types.py
+
+# -----------------------------
+# Virtual environments
+# -----------------------------
+.venv/
+venv/
+env/
+ENV/
+
+# -----------------------------
+# Logs / runtime artifacts
+# -----------------------------
+logs/
+*.log
+*.pid
+*.seed
+*.stackdump
+
+# Local caches and generated dictionaries
+cache/
+config_dict.yaml
+
+# -----------------------------
+# Documentation builds
+# -----------------------------
+docs/_build/
+
+# -----------------------------
+# Editor / IDE / OS files
+# -----------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# -----------------------------
+# Local/container outputs
+# -----------------------------
+containers/
+
+# -----------------------------
+# GCAM app generated outputs
+# -----------------------------
+capabilities/gcam_app/runs/
+capabilities/gcam_app/config/settings.yaml
+
+# GCAM core generated run outputs
+capabilities/gcam-core/exe/logs/
+capabilities/gcam-core/exe/restart/
+capabilities/gcam-core/output/
+
+# -----------------------------
+# Communicator binaries
+# -----------------------------
 communicator/communicator
 communicator/src/communicator
-containers/
-config_dict.yaml
-cache/
-docs/_build/
-logs/
-.vscode/
+
+# -----------------------------
+# Existing repo-specific generated files
+# -----------------------------
+scalable/custom_types.py

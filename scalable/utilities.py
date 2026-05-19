@@ -1,18 +1,23 @@
 import asyncio
 import os
-import re
 import subprocess
 import sys
-import yaml
-
+import threading
+import warnings
+from collections.abc import Mapping
 from importlib.resources import files
+from typing import Any
+
+import yaml
 from dask.utils import parse_bytes
 
 from .common import logger
 
 comm_port_regex = r'0\.0\.0\.0:(\d{1,5})'
 
-async def get_cmd_comm(port, communicator_path=None):
+async def get_cmd_comm(
+    port: int, communicator_path: str | None = None
+) -> asyncio.subprocess.Process:
     """Returns a running process of the command communicator.
 
     The communicator is used by the containerized cluster to send commands to 
@@ -45,7 +50,15 @@ async def get_cmd_comm(port, communicator_path=None):
     )
     return proc
 
-def run_bootstrap():
+def run_bootstrap() -> None:
+    """Run the packaged bootstrap shell script and propagate exit status.
+
+    Raises
+    ------
+    SystemExit
+        Raised with a non-zero code when the bootstrap command fails or is
+        interrupted.
+    """
     bootstrap_location = files('scalable').joinpath('scalable_bootstrap.sh')
     try:
         result = subprocess.run([os.environ.get("SHELL"), bootstrap_location.as_posix()], stdin=sys.stdin, 
@@ -78,7 +91,7 @@ class ModelConfig:
         Update any of the stored information in the config_dict.
     """
 
-    def __init__(self, path=None, path_overwrite=True):
+    def __init__(self, path: str | None = None, path_overwrite: bool = True) -> None:
         """
         
         Parameters
@@ -98,9 +111,19 @@ class ModelConfig:
         if path is None:
             self.path = os.path.abspath(os.path.join(cwd, "config_dict.yaml"))
         dockerfile_path = os.path.abspath(os.path.join(cwd, "Dockerfile"))
-        list_avail_command = r"sed -n 's/^FROM[[:space:]]\+[^ ]\+[[:space:]]\+AS[[:space:]]\+\([^ ]\+\)$/\\1/p' " +\
-              dockerfile_path
-        result = subprocess.run(list_avail_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        list_avail_command = (
+            r"sed -n 's/^FROM[[:space:]]\+[^ ]\+[[:space:]]\+AS[[:space:]]\+\([^ ]\+\)$/\\1/p' "
+            + dockerfile_path
+        )
+        # NOTE: this shell-out is part of the legacy Dockerfile-as-config
+        # behaviour scheduled for replacement under plan item M6 (manifest
+        # parser); don't add features here, replace it.
+        result = subprocess.run(  # noqa: S602 - legacy Dockerfile parser
+            list_avail_command,
+            capture_output=True,
+            shell=True,
+            check=False,
+        )
         if result.returncode == 0:
             avail_containers = result.stdout.decode('utf-8').split('\n')
             try:
@@ -132,7 +155,7 @@ class ModelConfig:
                 yaml.dump(self.config_dict, config)
             
 
-    def update_dict(self, tag, key, value):
+    def update_dict(self, tag: str, key: str, value: Any) -> None:
         """Update information stored about a container in the config_dict. 
 
         Raises
@@ -151,7 +174,7 @@ class ModelConfig:
             logger.error("Please try again")
 
     @staticmethod
-    def default_spec():
+    def default_spec() -> dict[str, int | str]:
         """Return a default specification for a container.
         
         Returns
@@ -166,498 +189,508 @@ class ModelConfig:
 
 
 class HardwareResources:
-    """HardwareResources class is used for storing details about allocated 
-    nodes.
+    """Tracks CPU/memory bookkeeping for nodes allocated to a cluster.
 
-    The class is essentially a set of dictionaries which track allocated and
-    available nodes along with details like cpu cores and memory on each node.
+    The previous implementation was a bag of dictionaries that callers had to
+    coordinate around an external lock. This refactor:
 
-    Attributes
-    ----------
-    nodes : list
-        A list of names of the nodes allocated to the cluster. 
-    assigned : dict
-        A dictionary containing the cpu cores and memory for all the allocated 
-        nodes. 
-    available : dict
-        A dictionary containing the available number of cpu cores and the 
-        available amount of memory for each allocated node. 
-    active : dict
-        A dictionary containing the set of nodes allocated for each job 
-        requested by the cluster. The jobid is used as a key to a set object
-        containing the names of all the allocated nodes.
+    * Holds a single :class:`threading.RLock` covering every public method, so
+      concurrent calls from a Dask scheduler or asyncio worker tasks are safe
+      without callers needing to manage external synchronization.
+    * Treats ``MIN_CPUS`` / ``MIN_MEMORY`` as instance defaults that can still
+      be overridden globally via the legacy
+      :meth:`set_min_free_cpus` / :meth:`set_min_free_memory` static methods,
+      but each instance can also override them in its constructor.
+    * Returns immutable views (copies) from accessors so callers cannot mutate
+      internal state by accident.
+
+    Notes
+    -----
+    Memory values throughout this class are nominally in **gigabytes** to
+    match what the Slurm ``free -g`` command returns. Mixing units inside a
+    single instance is unsupported.
 
     Methods
     -------
     assign_resources(node, cpus, memory, jobid)
-        Store allocated node data in the local dicts. 
-    remove_job_nodes(jobid)
-        Remove all stored nodes belonging to a certain job. 
+        Store allocated node data.
+    remove_jobid_nodes(jobid)
+        Remove all stored nodes belonging to a certain job.
     get_node_jobid(node)
         Get the jobid of the job through which the given node was allocated.
     check_availability(node, cpus, memory)
-        Check if a node has the given amount of cpus and memory available. 
+        Check if a node has the given amount of cpus and memory available.
     get_available_node(cpus, memory)
         Get a node which has the given amount of cpus and memory available.
     utilize_resources(node, cpus, memory, jobid)
-        Mark the given cpus/memory in the given node as unavailable. 
+        Mark the given cpus/memory in the given node as unavailable.
     release_resources(node, cpus, memory, jobid)
         Mark the given cpus/memory in the given node as available.
     has_active_nodes(jobid)
-        Check if the given jobid has any nodes which are currently being used.  
-    set_min_free_cpus(cpus)
-        Set the minimum number of cpu cores which should always be available.
-    set_min_free_memory(memory)
-        Set the minimum amount of memory which should always be available.
+        Check if the given jobid has any nodes which are currently being used.
     """
 
+    #: Default minimum CPU cores that must remain free on a node before
+    #: :meth:`check_availability` will allow further reservations. Treated as
+    #: a class-level default; per-instance overrides take precedence.
     MIN_CPUS = 10
+
+    #: Default minimum memory (in GB) that must remain free on a node before
+    #: :meth:`check_availability` will allow further reservations.
     MIN_MEMORY = 20
 
-    def __init__(self):
+    def __init__(
+        self, *, min_cpus: int | None = None, min_memory: int | None = None
+    ) -> None:
+        """Initialize an empty resource ledger.
+
+        Parameters
+        ----------
+        min_cpus : int, optional
+            Per-instance override for :attr:`MIN_CPUS`.
+        min_memory : int, optional
+            Per-instance override for :attr:`MIN_MEMORY`.
+        """
         self.nodes = []
         self.assigned = {}
         self.available = {}
         self.active = {}
+        self._lock = threading.RLock()
+        # Per-instance copies; default to current class attribute values so
+        # the legacy ``set_min_free_*`` static setters continue to influence
+        # *future* instances but cannot retroactively change existing ones.
+        self._min_cpus = HardwareResources.MIN_CPUS if min_cpus is None else min_cpus
+        self._min_memory = (
+            HardwareResources.MIN_MEMORY if min_memory is None else min_memory
+        )
 
-    def assign_resources(self, node, cpus, memory, jobid):
-        """Store the information of an allocated node. 
+    # ------------------------------------------------------------------
+    # Mutators
+    # ------------------------------------------------------------------
 
-        This function is usually called the moment a new node is allocated 
-        to store its information such as the jobid it belongs to along with
-        the number of cpu cores it has and the amount of memory. 
+    def assign_resources(self, node: str, cpus: int, memory: int, jobid: str) -> bool:
+        """Store the information of an allocated node.
 
         Parameters
         ----------
         node : str
-            The name of the node which was allocated. 
+            The name of the node which was allocated.
         cpus : int
-            The number of cpu cores in the node. 
+            The number of cpu cores in the node.
         memory : int
-            The amount of memory (in bytes) in the node. 
+            The amount of memory (in GB) in the node.
         jobid : int
             The jobid to which the node's allocation request belongs to.
+
+        Returns
+        -------
+        bool
+            ``True`` if the node was newly recorded, ``False`` if it was
+            already known (the call is a no-op in that case).
+        """
+        allotted = {"cpus": cpus, "memory": memory, "jobid": jobid}
+        with self._lock:
+            if node in self.assigned or node in self.available:
+                return False
+            self.assigned[node] = allotted
+            self.available[node] = allotted.copy()
+            self.nodes.append(node)
+            self.active.setdefault(jobid, set())
+            return True
+
+    def remove_jobid_nodes(self, jobid: str) -> None:
+        """Remove all the nodes belonging to the given jobid."""
+        with self._lock:
+            self.active.pop(jobid, None)
+            delete = [
+                node for node in self.nodes if self.assigned[node]["jobid"] == jobid
+            ]
+            for node in delete:
+                self.assigned.pop(node, None)
+                self.available.pop(node, None)
+                self.nodes.remove(node)
+
+    def utilize_resources(self, node: str, cpus: int, memory: int, jobid: str) -> None:
+        """Mark the given cpus and memory in the given node as unavailable.
 
         Raises
         ------
         ValueError
-            If the node is already stored. 
+            If not enough resources are available or the jobid doesn't match.
         """
-        allotted = {'cpus': cpus, 'memory': memory, 'jobid': jobid}
-        ret = False
-        if node not in self.assigned and node not in self.available:
-            self.assigned[node] = allotted
-            self.available[node] = allotted.copy()
-            self.nodes.append(node)
-            if jobid not in self.active:
-                self.active[jobid] = set()
-            ret = True
-        return ret
-    
-    def remove_jobid_nodes(self, jobid):
-        """Remove all the nodes belonging to the given jobid. 
+        with self._lock:
+            if (
+                node not in self.available
+                or self.available[node]["jobid"] != jobid
+                or not self._check_availability_locked(node, cpus, memory)
+            ):
+                raise ValueError(
+                    "There are not enough hardware resources available. Please "
+                    "allocate more hardware resources and try again.\n"
+                )
+            self.available[node]["cpus"] -= cpus
+            self.available[node]["memory"] -= memory
+            self.active[self.available[node]["jobid"]].add(node)
 
-        Parameters
-        ----------
-        jobid : int
-            The jobid for which the nodes need to be removed.
+    def release_resources(self, node: str, cpus: int, memory: int, jobid: str) -> None:
+        """Mark the given cpus and memory in the given node as available.
+
+        Raises
+        ------
+        ValueError
+            If the given node doesn't exist for this jobid.
         """
-        nodes = self.nodes
-        if jobid in self.active:
-            del self.active[jobid]
-        delete = []
-        for node in nodes:
-            if self.assigned[node]['jobid'] == jobid:
-                del self.assigned[node]
-                del self.available[node]
-                delete.append(node)
-        for node in delete:
-            self.nodes.remove(node)
-    
-    def get_node_jobid(self, node):
+        with self._lock:
+            if (
+                node in self.assigned
+                and node in self.available
+                and self.available[node]["jobid"] == jobid
+            ):
+                self.available[node]["cpus"] += cpus
+                self.available[node]["memory"] += memory
+                fully_idle = (
+                    self.available[node]["cpus"] == self.assigned[node]["cpus"]
+                    and self.available[node]["memory"] == self.assigned[node]["memory"]
+                )
+                if fully_idle:
+                    active_set = self.active.get(self.available[node]["jobid"])
+                    if active_set is not None:
+                        active_set.discard(node)
+            else:
+                raise ValueError(
+                    f"The given node {node!r} does not exist for jobid {jobid!r}.\n"
+                )
+
+    # ------------------------------------------------------------------
+    # Accessors
+    # ------------------------------------------------------------------
+
+    def get_node_jobid(self, node: str) -> str:
         """Get the jobid of the allocation request for the given node.
-
-        Parameters
-        ----------
-        node : str
-            The name of the node whose jobid is requested. 
-
-        Returns
-        -------
-        int
-            The jobid to which the node's allocation request belongs to.
 
         Raises
         ------
         ValueError
             If the node's information is not stored/invalid node.
         """
-        if node not in self.assigned:
-            raise ValueError(
-                "The given node doesn't exist. Please try again.\n"
-            )
-        else:
-            return self.assigned[node]['jobid']
+        with self._lock:
+            if node not in self.assigned:
+                raise ValueError("The given node doesn't exist. Please try again.\n")
+            return self.assigned[node]["jobid"]
 
-    def check_availability(self, node, cpus, memory):
-        """Check if a node has the given amount of cpus and memory available. 
+    def check_availability(self, node: str, cpus: int, memory: int) -> bool:
+        """Check if a node has the given amount of cpus and memory available."""
+        with self._lock:
+            return self._check_availability_locked(node, cpus, memory)
 
-        Parameters
-        ----------
-        node : str
-            The name of the node to check availability on. 
-        cpus : int
-            The number of cpu cores to check.  
-        memory : int
-            The amount of memory (in bytes) to check.
-        
-        Returns
-        -------
-        bool
-            True if the node has the given amount of cpus and memory available. 
-            False otherwise.
-        """
-        ret = False
-        if node in self.available:
-            specs = self.available[node]
-            if ((specs['cpus'] - cpus) >= self.MIN_CPUS and 
-            (specs['memory'] - memory) >= self.MIN_MEMORY):
-                ret = True
-        return ret
+    def _check_availability_locked(self, node: str, cpus: int, memory: int) -> bool:
+        """Internal availability check that assumes the lock is held."""
+        if node not in self.available:
+            return False
+        specs = self.available[node]
+        return (
+            (specs["cpus"] - cpus) >= self._min_cpus
+            and (specs["memory"] - memory) >= self._min_memory
+        )
 
-
-    def get_available_node(self, cpus, memory):
-        """Get a node on the cluster which can accomodate the given cpus and 
-        memory. 
-
-        A node which has the requested number of cpus and memory available will 
-        be returned. If no node has the requested specifications then None is 
-        returned. None is also returned if multiple nodes can fulfill the 
-        request together but no one node can do so by itself.
-
-        Parameters
-        ----------
-        cpus : int
-            The number of cpu cores needed.  
-        memory : int
-            The amount of memory (in bytes) needed. 
+    def get_available_node(self, cpus: int, memory: int) -> str | None:
+        """Get a node which can accommodate the given cpus and memory.
 
         Returns
         -------
-        str
-            The name of a node which can accomodate the given cpus and memory. 
-            None if no node can accomodate the request.
+        str or None
+            The name of a node which can accommodate the request, or ``None``
+            if no single node can.
         """
-        ret = None
-        for node in self.available.keys():
-            if (self.check_availability(node, cpus, memory)):
-                ret = node
-                break
-        return ret
+        with self._lock:
+            for node in self.available:
+                if self._check_availability_locked(node, cpus, memory):
+                    return node
+            return None
 
-    def utilize_resources(self, node, cpus, memory, jobid):
-        """Mark the given cpus and memory in the given node as unavailable. 
+    def has_active_nodes(self, jobid: str) -> bool:
+        """Check if the given jobid has any nodes with reserved resources."""
+        with self._lock:
+            entry = self.active.get(jobid)
+            return bool(entry)
 
-        This function is called to reserve or mark unavailable the cpu and 
-        memory resources when a program needing the same is ran on the node. 
+    def is_assigned(self, jobid: str) -> bool:
+        """Check if the given jobid corresponds to a tracked job.
 
-        Parameters
-        ----------
-        node : str
-            The name of the node which would mark its resources unavailable. 
-        cpus : int
-            The number of cpu cores to reserve. 
-        memory : int
-            The amount of memory (in bytes) to reserve. 
-        jobid : int
-            The jobid to which the node's allocation request belongs to.
-
-        Raises
-        ------
-        ValueError
-            If not enough resources available or the jobid doesn't match. 
+        Notes
+        -----
+        Previously a linear scan over :attr:`nodes`. Now O(1) via :attr:`active`.
         """
-        if (node not in self.available or self.available[node]['jobid'] != jobid
-        or not self.check_availability(node, cpus, memory)):
-            raise ValueError (
-                "There are not enough hardware resources available. Please "
-                "allocate more hardware resources and try again.\n"
-            )
-        self.available[node]['cpus'] -= cpus
-        self.available[node]['memory'] -= memory
-        self.active[self.available[node]['jobid']].add(node)
+        with self._lock:
+            return jobid in self.active
 
-    def release_resources(self, node, cpus, memory, jobid):
-        """Mark the given cpus and memory in the given node as available. 
+    def get_active_jobids(self) -> list[str]:
+        """Return a list of all jobids currently tracked."""
+        with self._lock:
+            return list(self.active.keys())
 
-        This function is called to release previously busy/unavailable 
-        resources on the given node. Usually used after a program has ended. 
-
-        Parameters
-        ----------
-        node : str
-            The name of the node which would mark its resources available. 
-        cpus : int
-            The number of cpu cores to release. 
-        memory : int
-            The amount of memory (in bytes) to release. 
-        jobid : int
-            The jobid to which the node's allocation request belongs to. 
-
-        Raises
-        ------
-        ValueError
-            If the given node doesn't exist. 
-        """
-        if node in self.assigned and self.available[node]['jobid'] == jobid:
-            self.available[node]['cpus'] += cpus
-            self.available[node]['memory'] += memory
-            if self.available[node]['cpus'] ==  self.assigned[node]['cpus'] and \
-            self.available[node]['memory'] == self.assigned[node]['memory']:
-                self.active[self.available[node]['jobid']].remove(node)
-        else:
-            raise ValueError (
-                f"The given node does not exist. Please try again.\n"
-            )
-    
-    
-    def has_active_nodes(self, jobid):
-        """Check if the given jobid has any nodes which are running an active 
-        job or have resources reserved/unavailable presumably for a running job.
-
-        Parameters
-        ----------
-        jobid : int
-            The jobid for which the active nodes need to be checked.
-
-        Returns
-        -------
-        bool
-            True if the jobid has any nodes with jobs running. False otherwise. 
-        """
-        ret = True
-        if jobid not in self.active or len(self.active[jobid]) == 0:
-            ret = False
-        return ret
-    
-    def is_assigned(self, jobid):
-        """Check if the given jobid corresponds to a real job. 
-
-        Parameters
-        ----------
-        jobid : int
-            The jobid to check for.
-
-        Returns
-        -------
-        bool
-            True if the jobid is in the list of removed jobids. False otherwise.
-        """
-        ret = False
-        for node in self.nodes:
-            if self.assigned[node]['jobid'] == jobid:
-                ret = True
-                break
-        return ret
-    
-    def get_active_jobids(self):
-        """Get all the active jobids in the cluster. 
-
-        Returns
-        -------
-        list
-            A set containing all the active jobids in the cluster. 
-        """
-        return list(set(self.active.keys()))
+    # ------------------------------------------------------------------
+    # Legacy global tunables (deprecated; prefer constructor arguments)
+    # ------------------------------------------------------------------
 
     @staticmethod
-    def set_min_free_cpus(cpus):
+    def set_min_free_cpus(cpus: int) -> None:
+        """Set the class-default minimum free CPUs.
+
+        .. deprecated::
+            Pass ``min_cpus=`` to :class:`HardwareResources` instead. The
+            class-level mutation only affects *future* instances and is
+            inherently process-global.
+        """
+        warnings.warn(
+            "HardwareResources.set_min_free_cpus is deprecated; pass "
+            "min_cpus= to HardwareResources(...) instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         HardwareResources.MIN_CPUS = cpus
 
     @staticmethod
-    def set_min_free_memory(memory):
+    def set_min_free_memory(memory: int) -> None:
+        """Set the class-default minimum free memory.
+
+        .. deprecated::
+            Pass ``min_memory=`` to :class:`HardwareResources` instead.
+        """
+        warnings.warn(
+            "HardwareResources.set_min_free_memory is deprecated; pass "
+            "min_memory= to HardwareResources(...) instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         HardwareResources.MIN_MEMORY = memory
 
 
 
-class Container:
-    """Container class to store information about the program containers. 
+def _parse_memory_to_gb(value: str | int | float | None, *, default: int = 0) -> int:
+    """Parse a memory string/int into integer gigabytes.
 
-    These containers store the program along with any dependencies the program
-    may need to run. They also store the necessary libraries needed to connect 
-    to the cluster and run a worker within the container. 
+    Examples
+    --------
+    >>> _parse_memory_to_gb('8G')
+    8
+    >>> _parse_memory_to_gb('500MB')
+    1
+    >>> _parse_memory_to_gb('2GB')
+    2
+    >>> _parse_memory_to_gb(0)
+    0
+
+    Parameters
+    ----------
+    value : str | int | None
+        Memory specification. Strings are parsed via :func:`dask.utils.parse_bytes`.
+        Integers are interpreted as already being in **bytes**.
+    default : int
+        Returned when ``value`` is falsy/``None``.
+
+    Returns
+    -------
+    int
+        Memory rounded **up** to whole gigabytes (so ``500MB`` no longer
+        truncates to ``0`` like the previous integer-floor implementation).
+    """
+    if value in (None, "", 0):
+        return default
+    if isinstance(value, (int, float)):
+        bytes_ = int(value)
+    else:
+        bytes_ = parse_bytes(str(value))
+    if bytes_ <= 0:
+        return default
+    # Ceiling-divide to whole GB; this avoids the historical truncation where
+    # '500MB' silently became 0 GB and broke availability checks.
+    one_gb = 10 ** 9
+    return max(1, (bytes_ + one_gb - 1) // one_gb)
+
+
+class Container:
+    """Information about a per-tag container that workers will execute inside.
 
     Attributes
     ----------
     name : str
-        The name of the container. 
+        The container's tag.
     cpus : int
-        The number of cpus the container needs.  
+        The number of CPU cores the container should reserve.
     memory : int
-        The amount of memory in bytes needed by the container.  
+        The amount of memory **in gigabytes** needed by the container.
     path : str
-        The path at which the container is stored. 
+        The path at which the container image is stored.
     directories : dict
-        A dictionary containing all the paths to be bind-mounted to the 
-        container. Key represents a path in the container's host, value 
-        represents a path in the container itself. 
+        Bind-mount mapping (host path → container path).
+    preload_script : str | None
+        Optional Dask worker preload script.
+    runtime : str
+        Container runtime selected for *this* container instance
+        (``"apptainer"`` or ``"docker"``). Each instance is independent —
+        unlike the previous implementation, two ``Container`` objects in the
+        same process can use different runtimes.
 
-    Methods
-    -------
-    add_directory(src, dst=None)
-        Add a directory to bind-mount to the container.
-    get_info_dict()
-        Returns a dictionary with all the information about the container.
-    get_command()
-        Returns the command to run the container.
-    get_runtime()
-        Returns the runtime application (docker/apptainer) to run the container.
-    get_runtime_directive()
-        Returns the runtime application's directive which runs a container.
-    set_runtime(runtime)
-        Set the runtime application to run the container.
-    set_runtime_directive(runtime, directive)
-        Set the runtime application's directive which runs a container.
+    Notes
+    -----
+    The class-level ``_runtime`` and ``_runtime_directives`` attributes are
+    retained as **process-wide defaults** so the legacy
+    :meth:`set_runtime` / :meth:`set_runtime_directive` static API continues
+    to work, but they emit ``DeprecationWarning``.
     """
 
+    # Process-wide defaults. Per-instance overrides live on ``self.runtime``
+    # and ``self._runtime_directives``.
     _runtime_directives = {"apptainer": "exec", "docker": "run"}
-
     _runtime = "apptainer"
-    
-    def __init__(self, name, spec_dict):
-        """
+
+    def __init__(
+        self,
+        name: str,
+        spec_dict: dict[str, Any],
+        *,
+        runtime: str | None = None,
+    ) -> None:
+        """Initialize a container description from a spec dict.
+
         Parameters
         ----------
         name : str
-            The name of the container.
+            The container's tag.
         spec_dict : dict
-            A dictionary containing the specifications of the container. The 
-            specifications include CPUs, Memory, Path, and Dirs. The Memory can
-            be in gigabytes, megabytes, or bytes. '500MB' or '2GB' are valid.
-            A valid spec_dict can look like:
-            {
-            'CPUs': 4,
-            'Memory': '8G',
-            'Path': '/home/user/work/containers/container.sif',
-            'Dirs': {
-            '/home/work/inputs': '/inputs'
-            '/home/work/shared': '/shared'}
-            'PreloadScript': '/home/user/work/preload.py'}
+            Required keys: ``CPUs``, ``Memory``, ``Path``, ``Dirs``,
+            ``PreloadScript``. ``Memory`` accepts strings (``'8G'``,
+            ``'500MB'``) or integer bytes.
+        runtime : str, optional
+            Override the runtime for this instance only (``"apptainer"`` or
+            ``"docker"``). Defaults to the class-wide :attr:`_runtime`.
         """
         self.name = name
-        self.cpus = spec_dict['CPUs']
-        memory_parsed = parse_bytes(spec_dict['Memory'])
-        memory_parsed //= 10**9
-        self.memory = memory_parsed
-        self.path = spec_dict['Path']
-        if spec_dict['Dirs'] is None:
-            spec_dict['Dirs'] = {}
-        if '/scratch' not in spec_dict['Dirs']:
-            spec_dict['Dirs']['/scratch'] = '/tmp'
-        self.directories = spec_dict['Dirs']
-        self.preload_script = spec_dict['PreloadScript']
+        self.cpus = spec_dict["CPUs"]
+        self.memory = _parse_memory_to_gb(spec_dict.get("Memory"))
+        self.path = spec_dict.get("Path")
+        dirs = spec_dict.get("Dirs") or {}
+        # Mutate the caller's dict only if it was provided; otherwise build a
+        # fresh one so two Container instances don't accidentally alias.
+        dirs = dict(dirs)
+        dirs.setdefault("/scratch", "/tmp")
+        # Persist the normalized dict back into the spec_dict for callers that
+        # depend on the previous side-effect of injecting ``/scratch``.
+        spec_dict["Dirs"] = dirs
+        self.directories = dirs
+        self.preload_script = spec_dict.get("PreloadScript")
 
-    def add_directory(self, src, dst=None):
-        """Mount a host's directory to a path in the container.
-        
-        This function takes a source directory on the host and a destination 
-        path in the container. The source directory would be bind-mounted to 
-        the destination path. If the destination path is not provided, then 
-        the source directory is bind-mounted to the same path in the container.
+        # Per-instance runtime + directives
+        self.runtime = runtime if runtime is not None else Container._runtime
+        # Snapshot the directive table so later mutations to the class
+        # default don't change this instance's behaviour.
+        self._runtime_directives_local = dict(Container._runtime_directives)
 
-        Parameters
-        ----------
-        src : str
-            The path of the source directory on the host.
-        dst : str
-            The destination path in the container. Defaults to None.
-        """
+    def add_directory(self, src: str, dst: str | None = None) -> None:
+        """Bind-mount ``src`` (host) to ``dst`` (container, defaults to ``src``)."""
         if dst is None:
             dst = src
         self.directories[src] = dst
 
-    def get_info_dict(self):
-        """Return a dictionary containing all the information about the 
-        container.
+    def get_info_dict(self) -> dict[str, Any]:
+        """Return a dictionary describing the container.
 
         Returns
         -------
         dict
-            A dictionary containing the Name, CPUs, Memory, Path, and Dirs of 
-            the container.
+            Keys: ``Name``, ``CPUs``, ``Memory``, ``Path``, ``Dirs``,
+            ``PreloadScript``.
         """
-        ret = {}
-        ret['Name'] = self.name
-        ret['CPUs'] = self.cpus
-        ret['Memory'] = self.memory
-        ret['Path'] = self.path
-        ret['Dirs'] = self.directories
-        ret['PreloadScript'] = self.preload_script
-        return ret
+        return {
+            "Name": self.name,
+            "CPUs": self.cpus,
+            "Memory": self.memory,
+            "Path": self.path,
+            "Dirs": self.directories,
+            "PreloadScript": self.preload_script,
+        }
 
-    def get_command(self, env_vars=None):
-        """Return the command to run the container.
-        
-        The function assumes '--bind' to be the binding flag for the runtime
-        application. The command is returned as a list of strings.
-
-        Parameters
-        ----------
-        env_vars : dict
-            A dictionary containing the environment variables to be set in the 
-            container. Defaults to None.
-
-        Returns
-        -------
-        list
-            A list of strings containing the command to run the container. 
-            Joining the elements of the list with a space would give the
-            complete command.
-        """
-        command = []
-        command.append(Container.get_runtime())
-        command.append(Container.get_runtime_directive())
-        command.append("--userns")
-        command.append("--compat")
-        if env_vars is None:
-            env_vars = {}
-        for name, value in env_vars.items():
-            command.append("--env")
-            command.append(f"{name}={value}")
+    def get_command(self, env_vars: Mapping[str, Any] | None = None) -> list[str]:
+        """Return the argv used to launch this container."""
+        command = [self.get_runtime(), self.get_runtime_directive()]
+        # Apptainer-specific flags. Docker users will need a different builder.
+        if self.runtime == "apptainer":
+            command += ["--userns", "--compat"]
+        if env_vars:
+            for name, value in env_vars.items():
+                command += ["--env", f"{name}={value}"]
         for src, dst in self.directories.items():
-            if dst is None or dst == "":
+            if not dst:
                 dst = src
-            command.append("--bind")
-            command.append(f"{src}:{dst}")
+            command += ["--bind", f"{src}:{dst}"]
         curr_dir = os.getcwd()
-        command.append("--home")
-        command.append(curr_dir)
-        command.append("--cwd")
-        command.append(curr_dir)
-        command.append(self.path)
+        command += ["--home", curr_dir, "--cwd", curr_dir, self.path]
         return command
 
-    @staticmethod
-    def get_runtime():
-        if Container._runtime is None or "":
+    # ------------------------------------------------------------------
+    # Runtime accessors (per-instance)
+    # ------------------------------------------------------------------
+
+    def get_runtime(self) -> str:
+        """Return this container's runtime name."""
+        if not self.runtime:
             raise ValueError(
-                "Runtime has not been set. Please set it using set_runtime()."
+                "Runtime has not been set on this Container instance."
             )
-        return Container._runtime
+        return self.runtime
+
+    def get_runtime_directive(self) -> str:
+        """Return the runtime directive (``exec``/``run``/...) for this instance."""
+        if self.runtime not in self._runtime_directives_local:
+            raise ValueError(
+                f"No directive registered for runtime {self.runtime!r}. "
+                "Use Container.register_runtime_directive(runtime, directive)."
+            )
+        return self._runtime_directives_local[self.runtime]
+
+    # ------------------------------------------------------------------
+    # Legacy class-level static API (deprecated)
+    # ------------------------------------------------------------------
 
     @staticmethod
-    def get_runtime_directive():
-        if Container._runtime not in Container._runtime_directives:
-            raise ValueError( 
-                "Runtime has not been set. Please set it using "
-                "set_runtime_directive()."
-            )
-        return Container._runtime_directives[Container._runtime]
-    
-    @staticmethod
-    def set_runtime(runtime):
+    def set_runtime(runtime: str) -> None:
+        """Set the *process-wide default* container runtime.
+
+        .. deprecated::
+            Pass ``runtime=`` to :class:`Container` instead. The static
+            setter affects only future instances and prevents heterogeneous
+            runtimes from coexisting in one process.
+        """
+        warnings.warn(
+            "Container.set_runtime is deprecated; pass runtime= to "
+            "Container(...) instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         Container._runtime = runtime
 
     @staticmethod
-    def set_runtime_directive(runtime, directive):
+    def set_runtime_directive(runtime: str, directive: str) -> None:
+        """Register a runtime→directive mapping at the process level.
+
+        .. deprecated::
+            Per-instance runtimes snapshot the directive table on
+            construction. Register directives *before* creating containers.
+        """
+        warnings.warn(
+            "Container.set_runtime_directive is deprecated; register "
+            "directives before constructing Container instances.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        Container._runtime_directives[runtime] = directive
+
+    @staticmethod
+    def register_runtime_directive(runtime: str, directive: str) -> None:
+        """Register a runtime→directive mapping at the class default level.
+
+        New :class:`Container` instances will pick up the registration via
+        their per-instance snapshot. Existing instances are unaffected.
+        """
         Container._runtime_directives[runtime] = directive

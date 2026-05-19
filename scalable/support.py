@@ -4,8 +4,19 @@ import shlex
 from datetime import datetime
 
 
-def salloc_command(account=None, chdir=None, clusters=None, exclusive=True, gpus=None, name=None, memory=None, 
-                   nodes=None, partition=None, time=None, extras=None):
+def salloc_command(
+    account: str | None = None,
+    chdir: str | None = None,
+    clusters: str | None = None,
+    exclusive: bool = True,
+    gpus: str | None = None,
+    name: str | None = None,
+    memory: str | None = None,
+    nodes: str | None = None,
+    partition: str | None = None,
+    time: str | None = None,
+    extras: list[str] | None = None,
+) -> list[str]:
     """Make the salloc command for slurm.
 
     Parameters
@@ -65,7 +76,7 @@ def salloc_command(account=None, chdir=None, clusters=None, exclusive=True, gpus
     command.append("--no-shell")
     return command
 
-def apptainer_module_command(apptainer_version):
+def apptainer_module_command(apptainer_version: str | None) -> list[str]:
     """Make the command to load the apptainer module.
 
     Parameters
@@ -78,12 +89,12 @@ def apptainer_module_command(apptainer_version):
     list
         The command to load the apptainer module.
     """
-    command = f"module load apptainer"
+    command = "module load apptainer"
     if apptainer_version is not None:
         command += f"/{apptainer_version}"
     return shlex.split(command, posix=False)
 
-def memory_command():
+def memory_command() -> list[str]:
     """Make the command to get the memory available on the node.
     
     Returns
@@ -94,7 +105,7 @@ def memory_command():
     command = "free -g | grep 'Mem' | sed 's/[\t ][\t ]*/ /g' | cut -d ' ' -f 7"
     return shlex.split(command, posix=False)
 
-def core_command():
+def core_command() -> list[str]:
     """Make the command to get the number of cores available on the node.
     
     Returns
@@ -104,7 +115,7 @@ def core_command():
     """
     return ["nproc", "--all"]
 
-def jobid_command(name):
+def jobid_command(name: str) -> list[str]:
     """Make the command to get the job id of a job with a given name.
     
     Parameters
@@ -120,7 +131,7 @@ def jobid_command(name):
     command = f"squeue --name={name} -o %i | tail -n 1"
     return shlex.split(command, posix=False)
 
-def nodelist_command(name):
+def nodelist_command(name: str) -> list[str]:
     """Make the command to get the nodelist of a job with a given name.
     
     Parameters
@@ -136,7 +147,7 @@ def nodelist_command(name):
     command = f"squeue --name={name} -o %N | tail -n 1"
     return shlex.split(command, posix=False)
 
-def jobcheck_command(jobid):
+def jobcheck_command(jobid: str) -> list[str]:
     """Make the command to check the status of a job with a given job id.
     
     Parameters
@@ -152,7 +163,7 @@ def jobcheck_command(jobid):
     command = f"squeue -j {jobid} -o %i | tail -n 1"
     return shlex.split(command, posix=False)
 
-def parse_nodelist(nodelist):
+def parse_nodelist(nodelist: str) -> list[str]:
     """Parse the nodelist returned by slurm to get the nodes.
     
     Parameters
@@ -188,7 +199,7 @@ def parse_nodelist(nodelist):
         nodes.append(nodelist)
     return nodes
 
-def create_logs_folder(folder, worker_name):
+def create_logs_folder(folder: str, worker_name: str) -> str:
     """Create a folder for logs. Uses the current date and time along with 
     the given worker name to create a unique folder name.
 
@@ -196,7 +207,7 @@ def create_logs_folder(folder, worker_name):
     ----------
     folder : str
         The folder to create the logs folder in.
-    cluster_name : str
+    worker_name : str
         The name of the worker.
         
     Returns

@@ -65,7 +65,12 @@ When multiple CPUs are assigned to a container in the following way:
 
 .. code-block:: python
 
-    cluster.add_container(tag="container_tag", cpus=2, memory="50G", dirs={"/qfs":"/qfs", "/rcfs":"/rcfs"})
+    cluster.add_container(
+        tag="container_tag",
+        cpus=2,
+        memory="50G",
+        dirs={"/path/to/shared/data": "/data", "/path/to/archive/data": "/archive"},
+    )
 
 The scalable backend assigns a threadpool with 2 threads to any worker with the 
 same tag as the container. However, if the functions running on the worker are 
