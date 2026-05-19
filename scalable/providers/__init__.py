@@ -28,6 +28,7 @@ from .registry import (
     register_provider,
     register_providers,
 )
+from .slurm import SlurmProvider
 
 __all__ = [
     "ClusterHandle",
@@ -36,6 +37,7 @@ __all__ = [
     "LocalProvider",
     "ResourceRequest",
     "ScalePlan",
+    "SlurmProvider",
     "clear_registry",
     "get_provider",
     "iter_provider_names",
