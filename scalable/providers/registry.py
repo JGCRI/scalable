@@ -138,4 +138,22 @@ def _load_builtin_provider(name: str) -> ProviderFactory | None:
         except ImportError:
             return None
         return SlurmProvider
+    if normalized == "kubernetes":
+        try:
+            from .kubernetes import KubernetesProvider
+        except ImportError:
+            return None
+        return KubernetesProvider
+    if normalized == "aws":
+        try:
+            from .cloud.aws import AWSBatchProvider
+        except ImportError:
+            return None
+        return AWSBatchProvider
+    if normalized == "gcp":
+        try:
+            from .cloud.gcp import GCPProvider
+        except ImportError:
+            return None
+        return GCPProvider
     return None

@@ -46,7 +46,12 @@ Contents
 
    workers
    manifest
+   overlays
    providers
+   cloud
+   kubernetes
+   artifacts
+   cost
    telemetry
    advising
    caching

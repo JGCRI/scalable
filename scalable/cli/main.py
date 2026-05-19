@@ -5,8 +5,9 @@ Implemented subcommands:
 * ``scalable validate``
 * ``scalable plan --dry-run``
 * ``scalable report``
+* ``scalable run``
 
-The remaining namespace for later-phase verbs (``run``, ``diagnose``,
+The remaining namespace for later-phase verbs (``diagnose``,
 ``explain``, ``init-component``, ``compose``) is reserved as explicit stubs.
 """
 
@@ -19,10 +20,10 @@ from scalable.common import settings
 
 from .cmd_plan import run_plan
 from .cmd_report import run_report
+from .cmd_run import run_run
 from .cmd_validate import run_validate
 
 _STUB_COMMANDS: dict[str, str] = {
-    "run": "Phase 2+",
     "diagnose": "Phase 4",
     "explain": "Phase 4",
     "init-component": "Phase 4",
@@ -50,6 +51,15 @@ def _handle_report(args: argparse.Namespace) -> int:
         latest=bool(args.latest),
         fmt=args.format,
         output=args.output,
+    )
+
+
+def _handle_run(args: argparse.Namespace) -> int:
+    return run_run(
+        args.manifest,
+        target=args.target,
+        workflow=args.workflow,
+        dry_run=bool(args.dry_run),
     )
 
 
@@ -111,6 +121,33 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Plan output path (default: ./plan.json)",
     )
     plan_parser.set_defaults(handler=_handle_plan)
+
+    run_parser = subparsers.add_parser(
+        "run",
+        help="Execute a manifest-driven workflow on the specified provider",
+    )
+    run_parser.add_argument(
+        "manifest",
+        nargs="?",
+        default=settings.manifest_path,
+        help="Path to scalable.yaml (default: SCALABLE_MANIFEST or ./scalable.yaml)",
+    )
+    run_parser.add_argument(
+        "--target",
+        default=None,
+        help="Target name override (default: first target or SCALABLE_TARGET)",
+    )
+    run_parser.add_argument(
+        "--workflow",
+        default=None,
+        help="Path to a Python workflow file to execute on the cluster",
+    )
+    run_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Plan and estimate cost without executing",
+    )
+    run_parser.set_defaults(handler=_handle_run)
 
     report_parser = subparsers.add_parser(
         "report",

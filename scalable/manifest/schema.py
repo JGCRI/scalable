@@ -177,10 +177,14 @@ class ManifestModel:
     tasks : Mapping[str, TaskConfig]
         Task definitions; the key matches ``TaskConfig.name``.
     raw : Mapping[str, Any]
-        The raw, post-env-expansion document. Carried so providers can
-        introspect forward-compatible keys without losing fidelity, and so
-        Phase 2 telemetry can record the exact manifest a run was launched
-        from.
+        The raw, post-overlay-resolution, post-env-expansion document.
+        Carried so providers can introspect forward-compatible keys without
+        losing fidelity, and so telemetry can record the exact manifest a
+        run was launched from. This is the *resolved* form.
+    raw_unresolved : Mapping[str, Any] | None
+        The pre-overlay form of the document (sans ``overlays:`` key).
+        ``None`` when no overlay was applied.  Retained for provenance
+        tracking (Phase 3).
     source_path : str | None
         Filesystem path the manifest was loaded from, if any.
     """
@@ -191,6 +195,7 @@ class ManifestModel:
     components: dict[str, ComponentConfig]
     tasks: dict[str, TaskConfig]
     raw: dict[str, Any]
+    raw_unresolved: dict[str, Any] | None = None
     source_path: str | None = None
 
 

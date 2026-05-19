@@ -1,0 +1,67 @@
+# Scalable manifest demonstrating overlay usage
+# Overlays allow environment-specific configuration deltas
+
+version: 1
+project:
+  name: overlay-demo
+  default_storage: ./outputs
+
+targets:
+  local:
+    provider: local
+  hpc:
+    provider: slurm
+    queue: batch
+    walltime: "04:00:00"
+    overlay: hpc-large
+  cloud:
+    provider: aws
+    region: us-west-2
+    instance_type: m5.2xlarge
+    overlay: cloud-prod
+
+components:
+  model:
+    cpus: 2
+    memory: 4G
+    tags: [compute]
+
+  analysis:
+    cpus: 1
+    memory: 2G
+    tags: [analysis]
+
+tasks:
+  simulate:
+    component: model
+    cache: true
+  analyze:
+    component: analysis
+    cache: true
+
+# Overlays: named configuration deltas merged onto the base manifest
+# when a target references them via `overlay: <name>`
+overlays:
+  hpc-large:
+    components:
+      model:
+        cpus: 16
+        memory: 64G
+      analysis:
+        cpus: 8
+        memory: 32G
+
+  cloud-prod:
+    components:
+      model:
+        cpus: 8
+        memory: 32G
+      analysis:
+        cpus: 4
+        memory: 16G
+
+  dev:
+    components:
+      model:
+        cpus: 1
+        memory: 2G
