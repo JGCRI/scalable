@@ -80,6 +80,50 @@ Bootstrap performs multiple SSH operations. For best reliability and usability, 
 
 ## Usage
 
+### Manifest-first workflow (v2.0.0 Phase 1)
+
+Scalable now supports a declarative manifest path for provider-neutral planning
+and validation.
+
+Create ``scalable.yaml``:
+
+```yaml
+version: 1
+project:
+  name: demo
+targets:
+  local:
+    provider: local
+    max_workers: 2
+    threads_per_worker: 1
+    processes: false
+    containers: none
+components:
+  gcam:
+    cpus: 1
+    memory: 1G
+tasks:
+  run_gcam:
+    component: gcam
+```
+
+Validate and plan without launching workers:
+
+```bash
+scalable validate ./scalable.yaml
+scalable plan ./scalable.yaml --target local --dry-run --output plan.json
+```
+
+Use the session API:
+
+```python
+from scalable import ScalableSession
+
+session = ScalableSession.from_yaml("./scalable.yaml", target="local")
+plan = session.plan(dry_run=True)
+print(plan.manifest_lock)
+```
+
 At runtime, create a cluster, register container targets, scale workers, and submit functions.
 
 ### 1. Create a cluster

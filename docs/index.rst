@@ -45,6 +45,8 @@ Contents
    :maxdepth: 1
 
    workers
+   manifest
+   providers
    caching
    functions
 

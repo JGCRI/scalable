@@ -2,7 +2,10 @@
 
 Public API re-exports (kept stable for downstream code):
 
-* :class:`SlurmCluster`, :class:`JobQueueCluster`, :class:`ScalableClient`
+* Legacy v1 runtime classes: :class:`SlurmCluster`, :class:`JobQueueCluster`,
+  :class:`ScalableClient`
+* v2 session + provider surface: :class:`ScalableSession`,
+  :class:`DeploymentProvider`, :class:`LocalProvider`, :class:`SlurmProvider`
 * :func:`cacheable` and the :class:`*Type` hash wrappers from
   :mod:`scalable.caching`
 * :data:`SEED` and the :data:`settings` singleton from :mod:`scalable.common`
@@ -20,6 +23,8 @@ from .caching import *  # noqa: F401,F403  (legacy star-export)
 from .client import ScalableClient
 from .common import SEED, settings
 from .core import JobQueueCluster
+from .providers import DeploymentProvider, LocalProvider, SlurmProvider
+from .session import ScalableSession
 from .slurm import SlurmCluster
 
 try:
@@ -29,10 +34,14 @@ except PackageNotFoundError:  # pragma: no cover - source checkout w/o install
 
 __all__ = [
     "JobQueueCluster",
+    "DeploymentProvider",
+    "LocalProvider",
     "SEED",
     "ScalableClient",
+    "ScalableSession",
     "Security",
     "SlurmCluster",
+    "SlurmProvider",
     "__version__",
     "get_worker",
     "settings",
