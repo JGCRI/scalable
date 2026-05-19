@@ -3,6 +3,7 @@
 # -----------------------------
 capabilities/
 plans/
+.rooignore
 
 # -----------------------------
 # Python bytecode / caches
