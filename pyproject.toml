@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scalable"
-version = "1.1.0"
+version = "2.0.0a1"
 description = "Assist with running models on job queing systems like Slurm"
 authors = [
     { name = "Shashank Lamba" },
@@ -29,6 +29,7 @@ dependencies = [
     "xxhash >= 3.4.1",
     "numpy >= 1.26.4",
     "pandas >= 2.2.3",
+    "pyyaml >= 6.0",
 ]
 classifiers = [
     "Intended Audience :: Science/Research",
@@ -54,15 +55,22 @@ dev = [
     "mypy >= 1.8",
     "pytest-cov >= 4.0",
 ]
+# v2.0.0 phase placeholders. Empty until later phases populate them so that
+# `pip install scalable[ai|cloud|kubernetes]` resolves cleanly from day one
+# and downstream pinning of the extras name is stable.
+ai = []
+cloud = []
+kubernetes = []
 
 [project.urls]
 "Github" = "https://github.com/JGCRI/scalable/tree/master/scalable"
 
 [project.scripts]
+scalable = "scalable.cli.main:main"
 scalable_bootstrap = "scalable.utilities:run_bootstrap"
 
-[tool.setuptools]
-packages = ["scalable"]
+[tool.setuptools.packages.find]
+include = ["scalable", "scalable.*"]
 
 [tool.setuptools.package-data]
 scalable = ["scalable_bootstrap.sh", "Dockerfile"]
