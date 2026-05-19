@@ -17,6 +17,7 @@ from scalable.manifest.adapter import (
 )
 from scalable.manifest.validate import ValidationIssue, ValidationReport, validate_manifest
 from scalable.slurm import SlurmCluster
+from scalable.telemetry.runtime import emit_worker_event
 
 from .base import ClusterHandle, DeploymentProvider, DeploymentSpec, ScalePlan
 
@@ -123,6 +124,14 @@ class SlurmProvider(DeploymentProvider):
 
             return ScalableClient(cluster)
 
+        emit_worker_event(
+            provider=self.name,
+            state="cluster_created",
+            details={
+                "cluster_kwargs": {k: v for k, v in cluster_kwargs.items() if v is not None},
+            },
+        )
+
         return ClusterHandle(
             backend=cluster,
             client_factory=_client_factory,
@@ -142,11 +151,18 @@ class SlurmProvider(DeploymentProvider):
             n = int(count)
             if n > 0:
                 backend.add_workers(tag=tag, n=n)
+                emit_worker_event(
+                    provider=self.name,
+                    state="add_workers",
+                    component=tag,
+                    details={"n": n},
+                )
 
     def close(self, cluster: ClusterHandle) -> None:
         backend = cluster.backend
         if hasattr(backend, "close"):
             backend.close()
+        emit_worker_event(provider=self.name, state="cluster_closed", details={})
 
 
 def _require_type(

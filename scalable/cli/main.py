@@ -1,12 +1,13 @@
 """``scalable`` console entry-point dispatcher.
 
-Phase 1 ships two implemented subcommands:
+Implemented subcommands:
 
 * ``scalable validate``
 * ``scalable plan --dry-run``
+* ``scalable report``
 
-The namespace for later-phase verbs (``run``, ``diagnose``, ``explain``,
-``init-component``, ``compose``, ``report``) is reserved as explicit stubs.
+The remaining namespace for later-phase verbs (``run``, ``diagnose``,
+``explain``, ``init-component``, ``compose``) is reserved as explicit stubs.
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ import sys
 from scalable.common import settings
 
 from .cmd_plan import run_plan
+from .cmd_report import run_report
 from .cmd_validate import run_validate
 
 _STUB_COMMANDS: dict[str, str] = {
@@ -25,7 +27,6 @@ _STUB_COMMANDS: dict[str, str] = {
     "explain": "Phase 4",
     "init-component": "Phase 4",
     "compose": "Phase 4",
-    "report": "Phase 2",
 }
 
 
@@ -38,6 +39,16 @@ def _handle_plan(args: argparse.Namespace) -> int:
         args.manifest,
         target=args.target,
         dry_run=bool(args.dry_run),
+        output=args.output,
+    )
+
+
+def _handle_report(args: argparse.Namespace) -> int:
+    return run_report(
+        runs_dir=args.runs_dir,
+        run_id=args.run_id,
+        latest=bool(args.latest),
+        fmt=args.format,
         output=args.output,
     )
 
@@ -100,6 +111,38 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Plan output path (default: ./plan.json)",
     )
     plan_parser.set_defaults(handler=_handle_plan)
+
+    report_parser = subparsers.add_parser(
+        "report",
+        help="Summarize telemetry for a completed or running session",
+    )
+    report_parser.add_argument(
+        "--runs-dir",
+        default=settings.runs_dir,
+        help="Runs directory (default: SCALABLE_RUNS_DIR or ./.scalable/runs)",
+    )
+    report_parser.add_argument(
+        "--run-id",
+        default=None,
+        help="Explicit run directory name (e.g. run-20260519T120000Z-...)",
+    )
+    report_parser.add_argument(
+        "--latest",
+        action="store_true",
+        help="Select the most recent run in --runs-dir",
+    )
+    report_parser.add_argument(
+        "--format",
+        choices=["text", "json"],
+        default="text",
+        help="Output format",
+    )
+    report_parser.add_argument(
+        "--output",
+        default=None,
+        help="Optional output file path",
+    )
+    report_parser.set_defaults(handler=_handle_report)
 
     for command, phase in _STUB_COMMANDS.items():
         stub_parser = subparsers.add_parser(command, help=f"Reserved command (planned for {phase})")

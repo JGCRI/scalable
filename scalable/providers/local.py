@@ -8,6 +8,7 @@ from distributed import LocalCluster
 
 from scalable.client import ScalableClient
 from scalable.manifest.validate import ValidationIssue, ValidationReport, validate_manifest
+from scalable.telemetry.runtime import emit_worker_event
 
 from .base import ClusterHandle, DeploymentProvider, DeploymentSpec, ScalePlan
 
@@ -133,6 +134,16 @@ class LocalProvider(DeploymentProvider):
             resources=worker_resources,
         )
 
+        emit_worker_event(
+            provider=self.name,
+            state="cluster_created",
+            details={
+                "n_workers": n_workers,
+                "threads_per_worker": threads_per_worker,
+                "processes": processes,
+            },
+        )
+
         def _client_factory() -> ScalableClient:
             return ScalableClient(cluster)
 
@@ -157,11 +168,20 @@ class LocalProvider(DeploymentProvider):
         if plan.workers_by_tag:
             target_workers = sum(max(int(n), 0) for n in plan.workers_by_tag.values())
             backend.scale(target_workers)
+            emit_worker_event(
+                provider=self.name,
+                state="scaled",
+                details={
+                    "target_workers": target_workers,
+                    "workers_by_tag": dict(plan.workers_by_tag),
+                },
+            )
 
     def close(self, cluster: ClusterHandle) -> None:
         backend = cluster.backend
         if hasattr(backend, "close"):
             backend.close()
+        emit_worker_event(provider=self.name, state="cluster_closed", details={})
 
 
 def _debug_options_snapshot(options: dict[str, Any]) -> dict[str, Any]:

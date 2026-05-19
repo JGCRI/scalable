@@ -19,6 +19,7 @@ from importlib.metadata import version as _pkg_version
 from dask.distributed import Security  # noqa: F401  (re-exported for users)
 from distributed import get_worker  # noqa: F401  (re-exported for users)
 
+from .advising import ResourceAdvisor, ResourceRecommendation
 from .caching import *  # noqa: F401,F403  (legacy star-export)
 from .client import ScalableClient
 from .common import SEED, settings
@@ -37,6 +38,8 @@ __all__ = [
     "DeploymentProvider",
     "LocalProvider",
     "SEED",
+    "ResourceAdvisor",
+    "ResourceRecommendation",
     "ScalableClient",
     "ScalableSession",
     "Security",

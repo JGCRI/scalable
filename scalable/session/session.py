@@ -14,6 +14,8 @@ from scalable.manifest.validate import ValidationIssue, ValidationReport, valida
 from scalable.planning.dryrun import DryRunPlan, build_dry_run_plan
 from scalable.providers.base import ClusterHandle, DeploymentSpec
 from scalable.providers.registry import get_provider, iter_provider_names
+from scalable.telemetry.runtime import reset_active_store, set_active_store
+from scalable.telemetry.store import TelemetryStore
 
 __all__ = ["ScalableSession"]
 
@@ -29,6 +31,8 @@ class ScalableSession:
     _provider: Any = None
     _cluster: ClusterHandle | None = None
     _client: ScalableClient | None = None
+    _telemetry: TelemetryStore | None = None
+    _telemetry_token: Any = None
 
     @classmethod
     def from_yaml(
@@ -99,25 +103,117 @@ class ScalableSession:
                 f"plan target {plan.target_name!r} does not match session target {self.target_name!r}"
             )
 
-        self._provider = get_provider(self.spec.provider_name)
-        self._cluster = self._provider.build_cluster(self.spec)
-        self._provider.scale(self._cluster, plan.scale_plan)
-        self._client = self._cluster.client_factory()
-        return self._client
+        if settings.telemetry_enabled:
+            self._telemetry = TelemetryStore.create(
+                runs_dir=settings.runs_dir,
+                manifest=self.manifest,
+                spec=self.spec,
+                plan=plan,
+                telemetry_parquet=settings.telemetry_parquet,
+            )
+            self._telemetry_token = set_active_store(self._telemetry)
+
+        try:
+            self._provider = get_provider(self.spec.provider_name)
+            self._cluster = self._provider.build_cluster(self.spec)
+            self._provider.scale(self._cluster, plan.scale_plan)
+            self._client = self._cluster.client_factory()
+            if self._telemetry is not None:
+                self._client.set_telemetry_store(self._telemetry)
+            return self._client
+        except Exception as exc:
+            if self._telemetry is not None:
+                self._telemetry.record_failure(
+                    failure_class=type(exc).__name__,
+                    message=str(exc),
+                    details={"phase": "session.start"},
+                )
+                self._telemetry.close(status="failed")
+                self._telemetry = None
+            if self._telemetry_token is not None:
+                reset_active_store(self._telemetry_token)
+                self._telemetry_token = None
+            raise
 
     def close(self) -> None:
+        close_error: Exception | None = None
+        status = "completed"
+
         if self._client is not None:
-            self._client.close()
-            self._client = None
+            try:
+                self._client.close()
+            except Exception as exc:  # pragma: no cover - defensive
+                close_error = exc
+                status = "failed"
+                if self._telemetry is not None:
+                    self._telemetry.record_failure(
+                        failure_class=type(exc).__name__,
+                        message=str(exc),
+                        details={"phase": "session.close.client"},
+                    )
+            finally:
+                self._client = None
 
         if self._cluster is not None and self._provider is not None:
-            self._provider.close(self._cluster)
-            self._cluster = None
+            try:
+                self._provider.close(self._cluster)
+            except Exception as exc:  # pragma: no cover - defensive
+                close_error = exc
+                status = "failed"
+                if self._telemetry is not None:
+                    self._telemetry.record_failure(
+                        failure_class=type(exc).__name__,
+                        message=str(exc),
+                        details={"phase": "session.close.provider"},
+                    )
+            finally:
+                self._cluster = None
+
+        if self._telemetry is not None:
+            self._telemetry.close(status=status)
+            self._telemetry = None
+
+        if self._telemetry_token is not None:
+            reset_active_store(self._telemetry_token)
+            self._telemetry_token = None
+
+        if close_error is not None:
+            raise close_error
+
+    def record_artifact(
+        self,
+        *,
+        task_name: str,
+        artifact_name: str,
+        location: str,
+        component: str | None = None,
+        kind: str | None = None,
+        size_bytes: int | None = None,
+        digest: str | None = None,
+    ) -> None:
+        """Record artifact metadata for the active run, if telemetry is enabled."""
+        if self._telemetry is None:
+            return
+        self._telemetry.record_artifact(
+            task_name=task_name,
+            component=component,
+            artifact_name=artifact_name,
+            location=location,
+            kind=kind,
+            size_bytes=size_bytes,
+            digest=digest,
+        )
 
     def __enter__(self) -> ScalableClient:
         return self.start()
 
     def __exit__(self, exc_type, exc, tb) -> None:
+        if exc is not None and self._telemetry is not None:
+            self._telemetry.record_failure(
+                failure_class=type(exc).__name__,
+                message=str(exc),
+                details={"phase": "session.context"},
+            )
         self.close()
 
 

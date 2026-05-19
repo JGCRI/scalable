@@ -12,6 +12,8 @@ def test_top_level_exports_include_session_and_provider_symbols() -> None:
     assert "DeploymentProvider" in exported
     assert "LocalProvider" in exported
     assert "SlurmProvider" in exported
+    assert "ResourceAdvisor" in exported
+    assert "ResourceRecommendation" in exported
 
 
 def test_legacy_exports_remain_available() -> None:
@@ -24,4 +26,3 @@ def test_legacy_exports_remain_available() -> None:
     assert "ScalableClient" in exported
     assert "SEED" in exported
     assert "settings" in exported
-

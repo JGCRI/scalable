@@ -7,7 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-No notable changes yet.
+### Added
+
+- **Phase 2 telemetry package** implementing run history, event schemas, and
+  report aggregation:
+  - `scalable.telemetry.events`
+  - `scalable.telemetry.store`
+  - `scalable.telemetry.collectors`
+  - `scalable.telemetry.runtime`
+- **Run history store** for manifest-driven sessions under `.scalable/runs/`
+  with persisted `manifest.yaml`, `plan.json`, `manifest.lock`, `run.json`,
+  task/resource/worker/failure/cache/artifact JSONL streams, and `summary.json`.
+- **`scalable report` CLI command** (text + JSON output) replacing the Phase 1
+  report stub.
+- **Deterministic advising API**:
+  - `ResourceAdvisor.from_history(...)`
+  - `ResourceAdvisor.recommend(...)`
+  - `ResourceRecommendation` result payload
+- **Artifact metadata recording API** via `ScalableSession.record_artifact(...)`.
+- New docs pages:
+  - `docs/telemetry.rst`
+  - `docs/advising.rst`
+
+### Changed
+
+- `ScalableSession` now initializes and finalizes telemetry by default for
+  manifest-driven runs (configurable).
+- `ScalableClient.submit` and `ScalableClient.map` now emit task lifecycle
+  telemetry through future callbacks.
+- `cacheable` now emits cache hit/miss telemetry events when telemetry is
+  active.
+- `LocalProvider` and `SlurmProvider` now emit worker/cluster telemetry events.
+- `scalable.__all__` now exports `ResourceAdvisor` and
+  `ResourceRecommendation`.
+- `Settings` now includes telemetry controls:
+  - `runs_dir` (`SCALABLE_RUNS_DIR`)
+  - `telemetry_enabled` (`SCALABLE_TELEMETRY`)
+  - `telemetry_parquet` (`SCALABLE_TELEMETRY_PARQUET`)
+
+### Tests
+
+- Added unit and integration coverage for:
+  - telemetry store lifecycle and summary generation
+  - telemetry collectors and report rendering
+  - `scalable report` CLI behavior
+  - `ResourceAdvisor` heuristics and fallbacks
+  - session telemetry end-to-end behavior on local execution
 
 ## [2.0.0a1] - 2026-05-19
 

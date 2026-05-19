@@ -31,6 +31,7 @@ __all__ = ["logger", "settings", "Settings", "SEED", "cachedir", "DEFAULT_SEED"]
 DEFAULT_SEED: int = 987654321
 DEFAULT_CACHE_DIR: str = "./cache"
 DEFAULT_MANIFEST_PATH: str = "./scalable.yaml"
+DEFAULT_RUNS_DIR: str = "./.scalable/runs"
 
 
 @dataclass
@@ -56,6 +57,15 @@ class Settings:
         default_factory=lambda: os.environ.get("SCALABLE_MANIFEST", DEFAULT_MANIFEST_PATH)
     )
     target: str | None = field(default_factory=lambda: os.environ.get("SCALABLE_TARGET"))
+    runs_dir: str = field(
+        default_factory=lambda: os.environ.get("SCALABLE_RUNS_DIR", DEFAULT_RUNS_DIR)
+    )
+    telemetry_enabled: bool = field(
+        default_factory=lambda: bool(int(os.environ.get("SCALABLE_TELEMETRY", "1")))
+    )
+    telemetry_parquet: bool = field(
+        default_factory=lambda: bool(int(os.environ.get("SCALABLE_TELEMETRY_PARQUET", "0")))
+    )
 
 
 #: Process-wide settings singleton. Mutating attributes on this instance
