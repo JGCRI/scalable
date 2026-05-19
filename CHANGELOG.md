@@ -5,6 +5,75 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0a3] — Phase 3: Cloud and Kubernetes Execution
+
+### Added
+
+- **Kubernetes provider** (`scalable.providers.kubernetes.KubernetesProvider`)
+  implementing the `DeploymentProvider` protocol over the Dask Kubernetes
+  Operator. Maps manifest components to worker groups with per-component
+  resource requests and adaptive scaling support.
+- **AWS cloud provider** (`scalable.providers.cloud.aws.AWSBatchProvider`)
+  wrapping `dask-cloudprovider` `FargateCluster` / `EC2Cluster`.
+- **GCP provider scaffold** (`scalable.providers.cloud.gcp.GCPProvider`)
+  for manifest validation only; `build_cluster()` raises `NotImplementedError`.
+- **Cloud cost tables** (`scalable.providers.cloud.cost_tables`) with static
+  on-demand pricing for common AWS and GCP instance types.
+- **Cost estimation primitives** (`scalable.costing`):
+  - `CostEstimate` dataclass with provider/region/line-item breakdown
+  - `CostLineItem` with auto-computed totals
+- **Artifact store layer** (`scalable.artifacts`):
+  - `ArtifactStore` protocol, `ArtifactRef`, `ArtifactKind`
+  - `LocalArtifactStore` (filesystem backend)
+  - `FsspecArtifactStore` (S3, GCS, memory via fsspec)
+  - `build_artifact_store(uri)` factory function
+  - `RemoteCacheBackend` for opt-in remote cache storage
+- **Manifest overlays** (`scalable.manifest.overlays`):
+  - `overlays:` top-level key added to schema (additive, no version bump)
+  - `targets[*].overlay:` reference field for per-target overlay selection
+  - Deep-merge semantics: dicts merged recursively, lists/scalars replaced
+  - `ManifestModel.raw_unresolved` for pre-overlay provenance tracking
+- **`scalable run` CLI verb** (`scalable.cli.cmd_run`):
+  - Loads manifest with overlay resolution
+  - Validates, plans, estimates cost, and optionally executes a workflow file
+  - `--dry-run` mode prints plan + cost estimate as JSON
+- **Provider protocol extension**: optional `estimate_cost(spec, plan)` method
+  on `DeploymentProvider` with `_BaseProviderMixin` providing `None` default.
+- **Telemetry extensions**:
+  - `CostEvent` and `RemoteCacheEvent` in `scalable.telemetry.events`
+  - `cost.jsonl` stream in `TelemetryStore`
+  - Cost summary in `scalable report` output
+- **Settings extensions** (`scalable.common.Settings`):
+  - `cache_remote_uri` (`SCALABLE_CACHE_REMOTE`)
+  - `default_storage` (`SCALABLE_DEFAULT_STORAGE`)
+  - `runs_dir_remote` (`SCALABLE_RUNS_DIR_REMOTE`)
+- **Provider registry**: `kubernetes`, `aws`, `gcp` added as builtin providers.
+- **Public API**: `CostEstimate`, `KubernetesProvider`, `CloudProvider`,
+  `AWSBatchProvider`, `GCPProvider`, `ArtifactStore`, `LocalArtifactStore`,
+  `build_artifact_store` exported from `scalable.__init__` with optional-dep
+  guards.
+- New docs pages: `cloud.rst`, `kubernetes.rst`, `artifacts.rst`,
+  `overlays.rst`, `cost.rst`.
+- Example manifests: `scalable.gke.yaml`, `scalable.aws.yaml`,
+  `scalable.overlays.yaml`.
+- Populated `[project.optional-dependencies]` `cloud` and `kubernetes` extras.
+
+### Changed
+
+- Bumped version to `2.0.0a3`.
+- `_TOP_LEVEL_KEYS` in `scalable.manifest.parser` now includes `"overlays"`.
+- `load_manifest()` / `parse_manifest()` accept `target_name` and
+  `overlay_name` keyword arguments for overlay resolution.
+- `scalable run` removed from `_STUB_COMMANDS` in CLI main.
+
+### Tests
+
+- Unit tests for costing, artifacts, overlays, cloud/k8s providers, cost
+  tables, CLI run verb, telemetry cost events, and Phase 3 Settings.
+- 238 total unit tests passing.
+
+---
+
 ## [Unreleased]
 
 ### Added

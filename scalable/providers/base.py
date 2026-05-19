@@ -2,13 +2,16 @@
 
 Phase 1 introduces an explicit deployment seam so Scalable can target local,
 Slurm, Kubernetes, and cloud backends through one stable contract.
+
+Phase 3 adds the optional ``estimate_cost`` method to the protocol and
+a ``_BaseProviderMixin`` supplying a default ``None`` return.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from scalable.client import ScalableClient
 from scalable.manifest.schema import (
@@ -19,12 +22,16 @@ from scalable.manifest.schema import (
 )
 from scalable.manifest.validate import ValidationReport
 
+if TYPE_CHECKING:
+    from scalable.costing import CostEstimate
+
 __all__ = [
     "ClusterHandle",
     "DeploymentProvider",
     "DeploymentSpec",
     "ResourceRequest",
     "ScalePlan",
+    "_BaseProviderMixin",
 ]
 
 
@@ -132,3 +139,30 @@ class DeploymentProvider(Protocol):
 
     def close(self, cluster: ClusterHandle) -> None:
         """Close provider-managed resources."""
+
+    def estimate_cost(
+        self, spec: DeploymentSpec, plan: ScalePlan
+    ) -> CostEstimate | None:
+        """Estimate cost for the given deployment spec and scale plan.
+
+        Returns ``None`` if the provider cannot produce a cost estimate
+        (e.g. local execution has no monetary cost). This method is
+        optional: providers that do not override it inherit the mixin
+        default returning ``None``.
+        """
+        ...
+
+
+class _BaseProviderMixin:
+    """Mixin providing default implementations of optional protocol methods.
+
+    Existing providers (``LocalProvider``, ``SlurmProvider``) inherit this
+    so they automatically satisfy the Phase 3 ``estimate_cost`` addition
+    without code changes.
+    """
+
+    def estimate_cost(
+        self, spec: DeploymentSpec, plan: ScalePlan
+    ) -> CostEstimate | None:
+        """Default: no cost estimate available."""
+        return None

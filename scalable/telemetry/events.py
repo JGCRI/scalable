@@ -156,10 +156,59 @@ class ArtifactEvent:
         return asdict(self)
 
 
+@dataclass(frozen=True)
+class CostEvent:
+    """Cost estimation event record (Phase 3).
+
+    Recorded when a provider produces a cost estimate for a deployment plan.
+    """
+
+    run_id: str
+    provider: str
+    region: str | None
+    currency: str
+    total_hourly: float
+    total_monthly: float
+    timestamp: str = field(default_factory=utcnow_iso)
+    line_items: list[dict[str, Any]] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+    event_type: str = "cost"
+    schema_version: int = SCHEMA_VERSION
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class RemoteCacheEvent:
+    """Remote cache interaction event record (Phase 3).
+
+    Extends CacheEvent with remote-specific fields.
+    """
+
+    run_id: str
+    function_name: str
+    key_digest: str
+    hit: bool
+    remote: bool
+    timestamp: str = field(default_factory=utcnow_iso)
+    duration_s: float | None = None
+    remote_uri: str | None = None
+    task_name: str | None = None
+    component: str | None = None
+    event_type: str = "remote_cache"
+    schema_version: int = SCHEMA_VERSION
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
 __all__ = [
     "ArtifactEvent",
     "CacheEvent",
+    "CostEvent",
     "FailureEvent",
+    "RemoteCacheEvent",
     "ResourceEvent",
     "RunMetadata",
     "SCHEMA_VERSION",

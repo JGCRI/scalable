@@ -22,6 +22,7 @@ from .collectors import summarize_run
 from .events import (
     ArtifactEvent,
     CacheEvent,
+    CostEvent,
     FailureEvent,
     ResourceEvent,
     RunMetadata,
@@ -51,6 +52,7 @@ class TelemetryStore:
     _FAILURES_FILE = "failures.jsonl"
     _CACHE_FILE = "cache.jsonl"
     _ARTIFACTS_FILE = "artifacts.jsonl"
+    _COST_FILE = "cost.jsonl"
 
     def __init__(
         self,
@@ -347,6 +349,32 @@ class TelemetryStore:
                 kind=kind,
                 size_bytes=size_bytes,
                 digest=digest,
+            ).to_dict(),
+        )
+
+    def record_cost(
+        self,
+        *,
+        provider: str,
+        region: str | None,
+        currency: str,
+        total_hourly: float,
+        total_monthly: float,
+        line_items: list[dict[str, Any]] | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        """Record a cost estimation event (Phase 3)."""
+        self._append_jsonl(
+            self._COST_FILE,
+            CostEvent(
+                run_id=self.run_id,
+                provider=provider,
+                region=region,
+                currency=currency,
+                total_hourly=total_hourly,
+                total_monthly=total_monthly,
+                line_items=line_items or [],
+                metadata=metadata or {},
             ).to_dict(),
         )
 

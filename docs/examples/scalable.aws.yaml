@@ -1,0 +1,50 @@
+# Scalable manifest targeting AWS Fargate
+# Requires: pip install scalable[cloud]
+
+version: 1
+project:
+  name: climate-model-aws
+  default_storage: s3://my-bucket/scalable-runs/
+
+targets:
+  aws:
+    provider: aws
+    region: us-east-1
+    cluster_type: fargate
+    instance_type: m5.xlarge
+    worker_cpu: 4096
+    worker_mem: 16384
+    image: 123456789.dkr.ecr.us-east-1.amazonaws.com/climate:latest
+    execution_role_arn: arn:aws:iam::123456789:role/ecsTaskExecutionRole
+    task_role_arn: arn:aws:iam::123456789:role/ecsTaskRole
+    subnets:
+      - subnet-abc123
+      - subnet-def456
+    security_groups:
+      - sg-xyz789
+    adaptive:
+      minimum: 1
+      maximum: 10
+
+components:
+  gcam:
+    image: 123456789.dkr.ecr.us-east-1.amazonaws.com/gcam:7.0
+    cpus: 4
+    memory: 16G
+    tags: [iam, climate]
+
+  postprocess:
+    cpus: 2
+    memory: 8G
+    tags: [postprocess]
+
+tasks:
+  run_gcam:
+    component: gcam
+    cache: true
+    outputs:
+      database: dir
+
+  aggregate:
+    component: postprocess
+    cache: true

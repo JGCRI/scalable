@@ -69,6 +69,7 @@ def summarize_run(run_dir: str | Path) -> dict[str, Any]:
     failures = read_jsonl(run_path / "failures.jsonl")
     caches = read_jsonl(run_path / "cache.jsonl")
     artifacts = read_jsonl(run_path / "artifacts.jsonl")
+    costs = read_jsonl(run_path / "cost.jsonl")
 
     final_state_by_task: dict[str, str] = {}
     duration_values: list[float] = []
@@ -92,6 +93,10 @@ def summarize_run(run_dir: str | Path) -> dict[str, Any]:
         if isinstance(value, int):
             requested_cpus.append(value)
 
+    # Cost summary
+    cost_total_hourly = sum(float(c.get("total_hourly", 0)) for c in costs)
+    cost_total_monthly = sum(float(c.get("total_monthly", 0)) for c in costs)
+
     return {
         "run": run_meta,
         "counts": {
@@ -101,6 +106,7 @@ def summarize_run(run_dir: str | Path) -> dict[str, Any]:
             "failure_events": len(failures),
             "cache_events": len(caches),
             "artifact_events": len(artifacts),
+            "cost_events": len(costs),
             "tasks_succeeded": state_counter.get("succeeded", 0),
             "tasks_failed": state_counter.get("failed", 0),
             "tasks_cancelled": state_counter.get("cancelled", 0),
@@ -126,6 +132,11 @@ def summarize_run(run_dir: str | Path) -> dict[str, Any]:
             if requested_cpus
             else None,
         },
+        "cost": {
+            "total_hourly_usd": round(cost_total_hourly, 6) if costs else None,
+            "total_monthly_usd": round(cost_total_monthly, 4) if costs else None,
+            "estimates_count": len(costs),
+        },
         "failures": {
             "classes": dict(sorted(failure_counter.items())),
         },
@@ -138,6 +149,7 @@ def render_text_report(summary: dict[str, Any]) -> str:
     counts = summary.get("counts", {})
     timing = summary.get("timing", {})
     cache = summary.get("cache", {})
+    cost = summary.get("cost", {})
 
     lines = [
         f"run_id: {run.get('run_id', 'unknown')}",
@@ -160,6 +172,15 @@ def render_text_report(summary: dict[str, Any]) -> str:
         f"  misses: {cache.get('misses', 0)}",
         f"  hit_ratio: {cache.get('hit_ratio')}",
     ]
+
+    if cost.get("total_hourly_usd") is not None:
+        lines.extend([
+            "",
+            "cost:",
+            f"  hourly_usd: {cost.get('total_hourly_usd')}",
+            f"  monthly_usd: {cost.get('total_monthly_usd')}",
+        ])
+
     return "\n".join(lines)
 
 

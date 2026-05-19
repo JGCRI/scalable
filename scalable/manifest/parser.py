@@ -50,8 +50,9 @@ __all__ = [
 
 # Recognised top-level keys for v1. The order is preserved for diagnostic
 # messages; semantically the set is what matters.
+# Phase 3 adds "overlays" as an additive top-level key.
 _TOP_LEVEL_KEYS: frozenset[str] = frozenset(
-    {"version", "project", "targets", "components", "tasks"}
+    {"version", "project", "targets", "components", "tasks", "overlays"}
 )
 _REQUIRED_TOP_LEVEL_KEYS: frozenset[str] = frozenset({"version", "project"})
 
@@ -133,6 +134,8 @@ def load_manifest(
     source: str | os.PathLike[str],
     *,
     env: Mapping[str, str] | None = None,
+    target_name: str | None = None,
+    overlay_name: str | None = None,
 ) -> ManifestModel:
     """Load and parse a manifest from a filesystem path.
 
@@ -143,6 +146,10 @@ def load_manifest(
     env : Mapping[str, str] | None
         Optional environment override for ``${VAR}`` expansion. Defaults
         to :data:`os.environ`.
+    target_name : str | None
+        Target to select for overlay resolution (Phase 3).
+    overlay_name : str | None
+        Explicit overlay name to apply (Phase 3).
 
     Returns
     -------
@@ -163,7 +170,13 @@ def load_manifest(
         raise ManifestParseError(
             f"could not read manifest at {path!s}: {exc}"
         ) from exc
-    return parse_manifest(text, env=env, source_path=str(path))
+    return parse_manifest(
+        text,
+        env=env,
+        source_path=str(path),
+        target_name=target_name,
+        overlay_name=overlay_name,
+    )
 
 
 def parse_manifest(
@@ -171,6 +184,8 @@ def parse_manifest(
     *,
     env: Mapping[str, str] | None = None,
     source_path: str | None = None,
+    target_name: str | None = None,
+    overlay_name: str | None = None,
 ) -> ManifestModel:
     """Parse a manifest from a YAML string or already-parsed mapping.
 
@@ -184,6 +199,11 @@ def parse_manifest(
         Environment override for ``${VAR}`` expansion.
     source_path : str | None
         Optional originating file path (carried into ``ManifestModel``).
+    target_name : str | None
+        Target to select for overlay resolution. When provided, the parser
+        checks if the target has an ``overlay:`` reference and applies it.
+    overlay_name : str | None
+        Explicit overlay name to apply (overrides target-level reference).
 
     Returns
     -------
@@ -211,18 +231,28 @@ def parse_manifest(
     _check_top_level_keys(expanded)
     _check_version(expanded)
 
-    project = _build_project(expanded.get("project") or {})
-    targets = _build_targets(expanded.get("targets") or {})
-    components = _build_components(expanded.get("components") or {})
-    tasks = _build_tasks(expanded.get("tasks") or {})
+    # --- Phase 3: overlay resolution ---
+    from .overlays import resolve_overlay
+
+    resolved, raw_unresolved = resolve_overlay(
+        expanded,
+        overlay_name=overlay_name,
+        target_name=target_name,
+    )
+
+    project = _build_project(resolved.get("project") or {})
+    targets = _build_targets(resolved.get("targets") or {})
+    components = _build_components(resolved.get("components") or {})
+    tasks = _build_tasks(resolved.get("tasks") or {})
 
     return ManifestModel(
-        version=int(expanded["version"]),
+        version=int(resolved["version"]),
         project=project,
         targets=targets,
         components=components,
         tasks=tasks,
-        raw=expanded,
+        raw=resolved,
+        raw_unresolved=raw_unresolved,
         source_path=source_path,
     )
 
