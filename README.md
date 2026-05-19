@@ -1,3 +1,5 @@
+![Scalable logo](docs/images/scalable_logo_nobkg.png)
+
 # Scalable
 
 [![PyPI](https://img.shields.io/pypi/v/scalable.svg)](https://pypi.org/project/scalable/)

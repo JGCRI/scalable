@@ -53,6 +53,10 @@ html_theme = 'furo'
 html_static_path = ['_static']
 html_css_files = ['custom.css']
 html_title = 'Scalable Documentation'
+html_logo = 'images/scalable_logo_nobkg.png'
+html_theme_options = {
+    'sidebar_hide_name': True,
+}
 
 # GitHub Pages compatibility
 html_baseurl = 'https://jgcri.github.io/scalable/'
