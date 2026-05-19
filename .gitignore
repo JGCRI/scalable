@@ -4,6 +4,7 @@
 capabilities/
 plans/
 .rooignore
+.env
 
 # -----------------------------
 # Python bytecode / caches
