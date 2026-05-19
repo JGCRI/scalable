@@ -19,4 +19,24 @@ Slurm-specific fields so AI planners (Phase 4) and ML resource advisors
 
 from __future__ import annotations
 
-__all__: list[str] = []
+from .base import ClusterHandle, DeploymentProvider, DeploymentSpec, ResourceRequest, ScalePlan
+from .registry import (
+    clear_registry,
+    get_provider,
+    iter_provider_names,
+    register_provider,
+    register_providers,
+)
+
+__all__ = [
+    "ClusterHandle",
+    "DeploymentProvider",
+    "DeploymentSpec",
+    "ResourceRequest",
+    "ScalePlan",
+    "clear_registry",
+    "get_provider",
+    "iter_provider_names",
+    "register_provider",
+    "register_providers",
+]
