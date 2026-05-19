@@ -1,0 +1,550 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="./">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Common Issues" href="issues.html"><link rel="prev" title="Scalable Example Workflow" href="demo.html">
+
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+        <title>A Complete Process of Adding &amp; Scaling a New Application - Scalable 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=acfd86a5" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
+    <link rel="stylesheet" type="text/css" href="_static/custom.css" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="index.html"><div class="brand">Scalable 1.0.0 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="index.html">
+  
+  <span class="sidebar-brand-text">Scalable 1.0.0 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting Started with Scalable</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="workers.html">Worker Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="caching.html">Caching</a></li>
+<li class="toctree-l1"><a class="reference internal" href="functions.html">Submitting Functions</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">How-tos</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="cache_hash.html">How to add custom hash functions for cacheable</a></li>
+<li class="toctree-l1"><a class="reference internal" href="container.html">How to add custom containers for scalable as workers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="rpy2.html">How to convert R code to Python code using rpy2 and run it through Scalable</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Demos</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="demo.html">Scalable Example Workflow</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">A Complete Process of Adding &amp; Scaling a New Application</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Common Issues</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="issues.html">Common Issues</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="_sources/helps_demo.rst.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="a-complete-process-of-adding-scaling-a-new-application">
+<h1>A Complete Process of Adding &amp; Scaling a New Application<a class="headerlink" href="#a-complete-process-of-adding-scaling-a-new-application" title="Link to this heading">¶</a></h1>
+<p>This is another demo where a new container with a new R package is added to be
+scaled appropriately using scalable.</p>
+<p>The first step would be to add a new container with the new R package. This
+should be done by adding a new target to the Dockerfile which is located in the
+home directory where scalable_bootstrap is launched. In this case, the
+<a class="reference external" href="https://github.com/JGCRI/HELPS">HELPS</a> package is added as a target to
+make a new container. Since the HELPS package is a R package, and rpy2 is the
+primary method of interacting with R applications when using Scalable, it would
+be good practice to try adding HELPS through rpy2. This is the new target:</p>
+<div class="highlight-dockerfile notranslate"><div class="highlight"><pre><span></span><span class="k">FROM</span><span class="w"> </span><span class="s">ubuntu:22.04</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="s">build_env</span>
+
+<span class="k">ENV</span><span class="w"> </span><span class="nv">DEBIAN_FRONTEND</span><span class="o">=</span>noninteractive
+<span class="k">RUN</span><span class="w"> </span>apt-get<span class="w"> </span>-y<span class="w"> </span>update<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>wget<span class="w"> </span>unzip<span class="w"> </span>openjdk-11-jdk-headless<span class="w"> </span>build-essential<span class="w"> </span>libtbb-dev<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>libboost-dev<span class="w"> </span>libboost-filesystem-dev<span class="w"> </span>libboost-system-dev<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>python3<span class="w"> </span>python3-pip<span class="w"> </span>libboost-python-dev<span class="w"> </span>libboost-numpy-dev<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>ssh<span class="w"> </span>nano<span class="w"> </span>locate<span class="w"> </span>curl<span class="w"> </span>net-tools<span class="w"> </span>netcat-traditional<span class="w"> </span>git<span class="w"> </span>python3<span class="w"> </span>python3-pip<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>python3-dev<span class="w"> </span>gcc<span class="w"> </span>libboost-python1.74<span class="w"> </span>libboost-numpy1.74<span class="w"> </span>openjdk-11-jre-headless<span class="w"> </span>libtbb12<span class="w"> </span>rsync
+<span class="k">RUN</span><span class="w"> </span>apt-get<span class="w"> </span>-y<span class="w"> </span>update<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>apt<span class="w"> </span>-y<span class="w"> </span>upgrade
+<span class="k">RUN</span><span class="w"> </span>pip3<span class="w"> </span>install<span class="w"> </span>--upgrade<span class="w"> </span>dask<span class="o">[</span>complete<span class="o">]</span><span class="w"> </span>dask-jobqueue<span class="w"> </span>dask_mpi<span class="w"> </span>pyyaml<span class="w"> </span>joblib<span class="w"> </span>versioneer<span class="w"> </span>tomli<span class="w"> </span>xarray
+<span class="k">RUN</span><span class="w"> </span>apt-get<span class="w"> </span>-y<span class="w"> </span>update<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>apt<span class="w"> </span>-y<span class="w"> </span>upgrade
+<span class="k">RUN</span><span class="w"> </span>mkdir<span class="w"> </span>-p<span class="w"> </span>/usr/lib/R/site-library
+<span class="k">ENV</span><span class="w"> </span>R_LIBS_USER<span class="w"> </span>/usr/lib/R/site-library
+<span class="k">RUN</span><span class="w"> </span>chmod<span class="w"> </span>a+w<span class="w"> </span>/usr/lib/R/site-library
+<span class="k">RUN</span><span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>--no-install-recommends<span class="w"> </span>r-base<span class="w"> </span>r-base-dev
+<span class="k">RUN</span><span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>--no-install-recommends<span class="w"> </span>python3-rpy2
+<span class="k">RUN</span><span class="w"> </span>python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>-U<span class="w"> </span>pip
+
+
+<span class="k">FROM</span><span class="w"> </span><span class="s">build_env</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="s">helps</span>
+<span class="k">RUN</span><span class="w"> </span>apt-get<span class="w"> </span>-y<span class="w"> </span>update<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>apt<span class="w"> </span>-y<span class="w"> </span>upgrade<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>apt-get<span class="w"> </span>-y<span class="w"> </span>-f<span class="w"> </span>install
+<span class="k">RUN</span><span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>--fix-missing<span class="w"> </span>-y<span class="w"> </span>software-properties-common
+<span class="k">RUN</span><span class="w"> </span>add-apt-repository<span class="w"> </span>ppa:ubuntugis/ppa
+<span class="k">RUN</span><span class="w"> </span>apt-get<span class="w"> </span>update
+<span class="k">ENV</span><span class="w"> </span>R_LIBS_USER<span class="w"> </span>/usr/lib/R/site-library
+<span class="k">RUN</span><span class="w"> </span>chmod<span class="w"> </span>a+w<span class="w"> </span>/usr/lib/R/site-library
+<span class="k">RUN</span><span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>libcurl4-openssl-dev<span class="w"> </span>libssl-dev<span class="w"> </span>libxml2-dev<span class="w"> </span>libudunits2-dev<span class="w"> </span>libproj-dev<span class="w"> </span>libavfilter-dev<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>libbz2-dev<span class="w"> </span>liblzma-dev<span class="w"> </span>libfontconfig1-dev<span class="w"> </span>libharfbuzz-dev<span class="w"> </span>libfribidi-dev<span class="w"> </span>libgeos-dev<span class="w"> </span>libgdal-dev
+<span class="k">RUN</span><span class="w"> </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/JGCRI/HELPS.git<span class="w"> </span>/HELPS
+<span class="k">RUN</span><span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;import rpy2.robjects.packages as rpackages&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span>/install_script.py<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;utils = rpackages.importr(&#39;utils&#39;)&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span>/install_script.py<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;utils.install_packages(&#39;devtools&#39;)&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span>/install_script.py<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;utils.install_packages(&#39;arrow&#39;)&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span>/install_script.py<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;utils.install_packages(&#39;assertthat&#39;)&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span>/install_script.py
+<span class="k">RUN</span><span class="w"> </span>python3<span class="w"> </span>/install_script.py
+<span class="k">RUN</span><span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;import rpy2.robjects.packages as rpackages&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span>/install_script.py<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;devtools = rpackages.importr(&#39;devtools&#39;)&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span>/install_script.py<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;devtools.install_github(&#39;JGCRI/HELPS&#39;, dependencies=True)&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span>/install_script.py
+<span class="k">RUN</span><span class="w"> </span>python3<span class="w"> </span>/install_script.py
+<span class="k">RUN</span><span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;import rpy2.robjects.packages as rpackages&quot;</span><span class="w"> </span>&gt;<span class="w"> </span>/install_script.py<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;helps = rpackages.importr(&#39;HELPS&#39;)&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span>/install_script.py
+<span class="k">RUN</span><span class="w"> </span>python3<span class="w"> </span>/install_script.py
+<span class="k">COPY</span><span class="w"> </span>--from<span class="o">=</span>scalable<span class="w"> </span>/scalable<span class="w"> </span>/scalable
+<span class="k">RUN</span><span class="w"> </span>pip3<span class="w"> </span>install<span class="w"> </span>/scalable/.
+<span class="k">RUN</span><span class="w"> </span>pip3<span class="w"> </span>install<span class="w"> </span>--force-reinstall<span class="w"> </span><span class="nv">xarray</span><span class="o">==</span><span class="m">2024</span>.5.0
+<span class="k">RUN</span><span class="w"> </span>pip3<span class="w"> </span>install<span class="w"> </span>--force-reinstall<span class="w"> </span><span class="nv">numpy</span><span class="o">==</span><span class="m">1</span>.26.4
+</pre></div>
+</div>
+<p>The build_env target is included in the base Dockerfile which is automatically
+downloaded. It is recommended to use build_env as the base target for all new
+containers. The helps target is manually added. Note that rpy2 isn’t needed to
+download or install the helps package, it’s done here for the sake of
+consistency. To learn more about how to convert R code to Python code using
+rpy2, this guide <a class="reference internal" href="rpy2.html"><span class="doc">How to convert R code to Python code using rpy2 and run it through Scalable</span></a> can be referred to.</p>
+<p>Now, once the the target is added, it can be selected by running the
+scalable_bootstrap and selecting the new target. It will be built locally and
+uploaded automatically to the remote system.</p>
+<p>The next step would be to make functions to actually run the helps package.
+As mentioned in the guide linked above though, using rpy2 to run R code may
+cause some issues and the best way to avoid it is to import everything needed
+in a preload script. In this case, the following preload script should work:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">dask_setup</span><span class="p">(</span><span class="n">worker</span><span class="p">):</span>
+    <span class="kn">import</span> <span class="nn">rpy2.robjects.packages</span> <span class="k">as</span> <span class="nn">rpackages</span>
+    <span class="kn">import</span> <span class="nn">rpy2.robjects</span> <span class="k">as</span> <span class="nn">r</span>
+    <span class="kn">from</span> <span class="nn">rpy2.robjects</span> <span class="kn">import</span> <span class="n">StrVector</span>
+    <span class="n">helps</span> <span class="o">=</span> <span class="n">rpackages</span><span class="o">.</span><span class="n">importr</span><span class="p">(</span><span class="s1">&#39;HELPS&#39;</span><span class="p">)</span>
+    <span class="n">worker</span><span class="o">.</span><span class="n">imports</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">worker</span><span class="o">.</span><span class="n">imports</span><span class="p">[</span><span class="s1">&#39;HELPS&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">helps</span>
+    <span class="n">worker</span><span class="o">.</span><span class="n">imports</span><span class="p">[</span><span class="s1">&#39;country_raster&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">r</span><span class="p">[</span><span class="s1">&#39;country_raster&#39;</span><span class="p">]</span>
+    <span class="n">worker</span><span class="o">.</span><span class="n">imports</span><span class="p">[</span><span class="s1">&#39;reg_WB_raster&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">r</span><span class="p">[</span><span class="s1">&#39;reg_WB_raster&#39;</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>After passing the path to the preload script above to the container, the worker
+object can be imported in the target functions to then use the needed R objects.
+Please note that all the R objects that are needed should be imported in the
+preload script beforehand.</p>
+<p>The following code is an example of how the HELPS package can be used with
+scalable, and includes the target functions which will be ran on the remote
+system:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">scalable</span> <span class="kn">import</span> <span class="o">*</span>
+
+<span class="k">def</span> <span class="nf">run_heatstress</span><span class="p">(</span><span class="n">hurs_file_name</span><span class="p">,</span> <span class="n">tas_file_name</span><span class="p">,</span> <span class="n">rsds_file_name</span><span class="p">,</span> <span class="n">target_year</span><span class="p">):</span>
+    <span class="n">worker</span> <span class="o">=</span> <span class="n">get_worker</span><span class="p">()</span>
+
+    <span class="n">helps</span> <span class="o">=</span> <span class="n">worker</span><span class="o">.</span><span class="n">imports</span><span class="p">[</span><span class="s1">&#39;HELPS&#39;</span><span class="p">]</span>
+
+    <span class="c1"># generate a heat stress raster brick for the desired resolution</span>
+    <span class="n">heat_stress_raster</span> <span class="o">=</span> <span class="n">helps</span><span class="o">.</span><span class="n">cal_heat_stress</span><span class="p">(</span>
+        <span class="n">TempRes</span> <span class="o">=</span> <span class="s2">&quot;month&quot;</span><span class="p">,</span>
+        <span class="n">SECTOR</span> <span class="o">=</span> <span class="s2">&quot;SUNF_R&quot;</span><span class="p">,</span>
+        <span class="n">HS</span> <span class="o">=</span> <span class="n">helps</span><span class="o">.</span><span class="n">WBGT_ESI</span><span class="p">,</span>
+        <span class="n">YEAR_INPUT</span> <span class="o">=</span> <span class="n">target_year</span><span class="p">,</span>
+        <span class="n">a</span><span class="o">=</span><span class="n">hurs_file_name</span><span class="p">,</span>
+        <span class="n">b</span><span class="o">=</span><span class="n">tas_file_name</span><span class="p">,</span>
+        <span class="n">c</span><span class="o">=</span><span class="n">rsds_file_name</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">heat_stress_raster</span>
+
+
+<span class="k">def</span> <span class="nf">run_physical_work_capacity</span><span class="p">(</span><span class="n">heat_stress_raster</span><span class="p">):</span>
+    <span class="n">worker</span> <span class="o">=</span> <span class="n">get_worker</span><span class="p">()</span>
+
+    <span class="n">helps</span> <span class="o">=</span> <span class="n">worker</span><span class="o">.</span><span class="n">imports</span><span class="p">[</span><span class="s1">&#39;HELPS&#39;</span><span class="p">]</span>
+
+    <span class="c1"># generate physical work capacity raster brick</span>
+    <span class="n">physical_work_capacity_raster</span> <span class="o">=</span> <span class="n">helps</span><span class="o">.</span><span class="n">cal_pwc</span><span class="p">(</span>
+        <span class="n">WBGT</span> <span class="o">=</span> <span class="n">heat_stress_raster</span><span class="p">,</span>
+        <span class="n">LHR</span> <span class="o">=</span> <span class="n">helps</span><span class="o">.</span><span class="n">LHR_Hothaps</span><span class="p">,</span>
+        <span class="n">workload</span> <span class="o">=</span> <span class="s2">&quot;high&quot;</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">physical_work_capacity_raster</span>
+
+
+<span class="k">def</span> <span class="nf">run_annualized_physical_work_capacity</span><span class="p">(</span><span class="n">physical_work_capacity_raster</span><span class="p">):</span>
+    <span class="n">worker</span> <span class="o">=</span> <span class="n">get_worker</span><span class="p">()</span>
+
+    <span class="n">helps</span> <span class="o">=</span> <span class="n">worker</span><span class="o">.</span><span class="n">imports</span><span class="p">[</span><span class="s1">&#39;HELPS&#39;</span><span class="p">]</span>
+
+    <span class="c1"># aggregate physical work capacity to annual values and reformat to a data frame</span>
+    <span class="n">annualized_physical_work_capacity_df</span> <span class="o">=</span> <span class="n">helps</span><span class="o">.</span><span class="n">monthly_to_annual</span><span class="p">(</span>
+        <span class="n">input_rack</span> <span class="o">=</span> <span class="n">physical_work_capacity_raster</span><span class="p">,</span>
+        <span class="n">SECTOR</span> <span class="o">=</span> <span class="s2">&quot;SUNF_R&quot;</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">annualized_physical_work_capacity_df</span>
+
+
+<span class="k">def</span> <span class="nf">run_country_physical_work_capacity</span><span class="p">(</span><span class="n">annualized_physical_work_capacity_df</span><span class="p">):</span>
+    <span class="n">worker</span> <span class="o">=</span> <span class="n">get_worker</span><span class="p">()</span>
+
+    <span class="n">helps</span> <span class="o">=</span> <span class="n">worker</span><span class="o">.</span><span class="n">imports</span><span class="p">[</span><span class="s1">&#39;HELPS&#39;</span><span class="p">]</span>
+    <span class="n">country_raster</span> <span class="o">=</span> <span class="n">worker</span><span class="o">.</span><span class="n">imports</span><span class="p">[</span><span class="s1">&#39;country_raster&#39;</span><span class="p">]</span>
+
+    <span class="c1"># map annual physical work capacity to gridded countries</span>
+    <span class="n">country_physical_work_capacity_df</span> <span class="o">=</span> <span class="n">helps</span><span class="o">.</span><span class="n">grid_to_region</span><span class="p">(</span>
+        <span class="n">grid_annual_value</span> <span class="o">=</span> <span class="n">annualized_physical_work_capacity_df</span><span class="p">,</span>
+        <span class="n">SECTOR</span> <span class="o">=</span> <span class="s2">&quot;SUNF_R&quot;</span><span class="p">,</span>
+        <span class="n">rast_boundary</span> <span class="o">=</span> <span class="n">country_raster</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">country_physical_work_capacity_df</span>
+
+
+<span class="k">def</span> <span class="nf">run_basin_physical_work_capacity</span><span class="p">(</span><span class="n">annualized_physical_work_capacity_df</span><span class="p">):</span>
+    <span class="n">worker</span> <span class="o">=</span> <span class="n">get_worker</span><span class="p">()</span>
+
+    <span class="n">helps</span> <span class="o">=</span> <span class="n">worker</span><span class="o">.</span><span class="n">imports</span><span class="p">[</span><span class="s1">&#39;HELPS&#39;</span><span class="p">]</span>
+    <span class="n">reg_WB_raster</span> <span class="o">=</span> <span class="n">worker</span><span class="o">.</span><span class="n">imports</span><span class="p">[</span><span class="s1">&#39;reg_WB_raster&#39;</span><span class="p">]</span>
+
+    <span class="c1"># map annual physical work capacity to gridded water basins</span>
+    <span class="n">basin_physical_work_capacity_df</span> <span class="o">=</span> <span class="n">helps</span><span class="o">.</span><span class="n">grid_to_region</span><span class="p">(</span>
+        <span class="n">grid_annual_value</span> <span class="o">=</span> <span class="n">annualized_physical_work_capacity_df</span><span class="p">,</span>
+        <span class="n">SECTOR</span> <span class="o">=</span> <span class="s2">&quot;SUNF_R&quot;</span><span class="p">,</span>
+        <span class="n">rast_boundary</span> <span class="o">=</span> <span class="n">reg_WB_raster</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">basin_physical_work_capacity_df</span>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+
+    <span class="n">hurs_file_name</span> <span class="o">=</span> <span class="s2">&quot;path/to/hurs_file&quot;</span>
+    <span class="n">tas_file_name</span> <span class="o">=</span> <span class="s2">&quot;path/to/tas_file&quot;</span>
+    <span class="n">rsds_file_name</span> <span class="o">=</span> <span class="s2">&quot;path/to/rsds_file&quot;</span>
+
+    <span class="c1"># all the functions need to be ran for all the target years.</span>
+    <span class="c1"># in this case, target years would be 2015 - 2100 in 5 year increments</span>
+
+    <span class="n">target_years</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">2015</span><span class="p">,</span> <span class="mi">2105</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+
+    <span class="n">num_years</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">target_years</span><span class="p">)</span>
+
+    <span class="c1">## Creating a SlurmCluster object with the required parameters</span>
+
+    <span class="n">cluster</span> <span class="o">=</span> <span class="n">SlurmCluster</span><span class="p">(</span><span class="n">queue</span><span class="o">=</span><span class="s1">&#39;short&#39;</span><span class="p">,</span> <span class="n">walltime</span><span class="o">=</span><span class="s1">&#39;02:00:00&#39;</span><span class="p">,</span> <span class="n">account</span><span class="o">=</span><span class="s1">&#39;GCIMS&#39;</span><span class="p">,</span> <span class="n">silence_logs</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="c1">## Adding the helps container specifications. R is almost always single</span>
+    <span class="c1">## threaded so the number of cpus is set to 1. The memory is set to 8G.</span>
+    <span class="n">cluster</span><span class="o">.</span><span class="n">add_container</span><span class="p">(</span><span class="n">tag</span><span class="o">=</span><span class="s2">&quot;helps&quot;</span><span class="p">,</span> <span class="n">cpus</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">memory</span><span class="o">=</span><span class="s2">&quot;8G&quot;</span><span class="p">,</span> <span class="n">preload_script</span><span class="o">=</span><span class="s1">&#39;/path/to/preload_script.py&#39;</span><span class="p">,</span>
+    <span class="n">dirs</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;/path1&quot;</span><span class="p">:</span><span class="s2">&quot;/path1&quot;</span><span class="p">,</span> <span class="s2">&quot;/path2&quot;</span><span class="p">:</span><span class="s2">&quot;/path2&quot;</span><span class="p">})</span>
+
+    <span class="c1">## Adding workers to the cluster</span>
+    <span class="n">cluster</span><span class="o">.</span><span class="n">add_workers</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="n">num_years</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="s2">&quot;helps&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Making a client to submit jobs</span>
+    <span class="n">sc_client</span> <span class="o">=</span> <span class="n">ScalableClient</span><span class="p">(</span><span class="n">cluster</span><span class="p">)</span>
+
+
+    <span class="c1"># run helps</span>
+
+    <span class="c1"># note that the map function is used here as multiple instances of the</span>
+    <span class="c1"># same function is being ran with different inputs. This is essentially</span>
+    <span class="c1"># parallelization. To make it possible, pass in multiple lists of</span>
+    <span class="c1"># arguments to the map function. If the target function has 2 arguments</span>
+    <span class="c1"># then 2 lists of the same size should be passed. The size of the list</span>
+    <span class="c1"># will be the same as the number of instances of the target function</span>
+    <span class="c1"># that will be ran.</span>
+
+    <span class="c1"># n = 1 is used as the value for n because n specifies the number of</span>
+    <span class="c1"># workers needed for a single instance of the target function.</span>
+    <span class="n">heatstress_futures</span> <span class="o">=</span> <span class="n">sc_client</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">run_heatstress</span><span class="p">,</span> <span class="p">[</span><span class="n">hurs_file_name</span><span class="p">]</span><span class="o">*</span><span class="n">num_years</span><span class="p">,</span> <span class="p">[</span><span class="n">tas_file_name</span><span class="p">]</span><span class="o">*</span><span class="n">num_years</span><span class="p">,</span>
+                                       <span class="p">[</span><span class="n">rsds_file_name</span><span class="p">]</span><span class="o">*</span><span class="n">num_years</span><span class="p">,</span> <span class="n">target_years</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="s2">&quot;helps&quot;</span><span class="p">)</span>
+
+    <span class="n">pwc_futures</span> <span class="o">=</span> <span class="n">sc_client</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">run_physical_work_capacity</span><span class="p">,</span> <span class="n">heatstress_futures</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="s2">&quot;helps&quot;</span><span class="p">)</span>
+
+    <span class="n">annualized_pwc_futures</span> <span class="o">=</span> <span class="n">sc_client</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">run_annualized_physical_work_capacity</span><span class="p">,</span> <span class="n">pwc_futures</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="s2">&quot;helps&quot;</span><span class="p">)</span>
+
+    <span class="n">country_pwc_futures</span> <span class="o">=</span> <span class="n">sc_client</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">run_country_physical_work_capacity</span><span class="p">,</span> <span class="n">annualized_pwc_futures</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="s2">&quot;helps&quot;</span><span class="p">)</span>
+
+    <span class="n">basin_pwc_futures</span> <span class="o">=</span> <span class="n">sc_client</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">run_basin_physical_work_capacity</span><span class="p">,</span> <span class="n">annualized_pwc_futures</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="s2">&quot;helps&quot;</span><span class="p">)</span>
+
+    <span class="c1"># now the results can be gathered and then printed or written to a file</span>
+
+    <span class="n">heatstress_results</span> <span class="o">=</span> <span class="n">sc_client</span><span class="o">.</span><span class="n">gather</span><span class="p">(</span><span class="n">heatstress_futures</span><span class="p">)</span>
+    <span class="n">pwc_results</span> <span class="o">=</span> <span class="n">sc_client</span><span class="o">.</span><span class="n">gather</span><span class="p">(</span><span class="n">pwc_futures</span><span class="p">)</span>
+    <span class="n">annualized_pwc_results</span> <span class="o">=</span> <span class="n">sc_client</span><span class="o">.</span><span class="n">gather</span><span class="p">(</span><span class="n">annualized_pwc_futures</span><span class="p">)</span>
+    <span class="n">country_pwc_results</span> <span class="o">=</span> <span class="n">sc_client</span><span class="o">.</span><span class="n">gather</span><span class="p">(</span><span class="n">country_pwc_futures</span><span class="p">)</span>
+    <span class="n">basin_pwc_results</span> <span class="o">=</span> <span class="n">sc_client</span><span class="o">.</span><span class="n">gather</span><span class="p">(</span><span class="n">basin_pwc_futures</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This code will run the HELPS package on the remote HPC system. The entire guide
+highlights the process of adding a new container with a new R package and
+scaling it using Scalable. Please feel free to reach out for any more help
+regarding the same or open an issue on the Scalable GitHub repository.</p>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="issues.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Common Issues</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="demo.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Scalable Example Workflow</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2024, Joint Global Change Research Institute
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer no-toc">
+      
+      
+      
+    </aside>
+  </div>
+</div><script src="_static/documentation_options.js?v=8d563738"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>

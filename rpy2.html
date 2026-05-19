@@ -1,0 +1,539 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="./">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Scalable Example Workflow" href="demo.html"><link rel="prev" title="How to add custom containers for scalable as workers" href="container.html">
+
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+        <title>How to convert R code to Python code using rpy2 and run it through Scalable - Scalable 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=acfd86a5" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
+    <link rel="stylesheet" type="text/css" href="_static/custom.css" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="index.html"><div class="brand">Scalable 1.0.0 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="index.html">
+  
+  <span class="sidebar-brand-text">Scalable 1.0.0 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="getting_started.html">Getting Started with Scalable</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="workers.html">Worker Management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="caching.html">Caching</a></li>
+<li class="toctree-l1"><a class="reference internal" href="functions.html">Submitting Functions</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">How-tos</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="cache_hash.html">How to add custom hash functions for cacheable</a></li>
+<li class="toctree-l1"><a class="reference internal" href="container.html">How to add custom containers for scalable as workers</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">How to convert R code to Python code using rpy2 and run it through Scalable</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Demos</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="demo.html">Scalable Example Workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="helps_demo.html">A Complete Process of Adding &amp; Scaling a New Application</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Common Issues</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="issues.html">Common Issues</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="_sources/rpy2.rst.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="how-to-convert-r-code-to-python-code-using-rpy2-and-run-it-through-scalable">
+<h1>How to convert R code to Python code using rpy2 and run it through Scalable<a class="headerlink" href="#how-to-convert-r-code-to-python-code-using-rpy2-and-run-it-through-scalable" title="Link to this heading">¶</a></h1>
+<p>While using scalable, there may be multiple instances where a model which needs
+to be scaled is written in R or can only be interacted with in R. While it is
+possible to scale R code by writing it all in an Rscript and calling the script
+from Python, it is generally recommended to the R code to Python code using
+rpy2. This is to allow for better integration of such code with Python and make
+it much easier to modify inputs, get precise outputs, and debug the code.</p>
+<p>The full documentation for rpy2 can be found on this
+<a class="reference external" href="https://rpy2.github.io/doc.html">website</a>. In this guide, only the important
+methods for converting R code to Python code will be discussed which is all
+that is needed in most of the cases.</p>
+<p>Let’s look at an example with R code to convert. The
+<a class="reference external" href="https://github.com/JGCRI/HELPS">HELPS</a> package will be used to demonstrate
+the conversion. The R code is as follows:</p>
+<div class="highlight-r notranslate"><div class="highlight"><pre><span></span><span class="nf">library</span><span class="p">(</span><span class="n">HELPS</span><span class="p">)</span>
+
+<span class="c1"># test</span>
+<span class="n">esi.mon</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">cal_heat_stress</span><span class="p">(</span><span class="n">TempRes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;month&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">SECTOR</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;SUNF_R&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">HS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">WBGT_ESI</span><span class="p">,</span><span class="w"> </span><span class="n">YEAR_INPUT</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">2024</span><span class="p">,</span>
+<span class="w">                        </span><span class="s">&quot;path/hurs_mon_basd_CanESM5_W5E5v2_GCAM_ref_2015.nc&quot;</span><span class="p">,</span>
+<span class="w">                        </span><span class="s">&quot;path/tas_mon_basd_CanESM5_W5E5v2_GCAM_ref_2015-2100.nc&quot;</span><span class="p">,</span>
+<span class="w">                        </span><span class="s">&quot;path/rsds_mon_basd_CanESM5_W5E5v2_GCAM_ref_2015.nc&quot;</span><span class="p">)</span>
+
+
+<span class="n">pwc.mon.hothaps</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">cal_pwc</span><span class="p">(</span><span class="n">WBGT</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">esi.mon</span><span class="p">,</span><span class="w">  </span><span class="n">LHR</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">LHR_Hothaps</span><span class="p">,</span><span class="w"> </span><span class="n">workload</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;high&quot;</span><span class="p">)</span>
+<span class="n">pwc.hothaps.ann</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">monthly_to_annual</span><span class="p">(</span><span class="n">input_rack</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pwc.mon.hothaps</span><span class="p">,</span><span class="w"> </span><span class="n">SECTOR</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;SUNF_R&quot;</span><span class="p">)</span>
+<span class="n">ctry_pwc</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">grid_to_region</span><span class="p">(</span><span class="n">grid_annual_value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pwc.hothaps.ann</span><span class="p">,</span><span class="w"> </span><span class="n">SECTOR</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;SUNF_R&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">rast_boundary</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">country_raster</span><span class="p">)</span>
+<span class="n">glu_pwc</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">grid_to_region</span><span class="p">(</span><span class="n">grid_annual_value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">pwc.hothaps.ann</span><span class="p">,</span><span class="w"> </span><span class="n">SECTOR</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;SUNF_R&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">rast_boundary</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">reg_WB_raster</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>A simple conversion of the above code to Python code using rpy2 is as follows:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">rpy2.robjects.packages</span> <span class="k">as</span> <span class="nn">rpackages</span>
+<span class="kn">import</span> <span class="nn">rpy2.robjects</span> <span class="k">as</span> <span class="nn">robjects</span>
+
+<span class="n">helps</span> <span class="o">=</span> <span class="n">rpackages</span><span class="o">.</span><span class="n">importr</span><span class="p">(</span><span class="s1">&#39;HELPS&#39;</span><span class="p">)</span>
+
+<span class="n">esi_mon</span> <span class="o">=</span> <span class="n">helps</span><span class="o">.</span><span class="n">cal_heat_stress</span><span class="p">(</span><span class="n">TempRes</span> <span class="o">=</span> <span class="s2">&quot;month&quot;</span><span class="p">,</span> <span class="n">SECTOR</span> <span class="o">=</span> <span class="s2">&quot;SUNF_R&quot;</span><span class="p">,</span> <span class="n">HS</span> <span class="o">=</span> <span class="n">helps</span><span class="o">.</span><span class="n">WBGT_ESI</span><span class="p">,</span> <span class="n">YEAR_INPUT</span> <span class="o">=</span> <span class="mi">2024</span><span class="p">,</span>
+                                <span class="n">a</span><span class="o">=</span><span class="s2">&quot;hurs_mon_basd_CanESM5_W5E5v2_GCAM_ref_2015-2100.nc&quot;</span><span class="p">,</span>
+                                <span class="n">b</span><span class="o">=</span><span class="s2">&quot;tas_mon_basd_CanESM5_W5E5v2_GCAM_ref_2015-2100.nc&quot;</span><span class="p">,</span>
+                                <span class="n">c</span><span class="o">=</span><span class="s2">&quot;rsds_mon_basd_CanESM5_W5E5v2_GCAM_ref_2015-2100.nc&quot;</span><span class="p">)</span>
+
+<span class="n">pwc_mon_hothaps</span> <span class="o">=</span> <span class="n">helps</span><span class="o">.</span><span class="n">cal_pwc</span><span class="p">(</span><span class="n">WBGT</span> <span class="o">=</span> <span class="n">esi_mon</span><span class="p">,</span>  <span class="n">LHR</span> <span class="o">=</span> <span class="n">helps</span><span class="o">.</span><span class="n">LHR_Hothaps</span><span class="p">,</span> <span class="n">workload</span> <span class="o">=</span> <span class="s2">&quot;high&quot;</span><span class="p">)</span>
+<span class="n">pwc_hothaps_ann</span> <span class="o">=</span> <span class="n">helps</span><span class="o">.</span><span class="n">monthly_to_annual</span><span class="p">(</span><span class="n">input_rack</span> <span class="o">=</span> <span class="n">pwc_mon_hothaps</span><span class="p">,</span> <span class="n">SECTOR</span> <span class="o">=</span> <span class="s2">&quot;SUNF_R&quot;</span><span class="p">)</span>
+
+<span class="n">country_raster</span> <span class="o">=</span> <span class="n">robjects</span><span class="o">.</span><span class="n">r</span><span class="p">[</span><span class="s1">&#39;country_raster&#39;</span><span class="p">]</span>
+<span class="n">ctry_pwc</span> <span class="o">=</span> <span class="n">helps</span><span class="o">.</span><span class="n">grid_to_region</span><span class="p">(</span><span class="n">grid_annual_value</span> <span class="o">=</span> <span class="n">pwc_hothaps_ann</span><span class="p">,</span> <span class="n">SECTOR</span> <span class="o">=</span> <span class="s2">&quot;SUNF_R&quot;</span><span class="p">,</span> <span class="n">rast_boundary</span> <span class="o">=</span> <span class="n">country_raster</span><span class="p">)</span>
+
+<span class="n">reg_WB_raster</span> <span class="o">=</span> <span class="n">robjects</span><span class="o">.</span><span class="n">r</span><span class="p">[</span><span class="s1">&#39;reg_WB_raster&#39;</span><span class="p">]</span>
+<span class="n">glu_pwc</span> <span class="o">=</span> <span class="n">helps</span><span class="o">.</span><span class="n">grid_to_region</span><span class="p">(</span><span class="n">grid_annual_value</span> <span class="o">=</span> <span class="n">pwc_hothaps_ann</span><span class="p">,</span> <span class="n">SECTOR</span> <span class="o">=</span> <span class="s2">&quot;SUNF_R&quot;</span><span class="p">,</span> <span class="n">rast_boundary</span> <span class="o">=</span> <span class="n">reg_WB_raster</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The above code is a simple conversion of the R code to Python code using rpy2.
+A couple of important things to note are:</p>
+<ul class="simple">
+<li><p>The HELPS package is imported at <code class="docutils literal notranslate"><span class="pre">helps</span> <span class="pre">=</span> <span class="pre">rpackages.importr('HELPS')</span></code>.
+This is similar to importing a package in R using <code class="docutils literal notranslate"><span class="pre">library(HELPS)</span></code>.
+Unlike R, all the functions in a package are not automatically imported.
+Instead an object is created whose attributes corresponds to the methods in
+that package.</p></li>
+<li><p>If there are functions or values in the R code which are either not defined
+in any particular package, are defined in the global environment, or it’s
+simply unknown where exactly they may reside then the <code class="docutils literal notranslate"><span class="pre">robjects.r</span></code> object
+can be used to access them. For example, in the above code, the
+<code class="docutils literal notranslate"><span class="pre">country_raster</span></code> and <code class="docutils literal notranslate"><span class="pre">reg_WB_raster</span></code> functions are not defined in the
+HELPS package, and without any knowledge where they may reside, the
+<code class="docutils literal notranslate"><span class="pre">robjects.r</span></code> object can be used to access by just looking up the name of
+the function or value in the R code. Another example is if <code class="docutils literal notranslate"><span class="pre">pi</span></code> is used
+in the R code, then it can be accessed in Python using
+<code class="docutils literal notranslate"><span class="pre">pi</span> <span class="pre">=</span> <span class="pre">robjects.r['pi']</span></code>.</p></li>
+<li><p>A more subtle point to note is that the <code class="docutils literal notranslate"><span class="pre">HeatStress</span></code> function in R takes
+three positional arguments at the end. These are matched to the <code class="docutils literal notranslate"><span class="pre">...</span></code>
+argument in the R code. However, no positional arguments should be passed
+to the rpy2 function in python to avoid confusion. To make sure that the
+extra arguments get matched with <code class="docutils literal notranslate"><span class="pre">...</span></code> internally, arbitrary names can
+be used for the arguments. In the above code, such arguments are named
+<code class="docutils literal notranslate"><span class="pre">a</span></code>, <code class="docutils literal notranslate"><span class="pre">b</span></code>, and <code class="docutils literal notranslate"><span class="pre">c</span></code>.</p></li>
+</ul>
+<p>These are the only two important things to note when converting R code to
+Python code using rpy2 in most cases. The rest of the code can be converted
+directly by just replacing the R syntax with Python syntax.</p>
+<section id="running-r-code-through-scalable">
+<h2>Running R code through Scalable<a class="headerlink" href="#running-r-code-through-scalable" title="Link to this heading">¶</a></h2>
+<p>Running R code on scalable, while ensuring that no unexpected behavior occurs,
+can be a little tricky. While making functions having code similar to the above
+example can work to run them through scalable, a crucial step should be taken
+to avoid any unexpected behavior. This step involves a preload script. Let’s
+look at another example. Let’s say the python functions below are desired to be
+run through scalable:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">run_annualized_physical_work_capacity</span><span class="p">(</span><span class="n">physical_work_capacity_raster</span><span class="p">):</span>
+    <span class="kn">import</span> <span class="nn">rpy2.robjects.packages</span> <span class="k">as</span> <span class="nn">rpackages</span>
+
+    <span class="n">helps</span> <span class="o">=</span> <span class="n">rpackages</span><span class="o">.</span><span class="n">importr</span><span class="p">(</span><span class="s1">&#39;HELPS&#39;</span><span class="p">)</span>
+
+    <span class="c1"># aggregate physical work capacity to annual values and reformat to a data frame</span>
+    <span class="n">annualized_physical_work_capacity_df</span> <span class="o">=</span> <span class="n">helps</span><span class="o">.</span><span class="n">monthly_to_annual</span><span class="p">(</span>
+        <span class="n">input_rack</span> <span class="o">=</span> <span class="n">physical_work_capacity_raster</span><span class="p">,</span>
+        <span class="n">SECTOR</span> <span class="o">=</span> <span class="s2">&quot;SUNF_R&quot;</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">annualized_physical_work_capacity_df</span>
+
+
+<span class="k">def</span> <span class="nf">run_country_physical_work_capacity</span><span class="p">(</span><span class="n">annualized_physical_work_capacity_df</span><span class="p">):</span>
+    <span class="kn">import</span> <span class="nn">rpy2.robjects.packages</span> <span class="k">as</span> <span class="nn">rpackages</span>
+    <span class="kn">import</span> <span class="nn">rpy2.robjects</span> <span class="k">as</span> <span class="nn">robjects</span>
+
+    <span class="n">helps</span> <span class="o">=</span> <span class="n">rpackages</span><span class="o">.</span><span class="n">importr</span><span class="p">(</span><span class="s1">&#39;HELPS&#39;</span><span class="p">)</span>
+    <span class="n">country_raster</span> <span class="o">=</span> <span class="n">robjects</span><span class="o">.</span><span class="n">r</span><span class="p">[</span><span class="s1">&#39;country_raster&#39;</span><span class="p">]</span>
+
+    <span class="c1"># map annual physical work capacity to gridded countries</span>
+    <span class="n">country_physical_work_capacity_df</span> <span class="o">=</span> <span class="n">helps</span><span class="o">.</span><span class="n">grid_to_region</span><span class="p">(</span>
+        <span class="n">grid_annual_value</span> <span class="o">=</span> <span class="n">annualized_physical_work_capacity_df</span><span class="p">,</span>
+        <span class="n">SECTOR</span> <span class="o">=</span> <span class="s2">&quot;SUNF_R&quot;</span><span class="p">,</span>
+        <span class="n">rast_boundary</span> <span class="o">=</span> <span class="n">country_raster</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">country_physical_work_capacity_df</span>
+</pre></div>
+</div>
+<p>The above functions would run fine in most cases through scalable. However,
+since rpy2 launches an implicit R session when it is imported, it is important
+to ensure that the R session is launched before the functions are run to
+prevent deadlocks or multiple R sessions from being launched. This can be done
+with the use of a preload python script. All this script needs to do is import
+rpy2 and everything that may be needed in any of the functions. It should look
+something like this if the above functions are to be run:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">dask_setup</span><span class="p">(</span><span class="n">worker</span><span class="p">):</span>
+    <span class="kn">import</span> <span class="nn">rpy2.robjects.packages</span> <span class="k">as</span> <span class="nn">rpackages</span>
+    <span class="kn">import</span> <span class="nn">rpy2.robjects</span> <span class="k">as</span> <span class="nn">r</span>
+    <span class="kn">from</span> <span class="nn">rpy2.robjects</span> <span class="kn">import</span> <span class="n">StrVector</span>
+    <span class="n">helps</span> <span class="o">=</span> <span class="n">rpackages</span><span class="o">.</span><span class="n">importr</span><span class="p">(</span><span class="s1">&#39;HELPS&#39;</span><span class="p">)</span>
+    <span class="n">terra</span> <span class="o">=</span> <span class="n">rpackages</span><span class="o">.</span><span class="n">importr</span><span class="p">(</span><span class="s1">&#39;terra&#39;</span><span class="p">)</span>
+    <span class="n">arrow</span> <span class="o">=</span> <span class="n">rpackages</span><span class="o">.</span><span class="n">importr</span><span class="p">(</span><span class="s1">&#39;arrow&#39;</span><span class="p">)</span>
+    <span class="n">worker</span><span class="o">.</span><span class="n">imports</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">worker</span><span class="o">.</span><span class="n">imports</span><span class="p">[</span><span class="s1">&#39;HELPS&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">helps</span>
+    <span class="n">worker</span><span class="o">.</span><span class="n">imports</span><span class="p">[</span><span class="s1">&#39;terra&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">terra</span>
+    <span class="n">worker</span><span class="o">.</span><span class="n">imports</span><span class="p">[</span><span class="s1">&#39;arrow&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">arrow</span>
+    <span class="n">worker</span><span class="o">.</span><span class="n">imports</span><span class="p">[</span><span class="s1">&#39;country_raster&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">r</span><span class="p">[</span><span class="s1">&#39;country_raster&#39;</span><span class="p">]</span>
+    <span class="n">worker</span><span class="o">.</span><span class="n">imports</span><span class="p">[</span><span class="s1">&#39;reg_WB_raster&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">r</span><span class="p">[</span><span class="s1">&#39;reg_WB_raster&#39;</span><span class="p">]</span>
+    <span class="n">worker</span><span class="o">.</span><span class="n">imports</span><span class="p">[</span><span class="s1">&#39;StrVector&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">StrVector</span>
+</pre></div>
+</div>
+<p>The script above calls the <code class="docutils literal notranslate"><span class="pre">dask_setup</span></code> function with the worker argument.
+In this function, everything that may be needed from the R environment is
+imported and stored in the worker.imports dictionary. This dictionary is then
+used to import the necessary objects in the functions. The path to the preload
+script just needs to be passed into the <code class="docutils literal notranslate"><span class="pre">PreloadScript</span></code> argument in the
+scalable <code class="docutils literal notranslate"><span class="pre">add_container</span></code> function. The original functions also need to be
+modified a little to use the objects created in the preload script.</p>
+<p>The modified functions would look like this:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">scalable</span> <span class="kn">import</span> <span class="o">*</span>
+
+<span class="k">def</span> <span class="nf">run_annualized_physical_work_capacity</span><span class="p">(</span><span class="n">physical_work_capacity_raster</span><span class="p">):</span>
+    <span class="n">worker</span> <span class="o">=</span> <span class="n">get_worker</span><span class="p">()</span>
+    <span class="n">helps</span> <span class="o">=</span> <span class="n">worker</span><span class="o">.</span><span class="n">imports</span><span class="p">[</span><span class="s1">&#39;HELPS&#39;</span><span class="p">]</span>
+
+    <span class="c1"># aggregate physical work capacity to annual values and reformat to a data frame</span>
+    <span class="n">annualized_physical_work_capacity_df</span> <span class="o">=</span> <span class="n">helps</span><span class="o">.</span><span class="n">monthly_to_annual</span><span class="p">(</span>
+        <span class="n">input_rack</span> <span class="o">=</span> <span class="n">physical_work_capacity_raster</span><span class="p">,</span>
+        <span class="n">SECTOR</span> <span class="o">=</span> <span class="s2">&quot;SUNF_R&quot;</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">annualized_physical_work_capacity_df</span>
+
+<span class="k">def</span> <span class="nf">run_country_physical_work_capacity</span><span class="p">(</span><span class="n">annualized_physical_work_capacity_df</span><span class="p">):</span>
+    <span class="n">worker</span> <span class="o">=</span> <span class="n">get_worker</span><span class="p">()</span>
+    <span class="n">helps</span> <span class="o">=</span> <span class="n">worker</span><span class="o">.</span><span class="n">imports</span><span class="p">[</span><span class="s1">&#39;HELPS&#39;</span><span class="p">]</span>
+    <span class="n">country_raster</span> <span class="o">=</span> <span class="n">worker</span><span class="o">.</span><span class="n">imports</span><span class="p">[</span><span class="s1">&#39;country_raster&#39;</span><span class="p">]</span>
+
+    <span class="c1"># map annual physical work capacity to gridded countries</span>
+    <span class="n">country_physical_work_capacity_df</span> <span class="o">=</span> <span class="n">helps</span><span class="o">.</span><span class="n">grid_to_region</span><span class="p">(</span>
+        <span class="n">grid_annual_value</span> <span class="o">=</span> <span class="n">annualized_physical_work_capacity_df</span><span class="p">,</span>
+        <span class="n">SECTOR</span> <span class="o">=</span> <span class="s2">&quot;SUNF_R&quot;</span><span class="p">,</span>
+        <span class="n">rast_boundary</span> <span class="o">=</span> <span class="n">country_raster</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">country_physical_work_capacity_df</span>
+</pre></div>
+</div>
+<p>The above functions can now be run through scalable without any issues. As a
+reminder, the <code class="docutils literal notranslate"><span class="pre">add_container</span></code> function should be called with the preload
+script path passed into the <code class="docutils literal notranslate"><span class="pre">preload_script</span></code> argument. It should look
+something like this:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">scalable</span> <span class="kn">import</span> <span class="o">*</span>
+
+<span class="n">cluster</span> <span class="o">=</span> <span class="n">SlurmCluster</span><span class="p">(</span>
+    <span class="n">queue</span><span class="o">=</span><span class="s1">&#39;short&#39;</span><span class="p">,</span>
+    <span class="n">walltime</span><span class="o">=</span><span class="s1">&#39;02:00:00&#39;</span><span class="p">,</span>
+    <span class="n">account</span><span class="o">=</span><span class="s1">&#39;GCIMS&#39;</span><span class="p">,</span>
+    <span class="n">silence_logs</span><span class="o">=</span><span class="kc">False</span>
+<span class="p">)</span>
+
+<span class="n">cluster</span><span class="o">.</span><span class="n">add_container</span><span class="p">(</span>
+    <span class="n">tag</span><span class="o">=</span><span class="s1">&#39;HELPS&#39;</span><span class="p">,</span>
+    <span class="c1"># 1 cpu since R is single-threaded</span>
+    <span class="n">cpus</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">memory</span><span class="o">=</span><span class="s1">&#39;8GB&#39;</span><span class="p">,</span>
+    <span class="n">preload_script</span><span class="o">=</span><span class="s1">&#39;path/to/preload_script.py&#39;</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>Ensuring that the above steps are used to run R code through scalable will
+prevent any unexpected behavior. The above steps are general and should work
+for most cases where R code needs to be run through scalable.</p>
+<p>If any issues arise or any help is needed converting a specific piece of code,
+please feel free to open an issue on the scalable github repo
+<a class="reference external" href="https://github.com/JGCRI/scalable/issues">here</a>.</p>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="demo.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Scalable Example Workflow</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="container.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">How to add custom containers for scalable as workers</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2024, Joint Global Change Research Institute
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">How to convert R code to Python code using rpy2 and run it through Scalable</a><ul>
+<li><a class="reference internal" href="#running-r-code-through-scalable">Running R code through Scalable</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="_static/documentation_options.js?v=8d563738"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>
