@@ -7,6 +7,7 @@
 [![PyPI](https://img.shields.io/pypi/v/scalable.svg)](https://pypi.org/project/scalable/)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://pypi.org/project/scalable/)
 [![Docs](https://readthedocs.org/projects/scalable/badge/?version=latest)](https://jgcri.github.io/scalable/)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.15487700.svg)](https://doi.org/10.5281/zenodo.20295640)
 
 Scalable is a Python framework for orchestrating containerized, distributed workflows on HPC systems, Kubernetes clusters, and cloud providers. It integrates container lifecycle management, scheduler-aware resource provisioning, a Dask-based execution model, optional AI assistants, and ML-driven optimization so multi-stage scientific workflows can run consistently at scale.
 
