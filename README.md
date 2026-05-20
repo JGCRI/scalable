@@ -35,6 +35,15 @@ Scalable is a Python framework for orchestrating containerized, distributed work
 
 Full documentation is available at [jgcri.github.io/scalable](https://jgcri.github.io/scalable/).
 
+### Tutorials
+
+Scalable includes two sets of tutorials:
+
+- **[Beginner Tutorials](notebooks/beginner/)** — Start here if you are new to Scalable or unfamiliar with distributed computing, containers, cloud infrastructure, or declarative programming. These tutorials explain every concept from first principles with analogies and definitions.
+- **[Advanced Tutorials](notebooks/advanced/)** — Production-focused tutorials for users already comfortable with distributed systems concepts.
+
+Both are available as [interactive Jupyter notebooks](notebooks/) and as [comprehensive RST documentation](docs/tutorials/).
+
 ## Installation
 
 Install from PyPI:

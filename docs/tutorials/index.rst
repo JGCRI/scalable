@@ -17,10 +17,21 @@ Beginner Tutorials
 
    beginner/index
 
-**New to distributed computing?** Start with the beginner tutorials. They cover
-the same 10 topics as the standard tutorials below but explain all concepts
-from first principles — no prior distributed systems, cloud, or container
-experience required.
+.. tip::
+
+   **New to Scalable or distributed computing?** Start with the beginner
+   tutorials above. They cover the same 10 topics as the advanced tutorials
+   below but explain every concept from first principles — no prior distributed
+   systems, cloud, or container experience required. Once you're comfortable
+   with the concepts, graduate to the advanced tutorials for production patterns.
+
+Advanced Tutorials
+===================
+
+The following advanced tutorials assume familiarity with distributed computing
+concepts. If terms like "workers," "schedulers," "containers," or "declarative
+programming" are unfamiliar, please start with the :ref:`beginner_tutorials`
+above.
 
 Getting Started
 ---------------

@@ -4,7 +4,7 @@ Interactive Jupyter notebooks designed for **non-experts** who are new to both S
 
 ## How These Differ from Standard Notebooks
 
-The standard notebooks (in `../notebooks/`) assume familiarity with distributed computing, YAML, containers, and cloud infrastructure. These beginner notebooks:
+The advanced notebooks (in `../advanced/`) assume familiarity with distributed computing, YAML, containers, and cloud infrastructure. These beginner notebooks:
 
 - 📖 **Define every term** before using it
 - 🤔 **Explain why** approaches were chosen (not just how to use them)
@@ -63,4 +63,4 @@ Notebooks are designed to be run sequentially (1 → 10). Each is self-contained
 
 ## Graduating to Standard Notebooks
 
-After completing these beginner notebooks, move to the [standard notebooks](../notebooks/) for deeper technical content and production patterns. Each beginner notebook maps 1:1 to a standard notebook covering the same topic at a more advanced level.
+After completing these beginner notebooks, move to the [advanced notebooks](../advanced/) for deeper technical content and production patterns. Each beginner notebook maps 1:1 to a standard notebook covering the same topic at a more advanced level.

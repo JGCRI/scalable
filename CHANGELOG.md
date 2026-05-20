@@ -25,7 +25,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Beginner Tutorial 9: Machine Learning for Smarter Workflows (surrogates, uncertainty, active learning)
   - Beginner Tutorial 10: AI-Assisted Workflow Development (LLMs, heuristics, code generation)
   - Companion Jupyter notebooks for all 10 tutorials with interactive examples
-  - Tutorials index page with learning path and graduation guide to standard tutorials
+  - Tutorials index page with learning path and graduation guide to advanced tutorials
+- **Reorganized notebook directory structure**:
+  - Original notebooks moved to `notebooks/advanced/`
+  - Beginner notebooks in `notebooks/beginner/`
+  - Top-level `notebooks/README.md` directs users to appropriate track
+- **Documentation recommends beginner path**: `README.md`, `docs/getting_started.rst`,
+  and `docs/tutorials/index.rst` now recommend starting with beginner tutorials for
+  users unfamiliar with distributed computing concepts.
 
 ---
 

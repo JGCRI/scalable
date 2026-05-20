@@ -138,6 +138,8 @@ Next Steps
 
 After setup:
 
+* **New to distributed computing?** Start with the :ref:`beginner_tutorials`
+  for a guided introduction that explains all concepts from first principles.
 * For declarative workflows, start with :doc:`manifest` and :doc:`providers`.
 * Use manifest overlays for environment-specific overrides: :doc:`overlays`.
 * Review run telemetry in :doc:`telemetry`.
