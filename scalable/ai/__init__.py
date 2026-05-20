@@ -10,6 +10,20 @@ This package provides AI-assisted features including:
 
 All features have a **heuristic fallback** that works without any LLM backend.
 LLM enhancement is opt-in via ``SCALABLE_AI_BACKEND`` env var.
+
+Architecture
+------------
+The AI subsystem has two layers:
+
+1. **Legacy backend** (:mod:`scalable.ai.backend`) — simple completion-based
+   interface used by the original agent modules. Maintained for backward
+   compatibility.
+
+2. **PydanticAI agents** (:mod:`scalable.ai.agents`) — the recommended
+   approach using structured output validation, type-safe dependency injection,
+   tool registration, retry mechanisms, and multi-agent coordination patterns.
+   Supports all major providers (OpenAI, Anthropic, Google Gemini, Groq,
+   Ollama) through a unified interface.
 """
 
 from __future__ import annotations

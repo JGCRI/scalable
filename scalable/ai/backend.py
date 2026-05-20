@@ -4,9 +4,17 @@ The backend system supports:
 
 * ``none`` — heuristic-only mode (no LLM calls)
 * ``openai`` — OpenAI-compatible API (requires ``openai`` package)
+* ``anthropic`` — Anthropic Claude models (requires ``anthropic`` package)
+* ``google`` — Google Gemini models (requires ``google-generativeai`` package)
+* ``groq`` — Groq inference (requires ``groq`` package)
 * ``ollama`` — local Ollama server (requires running Ollama instance)
 
 Backend selection is controlled by ``SCALABLE_AI_BACKEND`` env var.
+
+.. note::
+    The PydanticAI-based agent system in :mod:`scalable.ai.agents` is the
+    recommended approach for new code. This legacy backend module is maintained
+    for backward compatibility and as a fallback for simple completion tasks.
 """
 
 from __future__ import annotations
@@ -191,9 +199,127 @@ class OllamaBackend:
             return False
 
 
+class AnthropicBackend:
+    """Anthropic Claude backend (requires ``anthropic`` package)."""
+
+    name: str = "anthropic"
+
+    def __init__(
+        self,
+        *,
+        model: str | None = None,
+        api_key: str | None = None,
+    ) -> None:
+        self._model = model or getattr(settings, "ai_model", None) or "claude-sonnet-4-20250514"
+        self._api_key = api_key
+
+    def complete(
+        self,
+        prompt: str,
+        *,
+        system: str | None = None,
+        temperature: float = 0.0,
+        max_tokens: int = 4096,
+    ) -> str:
+        try:
+            import anthropic  # type: ignore[import-untyped]
+        except ImportError as exc:
+            raise ImportError(
+                "Anthropic backend requires the 'anthropic' package. "
+                "Install with: pip install anthropic"
+            ) from exc
+
+        import os
+        kwargs: dict[str, Any] = {}
+        if self._api_key:
+            kwargs["api_key"] = self._api_key
+
+        client = anthropic.Anthropic(**kwargs)
+        messages: list[dict[str, str]] = [{"role": "user", "content": prompt}]
+
+        create_kwargs: dict[str, Any] = {
+            "model": self._model,
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+        }
+        if system:
+            create_kwargs["system"] = system
+
+        response = client.messages.create(**create_kwargs)
+        return response.content[0].text if response.content else ""
+
+    def available(self) -> bool:
+        try:
+            import anthropic  # type: ignore[import-untyped]  # noqa: F401
+            import os
+            return bool(os.environ.get("ANTHROPIC_API_KEY") or self._api_key)
+        except ImportError:
+            return False
+
+
+class GoogleBackend:
+    """Google Gemini backend (requires ``google-generativeai`` package)."""
+
+    name: str = "google"
+
+    def __init__(
+        self,
+        *,
+        model: str | None = None,
+        api_key: str | None = None,
+    ) -> None:
+        self._model = model or getattr(settings, "ai_model", None) or "gemini-1.5-pro"
+        self._api_key = api_key
+
+    def complete(
+        self,
+        prompt: str,
+        *,
+        system: str | None = None,
+        temperature: float = 0.0,
+        max_tokens: int = 4096,
+    ) -> str:
+        try:
+            import google.generativeai as genai  # type: ignore[import-untyped]
+        except ImportError as exc:
+            raise ImportError(
+                "Google backend requires the 'google-generativeai' package. "
+                "Install with: pip install google-generativeai"
+            ) from exc
+
+        import os
+        api_key = self._api_key or os.environ.get("GOOGLE_API_KEY")
+        if api_key:
+            genai.configure(api_key=api_key)
+
+        model = genai.GenerativeModel(
+            self._model,
+            system_instruction=system,
+        )
+        response = model.generate_content(
+            prompt,
+            generation_config=genai.GenerationConfig(
+                temperature=temperature,
+                max_output_tokens=max_tokens,
+            ),
+        )
+        return response.text if response.text else ""
+
+    def available(self) -> bool:
+        try:
+            import google.generativeai  # type: ignore[import-untyped]  # noqa: F401
+            import os
+            return bool(os.environ.get("GOOGLE_API_KEY") or self._api_key)
+        except ImportError:
+            return False
+
+
 _BACKEND_REGISTRY: dict[str, type] = {
     "none": NoOpBackend,
     "openai": OpenAIBackend,
+    "anthropic": AnthropicBackend,
+    "google": GoogleBackend,
     "ollama": OllamaBackend,
 }
 
