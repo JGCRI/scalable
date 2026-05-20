@@ -8,7 +8,7 @@ The workflow demonstrates how Scalable coordinates a small integrated modeling
 pipeline across multiple software environments. GCAM runs first to generate a
 model database, a lightweight extraction step reads the needed time series from
 that database, and Stitches uses the extracted trajectory to build gridded
-climate outputs. Each stage is submitted as a normal Python function, but
+weather outputs. Each stage is submitted as a normal Python function, but
 Scalable decides which container profile should execute it and passes results
 between stages as Dask futures.
 
@@ -192,7 +192,7 @@ between GCAM time points with linearly interpolated values.
         return new_years, new_values
 
 ``stitch_prep`` transforms the GCAM query result into the target format expected
-by Stitches. It loads a matching archive, selects candidate climate-model data,
+by Stitches. It loads a matching archive, selects candidate weather-model data,
 interpolates the GCAM trajectory, normalizes the values relative to the
 1975--2014 baseline, and builds a Stitches recipe describing which archive
 segments should be combined to match the target trajectory.

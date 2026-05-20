@@ -437,7 +437,7 @@ scalable diagnose --latest --no-ai
 scalable explain plan.json
 
 # Generate a workflow from natural language
-scalable compose "Run GCAM reference scenario then Stitches for daily climate"
+scalable compose "Run GCAM reference scenario then Stitches for daily weather"
 
 # Propose manifest migration to a new provider
 scalable migrate scalable.yaml --to-provider kubernetes

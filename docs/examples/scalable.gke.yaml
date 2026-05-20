@@ -3,14 +3,14 @@
 
 version: 1
 project:
-  name: climate-model-gke
+  name: energy-model-gke
   default_storage: gs://my-bucket/scalable-runs/
 
 targets:
   gke:
     provider: kubernetes
-    namespace: climate-prod
-    image: gcr.io/my-project/climate-model:latest
+    namespace: energy-prod
+    image: gcr.io/my-project/energy-model:latest
     adaptive:
       minimum: 2
       maximum: 20
@@ -21,7 +21,7 @@ components:
     image: gcr.io/my-project/gcam:7.0
     cpus: 8
     memory: 32G
-    tags: [multi-sector-dynamics, climate]
+    tags: [multi-sector-dynamics, energy]
     env:
       GCAM_DATA: /data/gcam
 
@@ -53,7 +53,7 @@ overlays:
   gke-dev:
     targets:
       gke:
-        namespace: climate-dev
+        namespace: energy-dev
         adaptive:
           minimum: 1
           maximum: 5

@@ -12,7 +12,7 @@ The Big Picture
 ----------------
 
 Imagine you have a Python script that processes data — maybe it analyzes
-climate scenarios, runs simulations, or trains models. When the data grows,
+energy scenarios, runs simulations, or trains models. When the data grows,
 running everything on your laptop becomes painfully slow. You need a way to
 split the work across multiple processors (or multiple computers) without
 rewriting your entire program.
@@ -451,7 +451,7 @@ Now let's write the Python function that does actual work. Create
    def analyze_scenario(scenario_id: int) -> dict:
        """Simulate an analysis task.
 
-       In a real workflow this might run a climate model, process
+       In a real workflow this might run an energy model, process
        satellite data, or train a machine learning model. Here we
        just simulate work with a sleep.
        """

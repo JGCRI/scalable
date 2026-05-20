@@ -3,7 +3,7 @@ How to add custom containers for scalable as workers
 
 Containers are quite central to scalable. Everything runs in a container to 
 maintain isolation and reproducibility. A Dockerfile is provided with scalable 
-which has targets for in-house JGCRI climate models. However, these targets can 
+which has targets for in-house JGCRI energy models. However, these targets can
 either be modified or extended to have custom ones. In the provided Dockerfile,
 all the targets are built from a base or "build_env" target. Let's look at this
 target:
@@ -32,8 +32,8 @@ target:
     RUN python3 -m pip install -U pip
 
 
-The target above details the libraries and packages needed for most JGCRI 
-climate models. Not all of these libraries are needed for any one model but 
+The target above details the libraries and packages needed for most JGCRI
+energy models. Not all of these libraries are needed for any one model but
 most are useful in general. Now, let's look at a target for scalable itself and
 a specific model, in this case demeter:
 
@@ -59,8 +59,8 @@ a specific model, in this case demeter:
     RUN pip3 install --force-reinstall numpy==1.26.4
 
 Right off the bat, one thing that stands out is the force reinstallation of 
-xarray and numpy. This is because the versions of these libraries used in most, 
-if not all, JGCRI climate models are not the latest. So, this is done to ensure 
+xarray and numpy. This is because the versions of these libraries used in most,
+if not all, JGCRI energy models are not the latest. So, this is done to ensure
 that nothing breaks when the models are ran. While different containers can 
 have different environments, libraries like numpy, xarry, and dask are used 
 by all models and should have the same versions in all the containers. Python 
