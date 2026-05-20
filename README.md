@@ -61,6 +61,51 @@ git clone https://github.com/JGCRI/scalable.git
 pip install ./scalable
 ```
 
+### Development Install (Editable Mode)
+
+For local development — where you want code changes to take effect immediately
+without reinstalling — clone the repository and install in **editable mode**
+(`-e`) inside a virtual environment:
+
+```bash
+# Clone the repository
+git clone https://github.com/JGCRI/scalable.git
+cd scalable
+
+# Create and activate a virtual environment
+python -m venv .venv
+source .venv/bin/activate   # Linux / macOS
+# .venv\Scripts\activate    # Windows (cmd / PowerShell)
+
+# Install in editable mode with dev/test dependencies
+pip install -e ".[dev]"
+```
+
+The `-e` flag (short for `--editable`) creates a link from the virtual
+environment's site-packages back to your working tree so that any edits to
+source files under `scalable/` are reflected immediately — no reinstall
+required.
+
+**Why use a virtual environment?**
+A virtual environment isolates project dependencies from your system Python
+and other projects. This prevents version conflicts and makes dependency
+management reproducible.
+
+After installation you can verify the setup:
+
+```bash
+# Confirm the package is installed in editable mode
+pip show scalable          # Location should point to your clone
+python -c "import scalable; print(scalable.__version__)"
+
+# Run the test suite
+pytest
+```
+
+> **Tip:** If you only need to run Scalable (not develop it), a plain
+> `pip install ./scalable` inside a virtual environment is sufficient and
+> avoids installing test/lint tooling.
+
 ### Optional extras
 
 Scalable provides optional dependency groups for extended features:

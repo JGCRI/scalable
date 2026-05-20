@@ -24,6 +24,86 @@ from the checkout.
     pip install ./scalable
 
 
+Development Install (Editable Mode)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For local development — where you want code changes to take effect immediately
+without reinstalling — clone the repository and install in **editable mode**
+(``-e``) inside a virtual environment.
+
+.. code-block:: bash
+
+    # Clone the repository
+    git clone https://github.com/JGCRI/scalable.git
+    cd scalable
+
+    # Create and activate a virtual environment
+    python -m venv .venv
+    source .venv/bin/activate   # Linux / macOS
+    # .venv\Scripts\activate    # Windows (cmd / PowerShell)
+
+    # Install in editable mode with dev/test dependencies
+    pip install -e ".[dev]"
+
+The ``-e`` flag (short for ``--editable``) creates a link from the virtual
+environment's ``site-packages`` back to your working tree so that any edits to
+source files under ``scalable/`` are reflected immediately — no reinstall
+required.
+
+**Why use a virtual environment?**
+
+A virtual environment isolates project dependencies from your system Python and
+other projects.  This prevents version conflicts and makes dependency management
+reproducible.  Always activate the environment before working on the project:
+
+.. code-block:: bash
+
+    source .venv/bin/activate   # each new terminal session
+
+After installation, verify the setup:
+
+.. code-block:: bash
+
+    # Confirm the package is installed in editable mode
+    pip show scalable          # Location should point to your clone
+    python -c "import scalable; print(scalable.__version__)"
+
+    # Run the test suite
+    pytest
+
+.. tip::
+
+   If you only need to *run* Scalable (not develop it), a plain
+   ``pip install ./scalable`` inside a virtual environment is sufficient and
+   avoids installing test/lint tooling.
+
+**Available extras for development:**
+
+.. list-table::
+   :header-rows: 1
+
+   * - Extra
+     - Contents
+   * - ``dev``
+     - Everything in ``test`` plus ``ruff``, ``mypy``, ``pytest-cov``
+   * - ``test``
+     - ``pytest``, ``pytest-asyncio``, ``hypothesis``, ``pydantic``
+   * - ``ai``
+     - AI assistant dependencies (``pydantic-ai``, ``jinja2``, ``rich``)
+   * - ``ml``
+     - ML optimization (``scikit-learn``, ``dask-ml``)
+   * - ``cloud``
+     - Cloud providers (``s3fs``, ``gcsfs``, ``dask-cloudprovider``)
+   * - ``kubernetes``
+     - Kubernetes provider (``dask-kubernetes``)
+
+You can combine extras:
+
+.. code-block:: bash
+
+    pip install -e ".[dev,ai,ml]"
+
+
 Optional Extras
 ~~~~~~~~~~~~~~~
 
