@@ -8,7 +8,7 @@
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue.svg)](https://pypi.org/project/scalable/)
 [![Docs](https://readthedocs.org/projects/scalable/badge/?version=latest)](https://jgcri.github.io/scalable/)
 
-Scalable is a Python framework for orchestrating containerized, distributed workflows on HPC systems. It integrates container lifecycle management, scheduler-aware resource provisioning, and a Dask-based execution model so multi-stage scientific workflows can run consistently at scale.
+Scalable is a Python framework for orchestrating containerized, distributed workflows on HPC systems, Kubernetes clusters, and cloud providers. It integrates container lifecycle management, scheduler-aware resource provisioning, a Dask-based execution model, optional AI assistants, and ML-driven optimization so multi-stage scientific workflows can run consistently at scale.
 
 ## Table of Contents
 
@@ -17,6 +17,16 @@ Scalable is a Python framework for orchestrating containerized, distributed work
 - [System Requirements](#system-requirements)
 - [Quick Start](#quick-start)
 - [Usage](#usage)
+  - [Manifest-Driven Workflows](#manifest-driven-workflows)
+  - [Session API](#session-api)
+  - [Telemetry and Reports](#telemetry-and-reports)
+  - [Resource Advising](#resource-advising)
+  - [ML Optimization](#ml-optimization)
+  - [Model Emulation](#model-emulation)
+  - [AI Assistants](#ai-assistants)
+  - [Cloud and Kubernetes](#cloud-and-kubernetes)
+  - [Artifact Storage](#artifact-storage)
+  - [Imperative API](#imperative-api)
 - [Function Caching](#function-caching)
 - [How to Contribute](#how-to-contribute)
 - [License](#license)
@@ -40,12 +50,33 @@ git clone https://github.com/JGCRI/scalable.git
 pip install ./scalable
 ```
 
+### Optional extras
+
+Scalable provides optional dependency groups for extended features:
+
+```bash
+# AI assistant features (init-component, diagnose, explain, compose, migrate)
+pip install scalable[ai]
+
+# Cloud providers (AWS, GCP)
+pip install scalable[cloud]
+
+# Kubernetes provider (Dask Kubernetes Operator)
+pip install scalable[kubernetes]
+
+# ML optimization and emulation (LearnedAdvisor, AdaptiveScaler, emulators)
+pip install scalable[ml]
+
+# All optional dependencies
+pip install scalable[ai,cloud,kubernetes,ml]
+```
+
 If your shell cannot find installed scripts (for example, `scalable_bootstrap`), add the relevant scripts directory to `PATH`.
 
 ## System Requirements
 
-- **Scheduler:** Slurm
-- **Local host tools:** Docker
+- **Scheduler:** Slurm (HPC), Kubernetes, AWS Fargate/EC2, or local execution
+- **Local host tools:** Docker (optional for local provider)
 - **HPC host tools:** Apptainer
 
 Platform guidance:
@@ -80,12 +111,11 @@ Bootstrap performs multiple SSH operations. For best reliability and usability, 
 
 ## Usage
 
-### Manifest-first workflow (v2.0.0 Phase 1)
+### Manifest-Driven Workflows
 
-Scalable now supports a declarative manifest path for provider-neutral planning
-and validation.
+Scalable v2.0.0 introduces a declarative manifest (`scalable.yaml`) as the single source of truth for targets, components, and task bindings.
 
-Create ``scalable.yaml``:
+Create `scalable.yaml`:
 
 ```yaml
 version: 1
@@ -114,14 +144,16 @@ scalable validate ./scalable.yaml
 scalable plan ./scalable.yaml --target local --dry-run --output plan.json
 ```
 
-Generate a telemetry report from completed runs:
+Run a workflow (with optional dry-run for cost estimation):
 
 ```bash
-scalable report --latest
-scalable report --latest --format json --output report.json
+scalable run ./scalable.yaml --target local --workflow workflow.py
+scalable run ./scalable.yaml --target aws --dry-run
 ```
 
-Use the session API:
+### Session API
+
+Use the Python session API for programmatic control:
 
 ```python
 from scalable import ScalableSession
@@ -129,7 +161,24 @@ from scalable import ScalableSession
 session = ScalableSession.from_yaml("./scalable.yaml", target="local")
 plan = session.plan(dry_run=True)
 print(plan.manifest_lock)
+
+# With planning objectives and policies
+plan = session.plan(
+    objective="minimize cost",   # "minimize cost", "minimize time", "balance"
+    policy="safe",               # "safe", "aggressive", "manual"
+)
 ```
+
+### Telemetry and Reports
+
+Every manifest-driven run records structured telemetry under `.scalable/runs/`:
+
+```bash
+scalable report --latest
+scalable report --latest --format json --output report.json
+```
+
+### Resource Advising
 
 Use deterministic history-based advising:
 
@@ -146,9 +195,147 @@ print(recommendation.workers)
 print(recommendation.resources)
 ```
 
-At runtime, create a cluster, register container targets, scale workers, and submit functions.
+Or use the CLI:
 
-### 1. Create a cluster
+```bash
+scalable advise --task run_gcam --target local --confidence 0.95
+```
+
+### ML Optimization
+
+When `scalable[ml]` is installed, ML-backed resource prediction and adaptive
+scaling become available:
+
+```python
+from scalable import LearnedAdvisor, AdaptiveScaler
+
+# ML-backed resource recommendations trained on telemetry history
+advisor = LearnedAdvisor.from_history(
+    "./.scalable/runs",
+    model_type="gradient_boosting",
+)
+recommendation = advisor.recommend(task="run_gcam", target="local")
+print(recommendation.resources)
+
+# Adaptive real-time worker scaling
+scaler = AdaptiveScaler(
+    min_workers=1,
+    max_workers=16,
+    scale_up_threshold=0.8,
+    scale_down_threshold=0.3,
+    cooldown_seconds=60,
+)
+decision = scaler.evaluate(current_metrics)
+```
+
+CLI access:
+
+```bash
+scalable advise --task run_gcam --model-type gradient_boosting --format json
+```
+
+### Model Emulation
+
+The emulation subsystem (`scalable[ml]`) provides uncertainty-aware surrogate
+model dispatch for expensive scientific functions:
+
+```python
+from scalable import emulatable, EmulatorRegistry, EmulatorDispatch
+
+@emulatable(
+    inputs=["temperature", "precipitation"],
+    outputs=["yield"],
+    domain_bounds={"temperature": (250, 350), "precipitation": (0, 5000)},
+    confidence_threshold=0.9,
+)
+def run_crop_model(temperature, precipitation):
+    # Expensive model execution
+    ...
+
+# Register and manage trained emulators
+registry = EmulatorRegistry(".scalable/emulators")
+dispatch = EmulatorDispatch(registry, confidence_threshold=0.9)
+
+# Confidence-gated routing: uses emulator when confident, falls back to full model
+result = dispatch.predict("run_crop_model", inputs={"temperature": 300, "precipitation": 1200})
+print(result.source)       # "emulator" or "full_model"
+print(result.confidence)
+```
+
+### AI Assistants
+
+AI assistants help with onboarding, diagnostics, workflow generation, and
+migration. All features work without an LLM backend via deterministic heuristics;
+LLM enhancement is opt-in via `SCALABLE_AI_BACKEND`.
+
+```bash
+# Onboard a new model component
+scalable init-component ./path/to/model --name gcam --no-ai
+
+# Diagnose failures from recent runs
+scalable diagnose --latest --no-ai
+
+# Explain an execution plan in human-readable form
+scalable explain plan.json
+
+# Generate a workflow from natural language
+scalable compose "Run GCAM reference scenario then Stitches for daily climate"
+
+# Propose manifest migration to a new provider
+scalable migrate scalable.yaml --to-provider kubernetes
+```
+
+Python API:
+
+```python
+from scalable.ai import onboard_component, diagnose_run, explain_plan
+
+result = onboard_component("./gcam-core", name="gcam", no_ai=True)
+print(result.component_yaml)
+```
+
+### Cloud and Kubernetes
+
+Scalable supports multi-provider execution through optional extras:
+
+```bash
+# AWS (Fargate/EC2)
+pip install scalable[cloud]
+scalable run scalable.yaml --target aws --dry-run
+
+# Kubernetes (Dask Kubernetes Operator)
+pip install scalable[kubernetes]
+scalable run scalable.yaml --target gke --dry-run
+```
+
+Cost estimation is included for cloud providers:
+
+```python
+from scalable import CostEstimate
+# Cost estimates are included in dry-run plan output and telemetry
+```
+
+### Artifact Storage
+
+The artifact store provides protocol-based storage across local and remote
+backends:
+
+```python
+from scalable.artifacts import build_artifact_store
+
+# Local storage
+store = build_artifact_store("./artifacts")
+ref = store.put("output.csv", "runs/run-001/output.csv")
+
+# S3 storage (requires scalable[cloud])
+store = build_artifact_store("s3://my-bucket/artifacts/")
+```
+
+### Imperative API
+
+The legacy imperative API remains fully supported for existing workflows:
+
+#### 1. Create a cluster
 
 ```python
 from scalable import SlurmCluster, ScalableClient
@@ -162,7 +349,7 @@ cluster = SlurmCluster(
 )
 ```
 
-### 2. Register container targets
+#### 2. Register container targets
 
 ```python
 cluster.add_container(
@@ -177,23 +364,16 @@ cluster.add_container(
     memory="50G",
     dirs={"/qfs/people/user": "/user", "/rcfs": "/rcfs"},
 )
-cluster.add_container(
-    tag="osiris",
-    cpus=8,
-    memory="20G",
-    dirs={"/rcfs/projects/gcims/data": "/data", "/qfs/people/user/test": "/scratch"},
-)
 ```
 
-### 3. Scale workers
+#### 3. Scale workers
 
 ```python
 cluster.add_workers(n=3, tag="gcam")
 cluster.add_workers(n=2, tag="stitches")
-cluster.add_workers(n=3, tag="osiris")
 ```
 
-### 4. Submit functions
+#### 4. Submit functions
 
 ```python
 def func1(param):
@@ -206,24 +386,17 @@ def func2(param):
     return stitches.__version__
 
 
-def func3(param):
-    import osiris
-    return osiris.__version__
-
-
 client = ScalableClient(cluster)
 
 fut1 = client.submit(func1, "gcam", tag="gcam")
 fut2 = client.submit(func2, "stitches", tag="stitches")
-fut3 = client.submit(func3, "osiris", tag="osiris")
 ```
 
-### 5. Scale down when complete
+#### 5. Scale down when complete
 
 ```python
 cluster.remove_workers(n=2, tag="gcam")
 cluster.remove_workers(n=1, tag="stitches")
-cluster.remove_workers(n=3, tag="osiris")
 ```
 
 ## Function Caching
@@ -252,7 +425,32 @@ def func3(param):
     return osiris.__version__
 ```
 
-For reliable behavior, explicitly specify argument and return types whenever possible.
+For reliable behavior, explicitly specify argument and return types whenever possible. Cache hit/miss events are emitted to telemetry when telemetry is active.
+
+## Environment Variables
+
+Scalable is configured via environment variables for deployment flexibility:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SCALABLE_CACHE_DIR` | `./cache` | Disk cache directory |
+| `SCALABLE_SEED` | `987654321` | xxhash seed for cache keys |
+| `SCALABLE_LOG_LEVEL` | *(unset)* | Library log level (e.g. `DEBUG`) |
+| `SCALABLE_MANIFEST` | `./scalable.yaml` | Default manifest path |
+| `SCALABLE_TARGET` | *(unset)* | Default target override |
+| `SCALABLE_RUNS_DIR` | `./.scalable/runs` | Telemetry run directory |
+| `SCALABLE_TELEMETRY` | `1` | Enable/disable telemetry |
+| `SCALABLE_TELEMETRY_PARQUET` | `0` | Emit parquet snapshots |
+| `SCALABLE_CACHE_REMOTE` | *(unset)* | Remote cache URI (S3/GCS) |
+| `SCALABLE_DEFAULT_STORAGE` | *(unset)* | Default artifact storage URI |
+| `SCALABLE_AI_BACKEND` | `none` | AI backend (`none`, `openai`, `ollama`) |
+| `SCALABLE_AI_MODEL` | *(unset)* | Model name for AI backend |
+| `SCALABLE_AI_ENDPOINT` | *(unset)* | API endpoint for AI backend |
+| `SCALABLE_ML` | `1` | Enable ML features |
+| `SCALABLE_ML_CACHE_DIR` | `.scalable/models` | ML model cache directory |
+| `SCALABLE_EMULATION` | `0` | Enable model emulation |
+| `SCALABLE_EMULATOR_DIR` | `.scalable/emulators` | Emulator registry directory |
+| `SCALABLE_EMULATION_CONFIDENCE` | `0.9` | Emulation confidence threshold |
 
 ## How to Contribute
 

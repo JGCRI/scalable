@@ -68,12 +68,19 @@ Supported AWS instances: ``m5.*``, ``c5.*``, ``r5.*``, ``t3.*``
 Supported GCP machines: ``n1-standard-*``, ``n1-highmem-*``,
 ``n1-highcpu-*``, ``e2-standard-*``
 
-Future Phases
--------------
+Future Work
+-----------
 
-Phase 5 will extend cost estimation with:
+Future releases may extend cost estimation with:
 
 - Live pricing API integration
 - Spot/preemptible instance pricing
-- Cost-aware scheduling recommendations
+- Cost-aware scheduling recommendations via :doc:`ml`
 - Historical cost tracking and budgets
+
+See Also
+--------
+
+- :doc:`cloud` — AWS and GCP providers with cost support
+- :doc:`telemetry` — Cost events in the run history store
+- :doc:`ml` — ML-backed resource optimization

@@ -1,8 +1,9 @@
 AI Assistants
 =============
 
-Phase 4 introduces AI-assisted features that help users onboard models,
-compose workflows, diagnose failures, explain plans, and migrate manifests.
+Scalable v2.0.0 includes AI-assisted features (Phase 4) that help users
+onboard models, compose workflows, diagnose failures, explain plans, and
+migrate manifests.
 
 All features work **without** an LLM backend via deterministic heuristic
 fallbacks. LLM enhancement is opt-in via the ``SCALABLE_AI_BACKEND``
@@ -158,3 +159,11 @@ Session Planning with Objectives
 * ``safe`` — Use safety margins on resources (default)
 * ``aggressive`` — Scale up resources/workers significantly
 * ``manual`` — Use exactly what the manifest declares
+
+See Also
+--------
+
+- :doc:`manifest` — Manifest schema and session API
+- :doc:`ml` — ML-backed resource optimization
+- :doc:`emulation` — Model emulation with surrogate dispatch
+- :doc:`telemetry` — Run telemetry that powers diagnosis

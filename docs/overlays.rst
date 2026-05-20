@@ -1,8 +1,9 @@
 Manifest Overlays
 =================
 
-Overlays allow a single ``scalable.yaml`` to carry environment-specific
-configuration deltas without duplicating the entire manifest.
+Scalable v2.0.0 overlays allow a single ``scalable.yaml`` to carry
+environment-specific configuration deltas without duplicating the entire
+manifest.
 
 Concept
 -------
@@ -91,3 +92,11 @@ See the full overlay example:
 
 .. literalinclude:: examples/scalable.overlays.yaml
    :language: yaml
+
+See Also
+--------
+
+- :doc:`manifest` — Manifest schema and session API
+- :doc:`providers` — Provider-specific target options
+- :doc:`cloud` — Cloud provider configuration
+- :doc:`kubernetes` — Kubernetes target options

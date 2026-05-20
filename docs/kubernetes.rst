@@ -1,7 +1,7 @@
 Kubernetes Provider
 ===================
 
-Scalable supports Kubernetes-based execution through the
+Scalable v2.0.0 supports Kubernetes-based execution through the
 ``scalable[kubernetes]`` extra, using the Dask Kubernetes Operator.
 
 Installation
@@ -62,3 +62,16 @@ Run ``scalable validate`` to check your Kubernetes manifest:
 .. code-block:: bash
 
    scalable validate scalable.yaml --target gke
+
+Run with dry-run for planning:
+
+.. code-block:: bash
+
+   scalable run scalable.yaml --target gke --dry-run
+
+See Also
+--------
+
+- :doc:`providers` — Full provider abstraction documentation
+- :doc:`cloud` — AWS and GCP cloud providers
+- :doc:`overlays` — Environment-specific configuration overrides

@@ -1,5 +1,5 @@
-Manifest-Driven Workflows (Phase 1)
-===================================
+Manifest-Driven Workflows
+=========================
 
 Scalable v2.0.0 introduces a declarative manifest entry point, ``scalable.yaml``.
 This becomes the source of truth for targets, components, and task bindings.
@@ -14,6 +14,10 @@ Top-level keys:
 * ``targets``
 * ``components``
 * ``tasks``
+
+Optional keys:
+
+* ``overlays`` — environment-specific configuration deltas (see :doc:`overlays`)
 
 Minimal example:
 
@@ -43,8 +47,24 @@ Minimal example:
       run_gcam:
         component: gcam
 
-Validation commands
--------------------
+Project configuration
+---------------------
+
+The ``project`` block supports:
+
+* ``name`` — project identifier (used in run directory naming)
+* ``default_storage`` — URI for artifact/output storage (e.g. ``s3://bucket/path/``)
+* ``local_cache`` — local cache directory override
+
+.. code-block:: yaml
+
+    project:
+      name: integrated-assessment
+      default_storage: s3://my-bucket/scalable-runs/
+      local_cache: ./.scalable/cache
+
+CLI commands
+------------
 
 Validate a manifest:
 
@@ -58,10 +78,38 @@ Generate a deterministic dry-run plan:
 
     scalable plan ./scalable.yaml --target local --dry-run --output plan.json
 
-Phase 1 writes:
+Run a workflow:
+
+.. code-block:: bash
+
+    scalable run ./scalable.yaml --target local --workflow workflow.py
+    scalable run ./scalable.yaml --target aws --dry-run
+
+The plan outputs:
 
 * ``plan.json`` (provider-neutral plan payload)
 * ``manifest.lock`` (SHA-256 fingerprint of canonicalized manifest content)
+
+The ``run`` command validates, plans, estimates cost (for cloud targets), and
+optionally executes a workflow file. Use ``--dry-run`` to preview the plan and
+cost estimate without launching workers.
+
+Session API
+-----------
+
+.. code-block:: python
+
+    from scalable import ScalableSession
+
+    session = ScalableSession.from_yaml("./scalable.yaml", target="local")
+    plan = session.plan(dry_run=True)
+    print(plan.manifest_lock)
+
+    # With planning objectives and policies
+    plan = session.plan(
+        objective="minimize cost",   # "minimize cost", "minimize time", "balance"
+        policy="safe",               # "safe", "aggressive", "manual"
+    )
 
 Environment variables
 ---------------------
@@ -72,13 +120,15 @@ Environment variables
 Migration note from imperative API
 ----------------------------------
 
-Legacy imperative APIs remain supported in Phase 1:
+Legacy imperative APIs remain supported:
 
 * ``SlurmCluster(...)``
 * ``cluster.add_container(...)``
 * ``cluster.add_workers(...)``
 
 The new manifest/session path is additive and can be adopted incrementally.
+Legacy ``ModelConfig`` Dockerfile/config auto-discovery emits a
+``DeprecationWarning`` when used outside the manifest adapter context.
 
 Example manifests
 -----------------
@@ -87,3 +137,7 @@ Reference examples are included in:
 
 * ``docs/examples/scalable.minimal.yaml``
 * ``docs/examples/scalable.gcam_stitches.yaml``
+* ``docs/examples/scalable.aws.yaml``
+* ``docs/examples/scalable.gke.yaml``
+* ``docs/examples/scalable.overlays.yaml``
+

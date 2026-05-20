@@ -1,8 +1,9 @@
 Artifact Store
 ==============
 
-The :mod:`scalable.artifacts` module provides a protocol-based abstraction
-for storing and retrieving workflow artifacts across local and remote backends.
+The :mod:`scalable.artifacts` module (Phase 3) provides a protocol-based
+abstraction for storing and retrieving workflow artifacts across local and
+remote backends.
 
 Overview
 --------
@@ -56,3 +57,25 @@ The artifact store layer also powers the remote cache backend. Enable it with:
 
 When enabled, cache results are stored remotely in addition to the local
 diskcache, allowing cache sharing across machines.
+
+Session Integration
+-------------------
+
+Record artifacts during a session for provenance tracking:
+
+.. code-block:: python
+
+   from scalable import ScalableSession
+
+   session = ScalableSession.from_yaml("scalable.yaml", target="local")
+   # ... run tasks ...
+   session.record_artifact("output.csv", kind="result")
+
+Artifact metadata is recorded in the ``artifacts.jsonl`` telemetry stream.
+
+See Also
+--------
+
+- :doc:`cloud` — Cloud providers with remote storage support
+- :doc:`telemetry` — Artifact events in run telemetry
+- :doc:`manifest` — Configuring ``project.default_storage``

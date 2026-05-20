@@ -1,8 +1,9 @@
 Cloud Providers
 ===============
 
-Scalable supports cloud-based execution through the ``scalable[cloud]`` extra,
-which provides access to AWS and GCP deployment providers.
+Scalable v2.0.0 supports cloud-based execution through the ``scalable[cloud]``
+extra, which provides access to AWS and GCP deployment providers with
+integrated cost estimation.
 
 Installation
 ------------
@@ -66,3 +67,11 @@ Run ``scalable run --dry-run`` to see estimated costs:
    scalable run scalable.yaml --target aws --dry-run
 
 The cost estimate is also recorded in telemetry (``cost.jsonl``).
+See :doc:`cost` for detailed cost estimation documentation.
+
+See Also
+--------
+
+- :doc:`providers` — Full provider abstraction documentation
+- :doc:`cost` — Cost estimation primitives and tables
+- :doc:`artifacts` — Remote artifact storage with S3/GCS backends
