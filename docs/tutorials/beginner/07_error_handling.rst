@@ -4,10 +4,6 @@
 Beginner Tutorial 7: When Things Go Wrong
 ======================================================
 
-.. contents:: In This Tutorial
-   :local:
-   :depth: 2
-
 The Big Picture
 ----------------
 

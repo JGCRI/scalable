@@ -4,10 +4,6 @@
 Beginner Tutorial 4: Caching — Avoiding Redundant Work
 ======================================================
 
-.. contents:: In This Tutorial
-   :local:
-   :depth: 2
-
 The Big Picture
 ----------------
 

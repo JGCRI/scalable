@@ -4,10 +4,6 @@
 Beginner Tutorial 8: Container Orchestration with Kubernetes
 ======================================================
 
-.. contents:: In This Tutorial
-   :local:
-   :depth: 2
-
 The Big Picture
 ----------------
 

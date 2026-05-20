@@ -4,10 +4,6 @@
 Beginner Tutorial 1: Your First Workflow
 ======================================================
 
-.. contents:: In This Tutorial
-   :local:
-   :depth: 2
-
 The Big Picture
 ----------------
 

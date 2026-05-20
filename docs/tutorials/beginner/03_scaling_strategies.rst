@@ -4,10 +4,6 @@
 Beginner Tutorial 3: How Distributed Computing Works
 ======================================================
 
-.. contents:: In This Tutorial
-   :local:
-   :depth: 2
-
 The Big Picture
 ----------------
 

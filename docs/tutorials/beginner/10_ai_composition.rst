@@ -4,10 +4,6 @@
 Beginner Tutorial 10: AI-Assisted Workflow Development
 ======================================================
 
-.. contents:: In This Tutorial
-   :local:
-   :depth: 2
-
 The Big Picture
 ----------------
 

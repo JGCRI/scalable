@@ -4,10 +4,6 @@
 Beginner Tutorial 2: Understanding the Manifest System
 ======================================================
 
-.. contents:: In This Tutorial
-   :local:
-   :depth: 2
-
 The Big Picture
 ----------------
 
