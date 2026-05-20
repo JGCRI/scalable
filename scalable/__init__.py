@@ -27,7 +27,7 @@ from distributed import get_worker  # noqa: F401  (re-exported for users)
 from .advising import ResourceAdvisor, ResourceRecommendation
 from .caching import *  # noqa: F401,F403  (legacy star-export)
 from .client import ScalableClient
-from .common import SEED, settings
+from .common import SEED, load_env, settings
 from .core import JobQueueCluster
 from .costing import CostEstimate
 from .providers import DeploymentProvider, LocalProvider, SlurmProvider
@@ -140,6 +140,7 @@ __all__ = [
     "get_worker",
     "migrate_manifest",
     "onboard_component",
+    "load_env",
     "settings",
     # Phase 5 ML/emulation
     "ActiveLearner",

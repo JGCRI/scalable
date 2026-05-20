@@ -29,7 +29,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-__all__ = ["logger", "settings", "Settings", "SEED", "cachedir", "DEFAULT_SEED"]
+__all__ = ["logger", "settings", "Settings", "SEED", "cachedir", "DEFAULT_SEED", "load_env"]
 
 # ---------------------------------------------------------------------------
 # Load .env file with override=True so that .env values take precedence over
@@ -147,6 +147,51 @@ class Settings:
 #: Process-wide settings singleton. Mutating attributes on this instance
 #: changes behaviour for subsequent calls into the library.
 settings: Settings = Settings()
+
+
+def load_env(dotenv_path: str | Path | None = None, *, override: bool = True) -> Settings:
+    """Load environment variables from a ``.env`` file and reinitialize settings.
+
+    This is useful in notebooks and scripts where the working directory may
+    differ from the directory containing the ``.env`` file.  For example,
+    tutorial notebooks that ``os.chdir()`` into a temporary directory should
+    call this function *before* changing directories, or pass an absolute path
+    to their ``.env`` file.
+
+    Parameters
+    ----------
+    dotenv_path:
+        Path to the ``.env`` file to load.  If ``None`` (default), looks for
+        ``.env`` in the current working directory.
+    override:
+        Whether values in the ``.env`` file should override existing
+        environment variables (default: ``True``).
+
+    Returns
+    -------
+    Settings
+        The refreshed :data:`settings` singleton (same object, updated in-place
+        via replacement).
+
+    Examples
+    --------
+    >>> from scalable.common import load_env
+    >>> # Load .env from a specific location (e.g., the notebooks directory)
+    >>> load_env("/path/to/your/project/.env")
+    """
+    global settings
+
+    resolved = Path(dotenv_path) if dotenv_path is not None else Path.cwd() / ".env"
+    if not resolved.is_file():
+        logger.warning("load_env: file not found: %s", resolved)
+        return settings
+
+    load_dotenv(resolved, override=override)
+    logger.debug("load_env: loaded %s (override=%s)", resolved, override)
+
+    # Reinitialize settings from the (now-updated) environment.
+    settings = Settings()
+    return settings
 
 # ---------------------------------------------------------------------------
 # Logging
