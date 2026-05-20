@@ -1,0 +1,63 @@
+# Scalable manifest targeting GKE (Google Kubernetes Engine)
+# Requires: pip install scalable[kubernetes]
+
+version: 1
+project:
+  name: climate-model-gke
+  default_storage: gs://my-bucket/scalable-runs/
+
+targets:
+  gke:
+    provider: kubernetes
+    namespace: climate-prod
+    image: gcr.io/my-project/climate-model:latest
+    adaptive:
+      minimum: 2
+      maximum: 20
+    overlay: gke-prod
+
+components:
+  gcam:
+    image: gcr.io/my-project/gcam:7.0
+    cpus: 8
+    memory: 32G
+    tags: [iam, climate]
+    env:
+      GCAM_DATA: /data/gcam
+
+  postprocess:
+    image: gcr.io/my-project/postprocess:latest
+    cpus: 4
+    memory: 16G
+    tags: [postprocess]
+
+tasks:
+  run_gcam:
+    component: gcam
+    cache: true
+    outputs:
+      database: dir
+
+  aggregate:
+    component: postprocess
+    cache: true
+
+overlays:
+  gke-prod:
+    components:
+      gcam:
+        memory: 64G
+        cpus: 16
+      postprocess:
+        memory: 32G
+  gke-dev:
+    targets:
+      gke:
+        namespace: climate-dev
+        adaptive:
+          minimum: 1
+          maximum: 5
+    components:
+      gcam:
+        memory: 16G
+        cpus: 4

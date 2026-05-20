@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import functools
+import time
+import uuid
 from collections.abc import Iterable
 from typing import Any
 
@@ -10,6 +13,7 @@ from distributed import Client
 from distributed.diagnostics.plugin import SchedulerPlugin
 
 from .slurm import SlurmCluster
+from .telemetry.runtime import task_context
 
 
 class SlurmSchedulerPlugin(SchedulerPlugin):
@@ -39,8 +43,74 @@ class ScalableClient(Client):
     def __init__(self, cluster: Any, *args: Any, **kwargs: Any) -> None:
         """Initialize a client bound to an existing cluster/scheduler."""
         super().__init__(address=cluster, *args, **kwargs)
+        self._telemetry_store = None
         if isinstance(cluster, SlurmCluster):
             self.register_scheduler_plugin(SlurmSchedulerPlugin(None))
+
+    def set_telemetry_store(self, store: Any) -> None:
+        """Attach an active telemetry store for task lifecycle instrumentation."""
+        self._telemetry_store = store
+
+    def _record_future(
+        self,
+        *,
+        future: Any,
+        task_id: str,
+        task_name: str,
+        component: str | None,
+        tag: str | None,
+        function_name: str,
+        requested_workers: int,
+        submitted_at: float,
+    ) -> None:
+        store = self._telemetry_store
+        if store is None:
+            return
+
+        store.record_task_submission(
+            task_id=task_id,
+            task_name=task_name,
+            component=component,
+            tag=tag,
+            function_name=function_name,
+            requested_workers=requested_workers,
+        )
+
+        def _on_done(done_future: Any) -> None:
+            state = "succeeded"
+            worker = getattr(done_future, "key", None)
+            error_type = None
+            error_message = None
+
+            try:
+                if done_future.cancelled():
+                    state = "cancelled"
+                else:
+                    exc = done_future.exception()
+                    if exc is not None:
+                        state = "failed"
+                        error_type = type(exc).__name__
+                        error_message = str(exc)
+            except Exception as callback_exc:  # pragma: no cover - defensive
+                state = "failed"
+                error_type = type(callback_exc).__name__
+                error_message = str(callback_exc)
+
+            _ = submitted_at
+            store.record_task_result(
+                task_id=task_id,
+                task_name=task_name,
+                component=component,
+                tag=tag,
+                function_name=function_name,
+                requested_workers=requested_workers,
+                state=state,
+                worker=worker,
+                error_type=error_type,
+                error_message=error_message,
+            )
+
+        future.add_done_callback(_on_done)
 
     def submit(
         self,
@@ -88,7 +158,29 @@ class ScalableClient(Client):
         resources = None
         if tag is not None:
             resources = {tag: n}
-        return super().submit(func, resources=resources, *args, **kwargs)
+
+        task_name = str(kwargs.pop("_scalable_task_name", getattr(func, "__name__", "task")))
+        function_name = getattr(func, "__qualname__", getattr(func, "__name__", repr(func)))
+
+        @functools.wraps(func)
+        def _wrapped(*wrapped_args: Any, **wrapped_kwargs: Any) -> Any:
+            with task_context(task_name=task_name, component=tag, tag=tag):
+                return func(*wrapped_args, **wrapped_kwargs)
+
+        submitted_at = time.monotonic()
+        future = super().submit(_wrapped, resources=resources, *args, **kwargs)
+
+        self._record_future(
+            future=future,
+            task_id=uuid.uuid4().hex,
+            task_name=task_name,
+            component=tag,
+            tag=tag,
+            function_name=function_name,
+            requested_workers=n,
+            submitted_at=submitted_at,
+        )
+        return future
     
     def cancel(self, futures: Any, *args: Any, **kwargs: Any) -> Any:
         """
@@ -168,7 +260,29 @@ class ScalableClient(Client):
         resources = None
         if tag is not None:
             resources = {tag: n}
-        return super().map(func, *parameters, resources=resources, **kwargs)
+        base_task_name = str(kwargs.pop("_scalable_task_name", getattr(func, "__name__", "task")))
+        function_name = getattr(func, "__qualname__", getattr(func, "__name__", repr(func)))
+
+        @functools.wraps(func)
+        def _wrapped(*wrapped_args: Any, **wrapped_kwargs: Any) -> Any:
+            with task_context(task_name=base_task_name, component=tag, tag=tag):
+                return func(*wrapped_args, **wrapped_kwargs)
+
+        submitted_at = time.monotonic()
+        futures = super().map(_wrapped, *parameters, resources=resources, **kwargs)
+
+        for index, future in enumerate(futures):
+            self._record_future(
+                future=future,
+                task_id=uuid.uuid4().hex,
+                task_name=f"{base_task_name}[{index}]",
+                component=tag,
+                tag=tag,
+                function_name=function_name,
+                requested_workers=n,
+                submitted_at=submitted_at,
+            )
+        return futures
     
     def get_versions(
         self, check: bool = False, packages: list[str] | None = None
