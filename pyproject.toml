@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scalable"
-version = "2.0.0a4"
+version = "2.0.0a5"
 description = "Assist with running models on job queing systems like Slurm"
 authors = [
     { name = "Shashank Lamba" },
@@ -71,6 +71,11 @@ cloud = [
 kubernetes = [
     "dask-kubernetes >= 2024.1.0",
     "kubernetes >= 27.0",
+]
+ml = [
+    "scikit-learn >= 1.3",
+    "dask-ml >= 2023.3.24",
+    "joblib >= 1.3",
 ]
 
 [project.urls]

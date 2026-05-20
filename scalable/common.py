@@ -96,6 +96,22 @@ class Settings:
     ai_endpoint: str | None = field(
         default_factory=lambda: os.environ.get("SCALABLE_AI_ENDPOINT")
     )
+    # Phase 5 ML/Emulation additions
+    ml_model_cache_dir: str = field(
+        default_factory=lambda: os.environ.get("SCALABLE_ML_CACHE_DIR", ".scalable/models")
+    )
+    emulator_registry_dir: str = field(
+        default_factory=lambda: os.environ.get("SCALABLE_EMULATOR_DIR", ".scalable/emulators")
+    )
+    ml_enabled: bool = field(
+        default_factory=lambda: bool(int(os.environ.get("SCALABLE_ML", "1")))
+    )
+    emulation_enabled: bool = field(
+        default_factory=lambda: bool(int(os.environ.get("SCALABLE_EMULATION", "0")))
+    )
+    emulation_confidence_threshold: float = field(
+        default_factory=lambda: float(os.environ.get("SCALABLE_EMULATION_CONFIDENCE", "0.9"))
+    )
 
 
 #: Process-wide settings singleton. Mutating attributes on this instance

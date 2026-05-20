@@ -203,10 +203,38 @@ class RemoteCacheEvent:
         return asdict(self)
 
 
+@dataclass(frozen=True)
+class EmulationEvent:
+    """Emulation dispatch event record (Phase 5).
+
+    Recorded when a function is routed through the emulator dispatch
+    pipeline, whether it ends up being emulated or falling back to the
+    full model.
+    """
+
+    run_id: str
+    task_name: str
+    component: str | None
+    emulator_name: str | None
+    source: str  # "emulator" | "full_model" | "cached"
+    confidence: float | None
+    fallback_reason: str | None
+    domain_valid: bool
+    timestamp: str = field(default_factory=utcnow_iso)
+    emulator_version: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+    event_type: str = "emulation"
+    schema_version: int = SCHEMA_VERSION
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
 __all__ = [
     "ArtifactEvent",
     "CacheEvent",
     "CostEvent",
+    "EmulationEvent",
     "FailureEvent",
     "RemoteCacheEvent",
     "ResourceEvent",
