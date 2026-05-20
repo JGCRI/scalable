@@ -9,6 +9,19 @@ first installation to advanced production workflows. Each tutorial builds on a
 realistic scenario, includes full code examples with expected output, and ends
 with suggested next steps.
 
+Beginner Tutorials
+-------------------
+
+.. toctree::
+   :maxdepth: 1
+
+   beginner/index
+
+**New to distributed computing?** Start with the beginner tutorials. They cover
+the same 10 topics as the standard tutorials below but explain all concepts
+from first principles — no prior distributed systems, cloud, or container
+experience required.
+
 Getting Started
 ---------------
 

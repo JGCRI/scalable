@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Beginner tutorial series** (`docs/tutorials/beginner/`, `notebooks/beginner/`):
+  10 tutorials mirroring the standard series but written for non-experts with
+  full concept definitions, design rationale, analogies, and foundational
+  explanations of distributed computing, declarative programming, cloud
+  infrastructure, container orchestration, ML, and AI-assisted development.
+  - Beginner Tutorial 1: Your First Workflow (Dask, CLI, virtual environments)
+  - Beginner Tutorial 2: Understanding the Manifest System (declarative programming, YAML, schemas)
+  - Beginner Tutorial 3: How Distributed Computing Works (schedulers, providers, Amdahl's Law)
+  - Beginner Tutorial 4: Caching — Avoiding Redundant Work (hashing, memoization, decorators)
+  - Beginner Tutorial 5: Cloud Computing Fundamentals (object storage, containers, IAM, costs)
+  - Beginner Tutorial 6: Understanding What Happened (telemetry, observability, JSONL)
+  - Beginner Tutorial 7: When Things Go Wrong (fault tolerance, retries, idempotency)
+  - Beginner Tutorial 8: Container Orchestration with Kubernetes (pods, operators, namespaces)
+  - Beginner Tutorial 9: Machine Learning for Smarter Workflows (surrogates, uncertainty, active learning)
+  - Beginner Tutorial 10: AI-Assisted Workflow Development (LLMs, heuristics, code generation)
+  - Companion Jupyter notebooks for all 10 tutorials with interactive examples
+  - Tutorials index page with learning path and graduation guide to standard tutorials
+
+---
+
 ## [2.0.0a5] — Phase 5: ML Optimization and Emulation
 
 ### Added
