@@ -147,7 +147,7 @@ Key Concepts Explained
 
    Think of namespaces like departments in a building:
 
-   * ``team-climate`` namespace — your team's pods
+   * ``team-energy`` namespace — your team's pods
    * ``team-hydrology`` namespace — another team's pods
    * ``system`` namespace — cluster infrastructure
 
@@ -181,7 +181,7 @@ Key Concepts Explained
    .. code-block:: bash
 
       # List running pods in your namespace
-      kubectl get pods -n team-climate
+      kubectl get pods -n team-energy
 
       # See details about a specific pod
       kubectl describe pod worker-abc123
@@ -245,7 +245,7 @@ When you use Scalable's Kubernetes provider, this is what gets created:
 .. code-block:: text
 
    Kubernetes Cluster
-   └── Your Namespace (team-climate)
+   └── Your Namespace (team-energy)
        ├── Dask Scheduler Pod (1x)
        │   └── Container: dask-scheduler
        │       Port 8786 (client connections)
@@ -270,7 +270,7 @@ Step 2: Configuring the Kubernetes Provider
    targets:
      k8s:
        provider: kubernetes
-       namespace: team-climate
+       namespace: team-energy
        image: ghcr.io/my-org/energy-model:latest
        adaptive:
          minimum: 2
@@ -285,7 +285,7 @@ Step 2: Configuring the Kubernetes Provider
 
 **What each setting does:**
 
-``namespace: team-climate``
+``namespace: team-energy``
    Deploy into this Kubernetes namespace. Must exist and you must have
    permissions to create pods there.
 
@@ -424,7 +424,7 @@ Step 6: Monitoring Kubernetes Deployments
 .. code-block:: bash
 
    # Watch pods come up
-   kubectl get pods -n team-climate -w
+   kubectl get pods -n team-energy -w
 
    # Output:
    # NAME                          READY   STATUS    RESTARTS   AGE
@@ -433,13 +433,13 @@ Step 6: Monitoring Kubernetes Deployments
    # dask-worker-ghi789            1/1     Running   0          25s
 
    # Check resource usage
-   kubectl top pods -n team-climate
+   kubectl top pods -n team-energy
 
    # View worker logs
-   kubectl logs dask-worker-def456 -n team-climate
+   kubectl logs dask-worker-def456 -n team-energy
 
    # Access Dask dashboard (port-forward to localhost)
-   kubectl port-forward svc/dask-scheduler 8787:8787 -n team-climate
+   kubectl port-forward svc/dask-scheduler 8787:8787 -n team-energy
    # Then open http://localhost:8787 in your browser
 
 

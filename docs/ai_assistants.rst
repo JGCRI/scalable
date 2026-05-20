@@ -162,7 +162,7 @@ scalable compose
 
 Generate a workflow from a natural-language description::
 
-    scalable compose "Run GCAM reference scenario then Stitches for daily climate"
+    scalable compose "Run GCAM reference scenario then Stitches for daily weather"
     scalable compose "Run Hector model" --output-dir ./generated
 
 Options:

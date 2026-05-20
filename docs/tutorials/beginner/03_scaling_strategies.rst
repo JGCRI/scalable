@@ -26,7 +26,7 @@ changing your code.
    **The fundamental problem:** Some computations take too long on one
    machine.
 
-   Consider running 1000 climate scenarios where each takes 5 minutes:
+   Consider running 1000 energy scenarios where each takes 5 minutes:
 
    * **Sequential (1 CPU):** 1000 × 5 min = 83 hours (3.5 days)
    * **Parallel (10 CPUs):** 1000 ÷ 10 × 5 min = 8.3 hours

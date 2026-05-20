@@ -3,7 +3,7 @@
 
 version: 1
 project:
-  name: climate-model-aws
+  name: energy-model-aws
   default_storage: s3://my-bucket/scalable-runs/
 
 targets:
@@ -14,7 +14,7 @@ targets:
     instance_type: m5.xlarge
     worker_cpu: 4096
     worker_mem: 16384
-    image: 123456789.dkr.ecr.us-east-1.amazonaws.com/climate:latest
+    image: 123456789.dkr.ecr.us-east-1.amazonaws.com/energy-model:latest
     execution_role_arn: arn:aws:iam::123456789:role/ecsTaskExecutionRole
     task_role_arn: arn:aws:iam::123456789:role/ecsTaskRole
     subnets:
@@ -31,7 +31,7 @@ components:
     image: 123456789.dkr.ecr.us-east-1.amazonaws.com/gcam:7.0
     cpus: 4
     memory: 16G
-    tags: [multi-sector-dynamics, climate]
+    tags: [multi-sector-dynamics, energy]
 
   postprocess:
     cpus: 2
