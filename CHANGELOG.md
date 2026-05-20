@@ -9,7 +9,311 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Beginner tutorial series** (`docs/tutorials/beginner/`, `notebooks/beginner/`):
+  10 tutorials mirroring the standard series but written for non-experts with
+  full concept definitions, design rationale, analogies, and foundational
+  explanations of distributed computing, declarative programming, cloud
+  infrastructure, container orchestration, ML, and AI-assisted development.
+  - Beginner Tutorial 1: Your First Workflow (Dask, CLI, virtual environments)
+  - Beginner Tutorial 2: Understanding the Manifest System (declarative programming, YAML, schemas)
+  - Beginner Tutorial 3: How Distributed Computing Works (schedulers, providers, Amdahl's Law)
+  - Beginner Tutorial 4: Caching — Avoiding Redundant Work (hashing, memoization, decorators)
+  - Beginner Tutorial 5: Cloud Computing Fundamentals (object storage, containers, IAM, costs)
+  - Beginner Tutorial 6: Understanding What Happened (telemetry, observability, JSONL)
+  - Beginner Tutorial 7: When Things Go Wrong (fault tolerance, retries, idempotency)
+  - Beginner Tutorial 8: Container Orchestration with Kubernetes (pods, operators, namespaces)
+  - Beginner Tutorial 9: Machine Learning for Smarter Workflows (surrogates, uncertainty, active learning)
+  - Beginner Tutorial 10: AI-Assisted Workflow Development (LLMs, heuristics, code generation)
+  - Companion Jupyter notebooks for all 10 tutorials with interactive examples
+  - Tutorials index page with learning path and graduation guide to advanced tutorials
+- **Reorganized notebook directory structure**:
+  - Original notebooks moved to `notebooks/advanced/`
+  - Beginner notebooks in `notebooks/beginner/`
+  - Top-level `notebooks/README.md` directs users to appropriate track
+- **Documentation recommends beginner path**: `README.md`, `docs/getting_started.rst`,
+  and `docs/tutorials/index.rst` now recommend starting with beginner tutorials for
+  users unfamiliar with distributed computing concepts.
+
+---
+
+## [2.0.0a5] — Phase 5: ML Optimization and Emulation
+
+### Added
+
+- **ML optimization subsystem** (`scalable.ml`) with learned resource prediction
+  and adaptive scaling:
+  - `LearnedAdvisor` — ML-backed resource recommendations using gradient
+    boosting, random forest, or quantile regression trained on telemetry history
+  - `AdaptiveScaler` — real-time adaptive worker scaling with configurable
+    thresholds, min/max bounds, and cooldown periods
+  - `FeatureExtractor` — telemetry feature engineering with rolling aggregates,
+    task identity hashing, and user-provided input features
+  - `ResourceModel` — unified sklearn model wrapper with fit/predict/intervals,
+    model serialization, and percentile fallback when sklearn unavailable
+  - `HyperparameterSearch` — Dask-ML distributed tuning integration
+    (hyperband, successive halving, random) with sklearn fallback
+  - `cross_validate_advisor` — model quality assessment framework
+- **Model emulation subsystem** (`scalable.emulation`) with uncertainty-aware
+  surrogate model dispatch:
+  - `@emulatable` decorator marking functions as emulation-capable with
+    declared inputs, outputs, domain bounds, and confidence thresholds
+  - `EmulatorRegistry` — versioned emulator management with filesystem
+    persistence, domain validation, and joblib serialization
+  - `EmulatorDispatch` — confidence-gated routing between emulator and
+    full model with provenance recording
+  - `ActiveLearner` — intelligent scenario selection using expected
+    improvement, maximum uncertainty, or random acquisition strategies
+  - `GradientBoostingEmulator` and `RandomForestEmulator` surrogate
+    model implementations with tree-based uncertainty estimation
+  - `calibrate_emulator` — uncertainty calibration assessment with
+    coverage and sharpness metrics
+- **`scalable advise` CLI command** for ML-backed resource recommendations:
+  - Supports `--task`, `--target`, `--model-type`, `--confidence`, `--format`
+  - Graceful degradation to Phase 2 heuristic advisor when ML unavailable
+  - Text and JSON output formats
+- **`EmulationEvent` telemetry** for tracking emulator dispatch decisions
+  including source, confidence, fallback reason, and domain validity.
+- **Settings extensions** (`scalable.common.Settings`):
+  - `ml_model_cache_dir` (`SCALABLE_ML_CACHE_DIR`)
+  - `emulator_registry_dir` (`SCALABLE_EMULATOR_DIR`)
+  - `ml_enabled` (`SCALABLE_ML`)
+  - `emulation_enabled` (`SCALABLE_EMULATION`)
+  - `emulation_confidence_threshold` (`SCALABLE_EMULATION_CONFIDENCE`)
+- **`[project.optional-dependencies] ml`** extra with `scikit-learn >= 1.3`,
+  `dask-ml >= 2023.3.24`, and `joblib >= 1.3`.
+- **Public API**: `LearnedAdvisor`, `AdaptiveScaler`, `HyperparameterSearch`,
+  `EmulatorRegistry`, `EmulatorDispatch`, `ActiveLearner`, `emulatable`
+  exported from `scalable.__init__` with optional-dep guards.
+
+### Changed
+
+- Bumped version to `2.0.0a5`.
+- CLI main dispatcher now supports both `handler` and `func` argument
+  patterns for command registration.
+- `scalable advise` added as implemented CLI command.
+
+### Tests
+
+- 75 new unit tests for ML features, models, adaptive scaler, emulation
+  decorator, registry, dispatch, uncertainty calibration, active learning,
+  telemetry events, settings, and CLI.
+- 431 total unit tests passing (no regressions from Phases 1–4).
+
+---
+
+## [2.0.0a4] — Phase 4: AI Assistant Features
+
+### Added
+
+- **AI assistant subsystem** (`scalable.ai`) with pluggable LLM backend
+  protocol and heuristic-only fallback mode:
+  - `AIBackend` protocol with `NoOpBackend`, `OpenAIBackend`, `OllamaBackend`
+  - Backend selection via `SCALABLE_AI_BACKEND` environment variable
+  - All assistants functional without LLM via deterministic heuristics
+- **Component onboarding assistant** (`scalable init-component`):
+  - Directory scanning for language, build system, and runtime detection
+  - Resource estimation heuristics based on detected language/build system
+  - Container file detection (Dockerfile, Apptainer)
+  - Mount point suggestions from data directory conventions
+  - Proposed `ComponentConfig`-compatible YAML output
+- **Failure diagnosis assistant** (`scalable diagnose`):
+  - Rule-based failure taxonomy: `oom`, `walltime`, `mount_missing`,
+    `import_error`, `connection`, `credential`, `model_runtime`
+  - Evidence extraction from telemetry events
+  - Suggested fixes with confidence ratings
+  - Text and JSON output formats
+- **Plan explanation assistant** (`scalable explain`):
+  - Human-readable narrative from `plan.json` files
+  - Sections: overview, resource allocation, execution strategy, recommendations
+  - Historical context from telemetry when available
+- **Workflow composition assistant** (`scalable compose`):
+  - Natural-language to workflow generation
+  - Known model pattern detection (GCAM, Stitches, Demeter, Tethys, Xanthos, Hector)
+  - Generates `workflow.py`, `components.yaml`, `README.generated.md`
+  - Python syntax validation via `ast.parse`
+- **Manifest migration assistant** (`scalable migrate`):
+  - Provider migration proposals (slurm→kubernetes, slurm→aws, etc.)
+  - Schema version upgrade guidance
+  - Overlay-based output for non-destructive changes
+  - General manifest optimization suggestions
+- **Prompt template system** (`scalable.ai.prompts`) for all assistants.
+- **Heuristic analysis engine** (`scalable.ai.heuristics`):
+  - File/directory scanner for model detection
+  - Language/runtime classifier
+  - Resource estimation from build system analysis
+  - Failure pattern matching with regex taxonomy
+- **`ScalableSession.plan(objective=, policy=)`** now functional:
+  - Supported objectives: `"minimize cost"`, `"minimize time"`, `"balance"`
+  - Supported policies: `"safe"`, `"aggressive"`, `"manual"`
+  - Heuristic-based resource/worker adjustments
+- **Settings extensions** (`scalable.common.Settings`):
+  - `ai_backend` (`SCALABLE_AI_BACKEND`)
+  - `ai_model` (`SCALABLE_AI_MODEL`)
+  - `ai_endpoint` (`SCALABLE_AI_ENDPOINT`)
+- **Public API**: `onboard_component`, `diagnose_run`, `explain_plan`,
+  `compose_workflow`, `migrate_manifest` and associated result types
+  exported from `scalable.__init__` with optional-dep guards.
+- New docs page: `ai_assistants.rst`.
+- Populated `[project.optional-dependencies] ai` with `jinja2 >= 3.1`
+  and `rich >= 13.0`.
+
+### Changed
+
+- Bumped version to `2.0.0a4`.
+- CLI `_STUB_COMMANDS` is now empty — all Phase 4 commands (`diagnose`,
+  `explain`, `init-component`, `compose`) are fully implemented.
+- Added `migrate` as a new CLI command (not previously stubbed).
+- `ScalableSession.plan(objective=, policy=)` no longer raises
+  `NotImplementedError` for supported objective/policy combinations.
+
+### Tests
+
+- 118 new unit tests for AI modules, CLI commands, and session planning.
+- Updated 2 existing tests to reflect Phase 4 behavioral changes.
+- 356 total unit tests passing.
+
+---
+
+## [2.0.0a3] — Phase 3: Cloud and Kubernetes Execution
+
+### Added
+
+- **Kubernetes provider** (`scalable.providers.kubernetes.KubernetesProvider`)
+  implementing the `DeploymentProvider` protocol over the Dask Kubernetes
+  Operator. Maps manifest components to worker groups with per-component
+  resource requests and adaptive scaling support.
+- **AWS cloud provider** (`scalable.providers.cloud.aws.AWSBatchProvider`)
+  wrapping `dask-cloudprovider` `FargateCluster` / `EC2Cluster`.
+- **GCP provider scaffold** (`scalable.providers.cloud.gcp.GCPProvider`)
+  for manifest validation only; `build_cluster()` raises `NotImplementedError`.
+- **Cloud cost tables** (`scalable.providers.cloud.cost_tables`) with static
+  on-demand pricing for common AWS and GCP instance types.
+- **Cost estimation primitives** (`scalable.costing`):
+  - `CostEstimate` dataclass with provider/region/line-item breakdown
+  - `CostLineItem` with auto-computed totals
+- **Artifact store layer** (`scalable.artifacts`):
+  - `ArtifactStore` protocol, `ArtifactRef`, `ArtifactKind`
+  - `LocalArtifactStore` (filesystem backend)
+  - `FsspecArtifactStore` (S3, GCS, memory via fsspec)
+  - `build_artifact_store(uri)` factory function
+  - `RemoteCacheBackend` for opt-in remote cache storage
+- **Manifest overlays** (`scalable.manifest.overlays`):
+  - `overlays:` top-level key added to schema (additive, no version bump)
+  - `targets[*].overlay:` reference field for per-target overlay selection
+  - Deep-merge semantics: dicts merged recursively, lists/scalars replaced
+  - `ManifestModel.raw_unresolved` for pre-overlay provenance tracking
+- **`scalable run` CLI verb** (`scalable.cli.cmd_run`):
+  - Loads manifest with overlay resolution
+  - Validates, plans, estimates cost, and optionally executes a workflow file
+  - `--dry-run` mode prints plan + cost estimate as JSON
+- **Provider protocol extension**: optional `estimate_cost(spec, plan)` method
+  on `DeploymentProvider` with `_BaseProviderMixin` providing `None` default.
+- **Telemetry extensions**:
+  - `CostEvent` and `RemoteCacheEvent` in `scalable.telemetry.events`
+  - `cost.jsonl` stream in `TelemetryStore`
+  - Cost summary in `scalable report` output
+- **Settings extensions** (`scalable.common.Settings`):
+  - `cache_remote_uri` (`SCALABLE_CACHE_REMOTE`)
+  - `default_storage` (`SCALABLE_DEFAULT_STORAGE`)
+  - `runs_dir_remote` (`SCALABLE_RUNS_DIR_REMOTE`)
+- **Provider registry**: `kubernetes`, `aws`, `gcp` added as builtin providers.
+- **Public API**: `CostEstimate`, `KubernetesProvider`, `CloudProvider`,
+  `AWSBatchProvider`, `GCPProvider`, `ArtifactStore`, `LocalArtifactStore`,
+  `build_artifact_store` exported from `scalable.__init__` with optional-dep
+  guards.
+- New docs pages: `cloud.rst`, `kubernetes.rst`, `artifacts.rst`,
+  `overlays.rst`, `cost.rst`.
+- Example manifests: `scalable.gke.yaml`, `scalable.aws.yaml`,
+  `scalable.overlays.yaml`.
+- Populated `[project.optional-dependencies]` `cloud` and `kubernetes` extras.
+
+### Changed
+
+- Bumped version to `2.0.0a3`.
+- `_TOP_LEVEL_KEYS` in `scalable.manifest.parser` now includes `"overlays"`.
+- `load_manifest()` / `parse_manifest()` accept `target_name` and
+  `overlay_name` keyword arguments for overlay resolution.
+- `scalable run` removed from `_STUB_COMMANDS` in CLI main.
+
+### Tests
+
+- Unit tests for costing, artifacts, overlays, cloud/k8s providers, cost
+  tables, CLI run verb, telemetry cost events, and Phase 3 Settings.
+- 238 total unit tests passing.
+
+---
+
+## [Unreleased]
+
+### Added
+
+- **Phase 2 telemetry package** implementing run history, event schemas, and
+  report aggregation:
+  - `scalable.telemetry.events`
+  - `scalable.telemetry.store`
+  - `scalable.telemetry.collectors`
+  - `scalable.telemetry.runtime`
+- **Run history store** for manifest-driven sessions under `.scalable/runs/`
+  with persisted `manifest.yaml`, `plan.json`, `manifest.lock`, `run.json`,
+  task/resource/worker/failure/cache/artifact JSONL streams, and `summary.json`.
+- **`scalable report` CLI command** (text + JSON output) replacing the Phase 1
+  report stub.
+- **Deterministic advising API**:
+  - `ResourceAdvisor.from_history(...)`
+  - `ResourceAdvisor.recommend(...)`
+  - `ResourceRecommendation` result payload
+- **Artifact metadata recording API** via `ScalableSession.record_artifact(...)`.
+- New docs pages:
+  - `docs/telemetry.rst`
+  - `docs/advising.rst`
+
+### Changed
+
+- `ScalableSession` now initializes and finalizes telemetry by default for
+  manifest-driven runs (configurable).
+- `ScalableClient.submit` and `ScalableClient.map` now emit task lifecycle
+  telemetry through future callbacks.
+- `cacheable` now emits cache hit/miss telemetry events when telemetry is
+  active.
+- `LocalProvider` and `SlurmProvider` now emit worker/cluster telemetry events.
+- `scalable.__all__` now exports `ResourceAdvisor` and
+  `ResourceRecommendation`.
+- `Settings` now includes telemetry controls:
+  - `runs_dir` (`SCALABLE_RUNS_DIR`)
+  - `telemetry_enabled` (`SCALABLE_TELEMETRY`)
+  - `telemetry_parquet` (`SCALABLE_TELEMETRY_PARQUET`)
+
+### Tests
+
+- Added unit and integration coverage for:
+  - telemetry store lifecycle and summary generation
+  - telemetry collectors and report rendering
+  - `scalable report` CLI behavior
+  - `ResourceAdvisor` heuristics and fallbacks
+  - session telemetry end-to-end behavior on local execution
+
+## [2.0.0a1] - 2026-05-19
+
+### Added
+
 - New workflow architecture figure in [`docs/images/scalable_architecture.png`](docs/images/scalable_architecture.png).
+- Manifest-driven v2 entry points:
+  - ``ScalableSession.from_yaml(...)`` lifecycle API
+  - ``scalable validate`` CLI command
+  - ``scalable plan --dry-run`` CLI command
+  - deterministic ``manifest.lock`` fingerprint generation
+  - provider abstraction with ``LocalProvider`` and ``SlurmProvider``
+  - docs pages: [`docs/manifest.rst`](docs/manifest.rst) and [`docs/providers.rst`](docs/providers.rst)
+- Provider abstractions and neutral planning data structures:
+  - ``DeploymentProvider`` protocol
+  - ``DeploymentSpec``, ``ScalePlan``, ``ResourceRequest``, and ``ClusterHandle``
+- New CLI subcommands and namespace stubs:
+  - ``scalable validate``
+  - ``scalable plan --dry-run``
+  - reserved stubs: ``run``, ``diagnose``, ``explain``, ``init-component``, ``compose``, ``report``
+- Example manifests for docs and CI validation:
+  - [`docs/examples/scalable.minimal.yaml`](docs/examples/scalable.minimal.yaml)
+  - [`docs/examples/scalable.gcam_stitches.yaml`](docs/examples/scalable.gcam_stitches.yaml)
 
 ### Changed
 
@@ -19,11 +323,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Raised minimum supported Python version to 3.11 in [`pyproject.toml`](pyproject.toml).
 - Updated CI test matrix in [`.github/workflows/tests.yml`](.github/workflows/tests.yml) to run Python 3.11–3.12 only.
 - Updated container conda Python baseline to 3.11 in [`scalable/Dockerfile`](scalable/Dockerfile).
+- Expanded top-level exports in [`scalable/__init__.py`](scalable/__init__.py) to include
+  ``ScalableSession``, ``DeploymentProvider``, ``LocalProvider``, and ``SlurmProvider``.
+- Package version now targets v2 alpha in [`pyproject.toml`](pyproject.toml) with
+  ``version = "2.0.0a1"``.
+- Global settings in [`scalable/common.py`](scalable/common.py) now include
+  ``manifest_path`` and ``target`` with env overrides ``SCALABLE_MANIFEST`` and
+  ``SCALABLE_TARGET``.
+- CI now includes:
+  - version branch triggers (``version/**``)
+  - macOS matrix coverage for LocalProvider paths
+  - a dedicated docs-manifest validation and dry-run planning job
+
+### Deprecated
+
+- Legacy ``ModelConfig`` Dockerfile/config auto-discovery path now emits a
+  ``DeprecationWarning`` when used outside the manifest adapter context;
+  manifest-driven configuration via ``scalable.yaml`` is the preferred path.
 
 ### Documentation
 
 - Added [`DISCLAIMER.md`](DISCLAIMER.md).
 - Updated [`LICENSE.md`](LICENSE.md) to BSD-3-Clause wording.
+- Added and cross-linked:
+  - [`docs/manifest.rst`](docs/manifest.rst)
+  - [`docs/providers.rst`](docs/providers.rst)
+  - v2 manifest-first usage examples in [`README.md`](README.md)
+  - onboarding links in [`docs/getting_started.rst`](docs/getting_started.rst)
 
 ## [1.1.0]
 
@@ -184,4 +510,5 @@ Most changes are source-compatible. Two situations to be aware of:
    loopback.
 
 [1.1.0]: https://github.com/JGCRI/scalable/compare/1.0.0...1.1.0
-[Unreleased]: https://github.com/JGCRI/scalable/compare/1.1.0...HEAD
+[2.0.0a1]: https://github.com/JGCRI/scalable/compare/1.1.0...version/2.0.0-phase1-provider-manifest
+[Unreleased]: https://github.com/JGCRI/scalable/compare/version/2.0.0-phase1-provider-manifest...HEAD

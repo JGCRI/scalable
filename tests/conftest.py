@@ -21,13 +21,41 @@ def _isolate_scalable_env(tmp_path, monkeypatch):
     and similar paths from the current working directory. To prevent tests
     from polluting each other (or the developer's repo), we ``chdir`` into a
     fresh temporary directory and clear the environment overrides.
+
+    Also clears the generic AI environment variables that may have been loaded
+    from a developer's ``.env`` file via python-dotenv at import time.
     """
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("SCALABLE_CACHE_DIR", raising=False)
     monkeypatch.delenv("SCALABLE_SEED", raising=False)
     monkeypatch.delenv("SCALABLE_LOG_LEVEL", raising=False)
+    monkeypatch.delenv("SCALABLE_RUNS_DIR", raising=False)
+    monkeypatch.delenv("SCALABLE_TELEMETRY", raising=False)
+    monkeypatch.delenv("SCALABLE_TELEMETRY_PARQUET", raising=False)
     monkeypatch.delenv("COMM_PORT", raising=False)
+    # Generic AI provider env vars (loaded from .env via dotenv)
+    monkeypatch.delenv("AI_PROVIDER", raising=False)
+    monkeypatch.delenv("AI_API_KEY", raising=False)
+    monkeypatch.delenv("AI_BASE_URL", raising=False)
+    monkeypatch.delenv("LLM_MODEL_NAME", raising=False)
+    # Scalable-specific AI env vars
+    monkeypatch.delenv("SCALABLE_AI_BACKEND", raising=False)
+    monkeypatch.delenv("SCALABLE_AI_MODEL", raising=False)
+    monkeypatch.delenv("SCALABLE_AI_ENDPOINT", raising=False)
+    monkeypatch.delenv("SCALABLE_AI_API_KEY", raising=False)
+    # Provider-specific API key vars
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+    monkeypatch.delenv("XAI_API_KEY", raising=False)
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+
+    # Reset the settings singleton so it picks up the cleaned environment
+    from scalable import common
+    original_settings = common.settings
+    monkeypatch.setattr(common, "settings", common.Settings())
     yield
+    monkeypatch.setattr(common, "settings", original_settings)
 
 
 @pytest.fixture

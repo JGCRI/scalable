@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "Scalable"
+version: "2.0.0-beta.1"
+doi: "10.5281/zenodo.20295640"
+url: "https://github.com/JGCRI/scalable"
+repository-code: "https://github.com/JGCRI/scalable"
+license: BSD-3-Clause
+authors:
+  - family-names: "Vernon"
+    given-names: "Chris R."
+    email: "chris.vernon@pnnl.gov"
+  - family-names: "Patel"
+    given-names: "Pralit"
+    email: "pralit.patel@pnnl.gov"
+  - family-names: "Lamba"
+    given-names: "Shashank"
+keywords:
+  - distributed-computing
+  - scientific-workflows
+  - HPC
+  - Kubernetes
+  - Dask
+  - Python

@@ -1,0 +1,21 @@
+version: 1
+project:
+  name: minimal-demo
+
+targets:
+  local:
+    provider: local
+    max_workers: 2
+    threads_per_worker: 1
+    processes: false
+    containers: none
+
+components:
+  worker:
+    cpus: 1
+    memory: 1G
+
+tasks:
+  run_worker:
+    component: worker
+

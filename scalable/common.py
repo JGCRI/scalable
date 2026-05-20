@@ -25,11 +25,25 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass, field
+from pathlib import Path
 
-__all__ = ["logger", "settings", "Settings", "SEED", "cachedir", "DEFAULT_SEED"]
+from dotenv import load_dotenv
+
+__all__ = ["logger", "settings", "Settings", "SEED", "cachedir", "DEFAULT_SEED", "load_env"]
+
+# ---------------------------------------------------------------------------
+# Load .env file with override=True so that .env values take precedence over
+# any pre-existing system environment variables. This allows users to manage
+# all AI provider configuration in a single .env file.
+# ---------------------------------------------------------------------------
+_dotenv_path = Path.cwd() / ".env"
+if _dotenv_path.is_file():
+    load_dotenv(_dotenv_path, override=True)
 
 DEFAULT_SEED: int = 987654321
 DEFAULT_CACHE_DIR: str = "./cache"
+DEFAULT_MANIFEST_PATH: str = "./scalable.yaml"
+DEFAULT_RUNS_DIR: str = "./.scalable/runs"
 
 
 @dataclass
@@ -43,6 +57,16 @@ class Settings:
     seed:
         Seed for ``xxhash`` digests. Changing this invalidates every existing
         cache entry, so it should be treated as a one-time deployment choice.
+    cache_remote_uri:
+        Remote storage URI for the opt-in remote cache backend (Phase 3).
+        Set via ``SCALABLE_CACHE_REMOTE`` env var. When ``None``, only local
+        disk caching is used.
+    default_storage:
+        Default artifact/output storage URI override. Takes precedence over
+        the ``project.default_storage`` manifest field.
+    runs_dir_remote:
+        Remote storage URI for persisting run telemetry. When set, telemetry
+        is also synced to this remote location.
     """
 
     cache_dir: str = field(
@@ -51,11 +75,123 @@ class Settings:
     seed: int = field(
         default_factory=lambda: int(os.environ.get("SCALABLE_SEED", DEFAULT_SEED))
     )
+    manifest_path: str = field(
+        default_factory=lambda: os.environ.get("SCALABLE_MANIFEST", DEFAULT_MANIFEST_PATH)
+    )
+    target: str | None = field(default_factory=lambda: os.environ.get("SCALABLE_TARGET"))
+    runs_dir: str = field(
+        default_factory=lambda: os.environ.get("SCALABLE_RUNS_DIR", DEFAULT_RUNS_DIR)
+    )
+    telemetry_enabled: bool = field(
+        default_factory=lambda: bool(int(os.environ.get("SCALABLE_TELEMETRY", "1")))
+    )
+    telemetry_parquet: bool = field(
+        default_factory=lambda: bool(int(os.environ.get("SCALABLE_TELEMETRY_PARQUET", "0")))
+    )
+    # Phase 3 additions
+    cache_remote_uri: str | None = field(
+        default_factory=lambda: os.environ.get("SCALABLE_CACHE_REMOTE")
+    )
+    default_storage: str | None = field(
+        default_factory=lambda: os.environ.get("SCALABLE_DEFAULT_STORAGE")
+    )
+    runs_dir_remote: str | None = field(
+        default_factory=lambda: os.environ.get("SCALABLE_RUNS_DIR_REMOTE")
+    )
+    # Phase 4 AI additions
+    # Generic env vars (AI_PROVIDER, LLM_MODEL_NAME, AI_BASE_URL, AI_API_KEY)
+    # serve as fallbacks for the SCALABLE_AI_* variants, allowing users to
+    # configure a single set of env vars that work across providers.
+    ai_backend: str = field(
+        default_factory=lambda: os.environ.get(
+            "SCALABLE_AI_BACKEND",
+            os.environ.get("AI_PROVIDER", "none"),
+        )
+    )
+    ai_model: str | None = field(
+        default_factory=lambda: os.environ.get(
+            "SCALABLE_AI_MODEL",
+            os.environ.get("LLM_MODEL_NAME"),
+        )
+    )
+    ai_endpoint: str | None = field(
+        default_factory=lambda: os.environ.get(
+            "SCALABLE_AI_ENDPOINT",
+            os.environ.get("AI_BASE_URL"),
+        )
+    )
+    ai_api_key: str | None = field(
+        default_factory=lambda: os.environ.get(
+            "SCALABLE_AI_API_KEY",
+            os.environ.get("AI_API_KEY"),
+        )
+    )
+    # Phase 5 ML/Emulation additions
+    ml_model_cache_dir: str = field(
+        default_factory=lambda: os.environ.get("SCALABLE_ML_CACHE_DIR", ".scalable/models")
+    )
+    emulator_registry_dir: str = field(
+        default_factory=lambda: os.environ.get("SCALABLE_EMULATOR_DIR", ".scalable/emulators")
+    )
+    ml_enabled: bool = field(
+        default_factory=lambda: bool(int(os.environ.get("SCALABLE_ML", "1")))
+    )
+    emulation_enabled: bool = field(
+        default_factory=lambda: bool(int(os.environ.get("SCALABLE_EMULATION", "0")))
+    )
+    emulation_confidence_threshold: float = field(
+        default_factory=lambda: float(os.environ.get("SCALABLE_EMULATION_CONFIDENCE", "0.9"))
+    )
 
 
 #: Process-wide settings singleton. Mutating attributes on this instance
 #: changes behaviour for subsequent calls into the library.
 settings: Settings = Settings()
+
+
+def load_env(dotenv_path: str | Path | None = None, *, override: bool = True) -> Settings:
+    """Load environment variables from a ``.env`` file and reinitialize settings.
+
+    This is useful in notebooks and scripts where the working directory may
+    differ from the directory containing the ``.env`` file.  For example,
+    tutorial notebooks that ``os.chdir()`` into a temporary directory should
+    call this function *before* changing directories, or pass an absolute path
+    to their ``.env`` file.
+
+    Parameters
+    ----------
+    dotenv_path:
+        Path to the ``.env`` file to load.  If ``None`` (default), looks for
+        ``.env`` in the current working directory.
+    override:
+        Whether values in the ``.env`` file should override existing
+        environment variables (default: ``True``).
+
+    Returns
+    -------
+    Settings
+        The refreshed :data:`settings` singleton (same object, updated in-place
+        via replacement).
+
+    Examples
+    --------
+    >>> from scalable.common import load_env
+    >>> # Load .env from a specific location (e.g., the notebooks directory)
+    >>> load_env("/path/to/your/project/.env")
+    """
+    global settings
+
+    resolved = Path(dotenv_path) if dotenv_path is not None else Path.cwd() / ".env"
+    if not resolved.is_file():
+        logger.warning("load_env: file not found: %s", resolved)
+        return settings
+
+    load_dotenv(resolved, override=override)
+    logger.debug("load_env: loaded %s (override=%s)", resolved, override)
+
+    # Reinitialize settings from the (now-updated) environment.
+    settings = Settings()
+    return settings
 
 # ---------------------------------------------------------------------------
 # Logging

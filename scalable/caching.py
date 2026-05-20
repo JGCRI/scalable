@@ -2,6 +2,7 @@ import functools
 import hashlib
 import os
 import pickle
+import time
 import types
 import warnings
 from collections.abc import Callable
@@ -14,6 +15,7 @@ from diskcache import Cache
 from xxhash import xxh32
 
 from .common import logger, settings
+from .telemetry.runtime import emit_cache_event
 
 
 def _seed() -> int:
@@ -391,6 +393,7 @@ def cacheable(
             key = hash(ObjectType(sorted(keys)))
             disk = _shared_cache(_cache_dir())
             ret = None
+            lookup_start = time.monotonic()
             if key in disk and not recompute:
                 value = disk.get(key)
                 if value is None:
@@ -402,7 +405,7 @@ def cacheable(
                     if return_type is None:
                         new_digest = hash(convert_to_type(stored_value))
                     else:
-                        new_digest = hash(return_type(stored_value))
+                        new_digest = hash(convert_to_type(return_type(stored_value)))
                     if new_digest == stored_digest:
                         ret = stored_value
                     elif not disk.delete(key, retry=True):
@@ -413,17 +416,30 @@ def cacheable(
                         )
                 else:
                     ret = stored_value
+                emit_cache_event(
+                    function_name=getattr(func, "__qualname__", func.__name__),
+                    key_digest=str(key),
+                    hit=True,
+                    duration_s=max(time.monotonic() - lookup_start, 0.0),
+                )
             if ret is None:
+                compute_start = time.monotonic()
                 ret = func(*args, **kwargs)
                 if store:
                     if return_type is None:
                         new_digest = hash(convert_to_type(ret))
                     else:
-                        new_digest = hash(return_type(ret))
+                        new_digest = hash(convert_to_type(return_type(ret)))
                     if not disk.add(key=key, value=[new_digest, ret], retry=True):
                         logger.warning(
                             "%s could not be added to cache.", func.__name__
                         )
+                emit_cache_event(
+                    function_name=getattr(func, "__qualname__", func.__name__),
+                    key_digest=str(key),
+                    hit=False,
+                    duration_s=max(time.monotonic() - compute_start, 0.0),
+                )
             return ret
 
         return func if void else inner
