@@ -11,7 +11,7 @@ import logging
 from typing import Any
 
 from ..prompts.explain import EXPLAIN_PROMPT, SYSTEM_PROMPT
-from .base import AgentConfig, AgentDeps, AgentResult, ScalableAgent
+from .base import AgentConfig, AgentDeps, ScalableAgent
 from .models import ExplanationOutput
 
 logger = logging.getLogger(__name__)

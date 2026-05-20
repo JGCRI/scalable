@@ -10,9 +10,9 @@ import json
 import logging
 from typing import Any
 
-from ..heuristics import FailureClassification, classify_failure
+from ..heuristics import classify_failure
 from ..prompts.diagnose import DIAGNOSIS_PROMPT, SYSTEM_PROMPT
-from .base import AgentConfig, AgentDeps, AgentResult, ScalableAgent
+from .base import AgentConfig, AgentDeps, ScalableAgent
 from .models import DiagnosisOutput, FailureDetail
 
 logger = logging.getLogger(__name__)

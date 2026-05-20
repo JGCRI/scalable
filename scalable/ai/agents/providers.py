@@ -71,8 +71,8 @@ class ModelProvider:
         if self.endpoint and self.name == "openai":
             # OpenAI-compatible endpoint (vLLM, LiteLLM, etc.)
             try:
-                from pydantic_ai.models.openai import OpenAIModel
                 from openai import AsyncOpenAI
+                from pydantic_ai.models.openai import OpenAIModel
 
                 client = AsyncOpenAI(
                     base_url=self.endpoint,
@@ -85,8 +85,8 @@ class ModelProvider:
 
         if self.endpoint and self.name == "ollama":
             try:
-                from pydantic_ai.models.openai import OpenAIModel
                 from openai import AsyncOpenAI
+                from pydantic_ai.models.openai import OpenAIModel
 
                 # Ollama exposes an OpenAI-compatible API
                 client = AsyncOpenAI(

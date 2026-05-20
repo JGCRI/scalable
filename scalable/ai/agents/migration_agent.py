@@ -12,7 +12,7 @@ from typing import Any
 import yaml
 
 from ..prompts.migrate import MIGRATE_PROMPT, SYSTEM_PROMPT
-from .base import AgentConfig, AgentDeps, AgentResult, ScalableAgent
+from .base import AgentConfig, AgentDeps, ScalableAgent
 from .models import MigrationOutput
 
 logger = logging.getLogger(__name__)

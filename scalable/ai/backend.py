@@ -229,7 +229,6 @@ class AnthropicBackend:
                 "Install with: pip install anthropic"
             ) from exc
 
-        import os
         kwargs: dict[str, Any] = {}
         if self._api_key:
             kwargs["api_key"] = self._api_key
@@ -251,8 +250,9 @@ class AnthropicBackend:
 
     def available(self) -> bool:
         try:
-            import anthropic  # type: ignore[import-untyped]  # noqa: F401
             import os
+
+            import anthropic  # type: ignore[import-untyped]  # noqa: F401
             return bool(os.environ.get("ANTHROPIC_API_KEY") or self._api_key)
         except ImportError:
             return False
@@ -308,8 +308,9 @@ class GoogleBackend:
 
     def available(self) -> bool:
         try:
-            import google.generativeai  # type: ignore[import-untyped]  # noqa: F401
             import os
+
+            import google.generativeai  # type: ignore[import-untyped]  # noqa: F401
             return bool(os.environ.get("GOOGLE_API_KEY") or self._api_key)
         except ImportError:
             return False

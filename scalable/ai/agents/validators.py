@@ -8,7 +8,8 @@ of agent outputs.
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, TypeVar
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
@@ -50,7 +51,7 @@ class OutputValidator:
         self._rules: list[tuple[Callable[[Any], bool], str]] = []
         self._field_rules: dict[str, list[tuple[Callable[[Any], bool], str]]] = {}
 
-    def add_rule(self, check: Callable[[Any], bool], message: str) -> "OutputValidator":
+    def add_rule(self, check: Callable[[Any], bool], message: str) -> OutputValidator:
         """Add a global validation rule.
 
         Parameters
@@ -70,7 +71,7 @@ class OutputValidator:
 
     def add_field_rule(
         self, field: str, check: Callable[[Any], bool], message: str
-    ) -> "OutputValidator":
+    ) -> OutputValidator:
         """Add a validation rule for a specific field.
 
         Parameters

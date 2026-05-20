@@ -7,12 +7,11 @@ PydanticAI output validation.
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 from typing import Any
 
-from ..heuristics import DirectoryScanResult, find_run_commands, scan_model_directory
+from ..heuristics import DirectoryScanResult
 from ..prompts.onboarding import ANALYSIS_PROMPT, SYSTEM_PROMPT
-from .base import AgentConfig, AgentDeps, AgentResult, ScalableAgent
+from .base import AgentConfig, AgentDeps, ScalableAgent
 from .models import OnboardingOutput
 
 logger = logging.getLogger(__name__)
