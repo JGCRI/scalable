@@ -15,7 +15,7 @@ from scalable.manifest.adapter import (
     build_slurm_cluster_kwargs,
     create_legacy_slurm_cluster,
 )
-from scalable.manifest.validate import ValidationIssue, ValidationReport, validate_manifest
+from scalable.manifest.validate import ValidationIssue, ValidationReport
 from scalable.slurm import SlurmCluster
 from scalable.telemetry.runtime import emit_worker_event
 

@@ -7,7 +7,7 @@ from typing import Any
 from distributed import LocalCluster
 
 from scalable.client import ScalableClient
-from scalable.manifest.validate import ValidationIssue, ValidationReport, validate_manifest
+from scalable.manifest.validate import ValidationIssue, ValidationReport
 from scalable.telemetry.runtime import emit_worker_event
 
 from .base import ClusterHandle, DeploymentProvider, DeploymentSpec, ScalePlan
