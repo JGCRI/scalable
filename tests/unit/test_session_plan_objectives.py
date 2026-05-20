@@ -43,7 +43,7 @@ class TestSessionPlanObjectives:
         session = ScalableSession.from_yaml(manifest_path, target="local")
         plan = session.plan(dry_run=True, objective="minimize cost", policy="safe")
         # Workers should be conservative
-        for _tag, count in plan.scale_plan.workers_by_tag.items():
+        for tag, count in plan.scale_plan.workers_by_tag.items():
             assert count >= 1
 
     def test_plan_minimize_time_aggressive(self, tmp_path):

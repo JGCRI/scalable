@@ -272,6 +272,8 @@ def _apply_objective_policy(
     Phase 4 implementation uses heuristic rules. Phase 5 will add
     ML-backed optimizations using the same API surface.
     """
+    from dataclasses import replace as dc_replace
+
     from scalable.providers.base import ResourceRequest, ScalePlan
 
     effective_objective = (objective or "balance").lower().strip()
