@@ -54,6 +54,7 @@ Contents
    cost
    telemetry
    advising
+   ai_assistants
    caching
    functions
 

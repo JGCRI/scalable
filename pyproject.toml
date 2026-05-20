@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scalable"
-version = "2.0.0a3"
+version = "2.0.0a4"
 description = "Assist with running models on job queing systems like Slurm"
 authors = [
     { name = "Shashank Lamba" },
@@ -58,7 +58,10 @@ dev = [
 # v2.0.0 phase placeholders. Empty until later phases populate them so that
 # `pip install scalable[ai|cloud|kubernetes]` resolves cleanly from day one
 # and downstream pinning of the extras name is stable.
-ai = []
+ai = [
+    "jinja2 >= 3.1",
+    "rich >= 13.0",
+]
 cloud = [
     "s3fs >= 2024.2.0",
     "gcsfs >= 2024.2.0",

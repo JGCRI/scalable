@@ -84,16 +84,25 @@ def test_validate_ok_for_local_manifest(tmp_path: Path, monkeypatch) -> None:
     assert report.ok is True
 
 
-def test_plan_raises_not_implemented_for_objective_policy(tmp_path: Path) -> None:
+def test_plan_with_objective_policy_now_functional(tmp_path: Path) -> None:
+    """Phase 4 implemented objective/policy planning; supported values no longer raise."""
     manifest_path = tmp_path / "scalable.yaml"
     _write_manifest(manifest_path)
     session = ScalableSession.from_yaml(manifest_path, target="local")
 
+    # Supported objectives/policies now work
+    plan = session.plan(objective="minimize cost")
+    assert plan is not None
+
+    plan = session.plan(policy="safe")
+    assert plan is not None
+
+    # Unsupported values still raise NotImplementedError
     with pytest.raises(NotImplementedError):
-        session.plan(objective="minimize cost")
+        session.plan(objective="do_magic_unsupported")
 
     with pytest.raises(NotImplementedError):
-        session.plan(policy="safe")
+        session.plan(policy="unsupported_policy")
 
 
 def test_plan_returns_dry_run_plan(tmp_path: Path) -> None:

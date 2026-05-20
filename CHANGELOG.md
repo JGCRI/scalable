@@ -5,6 +5,79 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0a4] — Phase 4: AI Assistant Features
+
+### Added
+
+- **AI assistant subsystem** (`scalable.ai`) with pluggable LLM backend
+  protocol and heuristic-only fallback mode:
+  - `AIBackend` protocol with `NoOpBackend`, `OpenAIBackend`, `OllamaBackend`
+  - Backend selection via `SCALABLE_AI_BACKEND` environment variable
+  - All assistants functional without LLM via deterministic heuristics
+- **Component onboarding assistant** (`scalable init-component`):
+  - Directory scanning for language, build system, and runtime detection
+  - Resource estimation heuristics based on detected language/build system
+  - Container file detection (Dockerfile, Apptainer)
+  - Mount point suggestions from data directory conventions
+  - Proposed `ComponentConfig`-compatible YAML output
+- **Failure diagnosis assistant** (`scalable diagnose`):
+  - Rule-based failure taxonomy: `oom`, `walltime`, `mount_missing`,
+    `import_error`, `connection`, `credential`, `model_runtime`
+  - Evidence extraction from telemetry events
+  - Suggested fixes with confidence ratings
+  - Text and JSON output formats
+- **Plan explanation assistant** (`scalable explain`):
+  - Human-readable narrative from `plan.json` files
+  - Sections: overview, resource allocation, execution strategy, recommendations
+  - Historical context from telemetry when available
+- **Workflow composition assistant** (`scalable compose`):
+  - Natural-language to workflow generation
+  - Known model pattern detection (GCAM, Stitches, Demeter, Tethys, Xanthos, Hector)
+  - Generates `workflow.py`, `components.yaml`, `README.generated.md`
+  - Python syntax validation via `ast.parse`
+- **Manifest migration assistant** (`scalable migrate`):
+  - Provider migration proposals (slurm→kubernetes, slurm→aws, etc.)
+  - Schema version upgrade guidance
+  - Overlay-based output for non-destructive changes
+  - General manifest optimization suggestions
+- **Prompt template system** (`scalable.ai.prompts`) for all assistants.
+- **Heuristic analysis engine** (`scalable.ai.heuristics`):
+  - File/directory scanner for model detection
+  - Language/runtime classifier
+  - Resource estimation from build system analysis
+  - Failure pattern matching with regex taxonomy
+- **`ScalableSession.plan(objective=, policy=)`** now functional:
+  - Supported objectives: `"minimize cost"`, `"minimize time"`, `"balance"`
+  - Supported policies: `"safe"`, `"aggressive"`, `"manual"`
+  - Heuristic-based resource/worker adjustments
+- **Settings extensions** (`scalable.common.Settings`):
+  - `ai_backend` (`SCALABLE_AI_BACKEND`)
+  - `ai_model` (`SCALABLE_AI_MODEL`)
+  - `ai_endpoint` (`SCALABLE_AI_ENDPOINT`)
+- **Public API**: `onboard_component`, `diagnose_run`, `explain_plan`,
+  `compose_workflow`, `migrate_manifest` and associated result types
+  exported from `scalable.__init__` with optional-dep guards.
+- New docs page: `ai_assistants.rst`.
+- Populated `[project.optional-dependencies] ai` with `jinja2 >= 3.1`
+  and `rich >= 13.0`.
+
+### Changed
+
+- Bumped version to `2.0.0a4`.
+- CLI `_STUB_COMMANDS` is now empty — all Phase 4 commands (`diagnose`,
+  `explain`, `init-component`, `compose`) are fully implemented.
+- Added `migrate` as a new CLI command (not previously stubbed).
+- `ScalableSession.plan(objective=, policy=)` no longer raises
+  `NotImplementedError` for supported objective/policy combinations.
+
+### Tests
+
+- 118 new unit tests for AI modules, CLI commands, and session planning.
+- Updated 2 existing tests to reflect Phase 4 behavioral changes.
+- 356 total unit tests passing.
+
+---
+
 ## [2.0.0a3] — Phase 3: Cloud and Kubernetes Execution
 
 ### Added
