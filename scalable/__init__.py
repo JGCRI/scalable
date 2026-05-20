@@ -80,6 +80,27 @@ except ImportError:  # pragma: no cover
     migrate_manifest = None  # type: ignore[assignment,misc]
     onboard_component = None  # type: ignore[assignment,misc]
 
+# Phase 5: ML optimization and emulation exports (optional deps)
+try:
+    from .ml import AdaptiveScaler, HyperparameterSearch, LearnedAdvisor
+except ImportError:  # pragma: no cover
+    LearnedAdvisor = None  # type: ignore[assignment,misc]
+    AdaptiveScaler = None  # type: ignore[assignment,misc]
+    HyperparameterSearch = None  # type: ignore[assignment,misc]
+
+try:
+    from .emulation import (
+        ActiveLearner,
+        EmulatorDispatch,
+        EmulatorRegistry,
+        emulatable,
+    )
+except ImportError:  # pragma: no cover
+    ActiveLearner = None  # type: ignore[assignment,misc]
+    EmulatorDispatch = None  # type: ignore[assignment,misc]
+    EmulatorRegistry = None  # type: ignore[assignment,misc]
+    emulatable = None  # type: ignore[assignment,misc]
+
 try:
     __version__ = _pkg_version("scalable")
 except PackageNotFoundError:  # pragma: no cover - source checkout w/o install
@@ -97,6 +118,7 @@ __all__ = [
     "GCPProvider",
     "JobQueueCluster",
     "KubernetesProvider",
+    "LearnedAdvisor",
     "LocalArtifactStore",
     "LocalProvider",
     "MigrationResult",
@@ -113,9 +135,16 @@ __all__ = [
     "build_artifact_store",
     "compose_workflow",
     "diagnose_run",
+    "emulatable",
     "explain_plan",
     "get_worker",
     "migrate_manifest",
     "onboard_component",
     "settings",
+    # Phase 5 ML/emulation
+    "ActiveLearner",
+    "AdaptiveScaler",
+    "EmulatorDispatch",
+    "EmulatorRegistry",
+    "HyperparameterSearch",
 ]

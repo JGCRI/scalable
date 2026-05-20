@@ -11,6 +11,7 @@ Implemented subcommands:
 * ``scalable explain``
 * ``scalable compose``
 * ``scalable migrate``
+* ``scalable advise``
 
 """
 
@@ -408,12 +409,23 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     migrate_parser.set_defaults(handler=_handle_migrate)
 
+    # --- advise (Phase 5) ---
+    from .cmd_advise import register_advise_parser
+
+    register_advise_parser(subparsers)
+
     # --- stubs for future phases ---
     for command, phase in _STUB_COMMANDS.items():
         stub_parser = subparsers.add_parser(command, help=f"Reserved command (planned for {phase})")
         stub_parser.set_defaults(handler=_make_stub_handler(command, phase))
 
     return parser
+
+
+def _handle_advise(args: argparse.Namespace) -> int:
+    from .cmd_advise import _run_advise
+
+    return _run_advise(args)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -426,6 +438,9 @@ def main(argv: list[str] | None = None) -> int:
         return int(exc.code)
 
     handler = getattr(args, "handler", None)
+    # Also check for Phase 5 "func" pattern
+    if handler is None:
+        handler = getattr(args, "func", None)
     if handler is None:
         parser.print_help(sys.stderr)
         return 2

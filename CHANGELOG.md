@@ -5,6 +5,71 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0a5] — Phase 5: ML Optimization and Emulation
+
+### Added
+
+- **ML optimization subsystem** (`scalable.ml`) with learned resource prediction
+  and adaptive scaling:
+  - `LearnedAdvisor` — ML-backed resource recommendations using gradient
+    boosting, random forest, or quantile regression trained on telemetry history
+  - `AdaptiveScaler` — real-time adaptive worker scaling with configurable
+    thresholds, min/max bounds, and cooldown periods
+  - `FeatureExtractor` — telemetry feature engineering with rolling aggregates,
+    task identity hashing, and user-provided input features
+  - `ResourceModel` — unified sklearn model wrapper with fit/predict/intervals,
+    model serialization, and percentile fallback when sklearn unavailable
+  - `HyperparameterSearch` — Dask-ML distributed tuning integration
+    (hyperband, successive halving, random) with sklearn fallback
+  - `cross_validate_advisor` — model quality assessment framework
+- **Model emulation subsystem** (`scalable.emulation`) with uncertainty-aware
+  surrogate model dispatch:
+  - `@emulatable` decorator marking functions as emulation-capable with
+    declared inputs, outputs, domain bounds, and confidence thresholds
+  - `EmulatorRegistry` — versioned emulator management with filesystem
+    persistence, domain validation, and joblib serialization
+  - `EmulatorDispatch` — confidence-gated routing between emulator and
+    full model with provenance recording
+  - `ActiveLearner` — intelligent scenario selection using expected
+    improvement, maximum uncertainty, or random acquisition strategies
+  - `GradientBoostingEmulator` and `RandomForestEmulator` surrogate
+    model implementations with tree-based uncertainty estimation
+  - `calibrate_emulator` — uncertainty calibration assessment with
+    coverage and sharpness metrics
+- **`scalable advise` CLI command** for ML-backed resource recommendations:
+  - Supports `--task`, `--target`, `--model-type`, `--confidence`, `--format`
+  - Graceful degradation to Phase 2 heuristic advisor when ML unavailable
+  - Text and JSON output formats
+- **`EmulationEvent` telemetry** for tracking emulator dispatch decisions
+  including source, confidence, fallback reason, and domain validity.
+- **Settings extensions** (`scalable.common.Settings`):
+  - `ml_model_cache_dir` (`SCALABLE_ML_CACHE_DIR`)
+  - `emulator_registry_dir` (`SCALABLE_EMULATOR_DIR`)
+  - `ml_enabled` (`SCALABLE_ML`)
+  - `emulation_enabled` (`SCALABLE_EMULATION`)
+  - `emulation_confidence_threshold` (`SCALABLE_EMULATION_CONFIDENCE`)
+- **`[project.optional-dependencies] ml`** extra with `scikit-learn >= 1.3`,
+  `dask-ml >= 2023.3.24`, and `joblib >= 1.3`.
+- **Public API**: `LearnedAdvisor`, `AdaptiveScaler`, `HyperparameterSearch`,
+  `EmulatorRegistry`, `EmulatorDispatch`, `ActiveLearner`, `emulatable`
+  exported from `scalable.__init__` with optional-dep guards.
+
+### Changed
+
+- Bumped version to `2.0.0a5`.
+- CLI main dispatcher now supports both `handler` and `func` argument
+  patterns for command registration.
+- `scalable advise` added as implemented CLI command.
+
+### Tests
+
+- 75 new unit tests for ML features, models, adaptive scaler, emulation
+  decorator, registry, dispatch, uncertainty calibration, active learning,
+  telemetry events, settings, and CLI.
+- 431 total unit tests passing (no regressions from Phases 1–4).
+
+---
+
 ## [2.0.0a4] — Phase 4: AI Assistant Features
 
 ### Added
