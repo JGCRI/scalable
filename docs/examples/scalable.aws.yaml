@@ -31,7 +31,7 @@ components:
     image: 123456789.dkr.ecr.us-east-1.amazonaws.com/gcam:7.0
     cpus: 4
     memory: 16G
-    tags: [iam, climate]
+    tags: [multi-sector-dynamics, climate]
 
   postprocess:
     cpus: 2

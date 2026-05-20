@@ -51,6 +51,18 @@ class ScalableSession:
         known = set(iter_provider_names(include_entrypoints=True))
         # Keep built-ins discoverable even before first runtime lookup.
         known.update({"local", "slurm"})
+        # Include optional-extra providers so manifests with cloud/k8s targets
+        # pass validation when the extras are installed.
+        try:
+            from scalable.providers.cloud import AWSBatchProvider  # noqa: F401
+            known.update({"aws", "gcp"})
+        except ImportError:
+            pass
+        try:
+            from scalable.providers.kubernetes import KubernetesProvider  # noqa: F401
+            known.add("kubernetes")
+        except ImportError:
+            pass
         report = validate_manifest(self.manifest, known_providers=known)
 
         try:

@@ -405,7 +405,7 @@ def cacheable(
                     if return_type is None:
                         new_digest = hash(convert_to_type(stored_value))
                     else:
-                        new_digest = hash(return_type(stored_value))
+                        new_digest = hash(convert_to_type(return_type(stored_value)))
                     if new_digest == stored_digest:
                         ret = stored_value
                     elif not disk.delete(key, retry=True):
@@ -429,7 +429,7 @@ def cacheable(
                     if return_type is None:
                         new_digest = hash(convert_to_type(ret))
                     else:
-                        new_digest = hash(return_type(ret))
+                        new_digest = hash(convert_to_type(return_type(ret)))
                     if not disk.add(key=key, value=[new_digest, ret], retry=True):
                         logger.warning(
                             "%s could not be added to cache.", func.__name__

@@ -97,7 +97,7 @@ Step 2: Configure the Kubernetes Target
        image: gcr.io/${GCP_PROJECT}/gridlabd:5.0
        cpus: 8
        memory: 32G
-       tags: [iam, energy]
+       tags: [multi-sector-dynamics, energy]
        env:
          GRIDLABD_DATA: /data/gridlabd
 

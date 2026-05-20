@@ -153,7 +153,7 @@ Components are resource profiles for your workloads:
          /shared/outputs: /outputs
        env:
          GRIDLABD_DATA: /gridlabd-core/data
-       tags: [iam, energy]
+       tags: [multi-sector-dynamics, energy]
        preload_script: ./scripts/gridlabd_preload.sh
 
      postprocess:
@@ -438,7 +438,7 @@ Here is a production-ready manifest combining all concepts:
        image: ghcr.io/gridlab-d/gridlabd:5.0
        cpus: 4
        memory: 16G
-       tags: [iam, energy]
+       tags: [multi-sector-dynamics, energy]
        env:
          GRIDLABD_DATA: /gridlabd-core/data
 

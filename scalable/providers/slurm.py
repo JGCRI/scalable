@@ -32,7 +32,7 @@ class SlurmProvider(DeploymentProvider):
     name = "slurm"
 
     def validate(self, spec: DeploymentSpec) -> ValidationReport:
-        report = validate_manifest(spec.manifest, known_providers={"local", "slurm"})
+        report = ValidationReport()
         options = spec.target.options
 
         _require_type(report, spec.target_name, options, "queue", str)

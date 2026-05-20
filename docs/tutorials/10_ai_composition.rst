@@ -310,7 +310,7 @@ from descriptions:
      gridlabd:
        cpus: 8
        memory: 32G
-       tags: [iam, energy]
+       tags: [multi-sector-dynamics, energy]
      watershed:
        cpus: 6
        memory: 50G
@@ -388,7 +388,7 @@ Move your workflow from one provider to another:
        image: gcr.io/my-project/gridlabd:5.0
        cpus: 8
        memory: 32G
-       tags: [iam, energy]
+       tags: [multi-sector-dynamics, energy]
        env:
          GRIDLABD_DATA: /data/gridlabd
 

@@ -72,7 +72,7 @@ The AWS provider uses ``dask-cloudprovider`` to launch Dask workers on Fargate
        image: ${ECR_IMAGE_GCAM}
        cpus: 4
        memory: 16G
-       tags: [iam, energy]
+       tags: [multi-sector-dynamics, energy]
 
      postprocess:
        cpus: 2
@@ -286,7 +286,7 @@ storage backends:
    # ArtifactRef(uri='s3://my-bucket/artifacts/runs/run-001/output.csv')
 
    # Retrieve a file
-   local_path = s3_store.get(ref, "./downloads/output.csv")
+   local_path = s3_store.get("runs/run-001/output.csv", "./downloads/output.csv")
 
 The store is protocol-aware via ``fsspec``: it detects the URI scheme and uses
 the appropriate backend (``s3fs`` for S3, ``gcsfs`` for GCS, local filesystem

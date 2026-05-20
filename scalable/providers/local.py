@@ -30,7 +30,7 @@ class LocalProvider(DeploymentProvider):
     _ALLOWED_CONTAINER_MODES = {"none", "auto", "docker"}
 
     def validate(self, spec: DeploymentSpec) -> ValidationReport:
-        report = validate_manifest(spec.manifest, known_providers={"local", "slurm"})
+        report = ValidationReport()
         options = spec.target.options
 
         if "max_workers" in options:
