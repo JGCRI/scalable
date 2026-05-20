@@ -4,10 +4,6 @@
 Beginner Tutorial 5: Cloud Computing Fundamentals
 ======================================================
 
-.. contents:: In This Tutorial
-   :local:
-   :depth: 2
-
 The Big Picture
 ----------------
 

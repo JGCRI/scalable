@@ -4,10 +4,6 @@
 Beginner Tutorial 9: Machine Learning for Smarter Workflows
 ======================================================
 
-.. contents:: In This Tutorial
-   :local:
-   :depth: 2
-
 The Big Picture
 ----------------
 

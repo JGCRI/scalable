@@ -4,10 +4,6 @@
 Beginner Tutorial 6: Understanding What Happened
 ======================================================
 
-.. contents:: In This Tutorial
-   :local:
-   :depth: 2
-
 The Big Picture
 ----------------
 
