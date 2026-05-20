@@ -266,7 +266,27 @@ print(result.confidence)
 
 AI assistants help with onboarding, diagnostics, workflow generation, and
 migration. All features work without an LLM backend via deterministic heuristics;
-LLM enhancement is opt-in via `SCALABLE_AI_BACKEND`.
+LLM enhancement is opt-in via `AI_PROVIDER` (or `SCALABLE_AI_BACKEND`).
+
+Supported AI providers:
+
+| Provider | `AI_PROVIDER` | Example Models |
+|----------|---------------|----------------|
+| OpenAI | `openai` | gpt-4o, gpt-4o-mini, o1 |
+| Anthropic | `anthropic` | claude-opus-4-20250514, claude-sonnet-4-20250514 |
+| Google Gemini | `google` | gemini-2.0-flash, gemini-1.5-pro |
+| xAI (Grok) | `xai` | grok-3, grok-2 |
+| Groq | `groq` | llama-3.1-70b-versatile |
+| Ollama (local) | `ollama` | llama3, mistral |
+
+Configure via `.env` file (loaded automatically with override priority):
+
+```bash
+AI_PROVIDER=openai
+AI_API_KEY=your_api_key_here
+LLM_MODEL_NAME=gpt-4o
+# AI_BASE_URL=https://custom-endpoint.example.com/v1  # optional
+```
 
 ```bash
 # Onboard a new model component
@@ -429,7 +449,34 @@ For reliable behavior, explicitly specify argument and return types whenever pos
 
 ## Environment Variables
 
-Scalable is configured via environment variables for deployment flexibility:
+Scalable is configured via environment variables for deployment flexibility.
+A `.env` file in the project root is loaded automatically with override priority
+(values in `.env` take precedence over system environment variables).
+
+### AI Provider Configuration (Generic)
+
+These provider-agnostic variables are the recommended way to configure AI features:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AI_PROVIDER` | `none` | AI provider (`openai`, `anthropic`, `google`, `xai`, `groq`, `ollama`) |
+| `AI_API_KEY` | *(unset)* | Universal API key (works for any provider) |
+| `LLM_MODEL_NAME` | *(unset)* | Model name (e.g. `gpt-4o`, `claude-sonnet-4-20250514`, `grok-3`) |
+| `AI_BASE_URL` | *(unset)* | Custom API endpoint (for proxies, xAI auto-configures) |
+
+### Provider-Specific API Keys (Optional)
+
+Override `AI_API_KEY` for individual providers when using multiple services:
+
+| Variable | Provider |
+|----------|----------|
+| `OPENAI_API_KEY` | OpenAI |
+| `ANTHROPIC_API_KEY` | Anthropic |
+| `GOOGLE_API_KEY` | Google Gemini |
+| `XAI_API_KEY` | xAI (Grok) |
+| `GROQ_API_KEY` | Groq |
+
+### Core Configuration
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -443,14 +490,23 @@ Scalable is configured via environment variables for deployment flexibility:
 | `SCALABLE_TELEMETRY_PARQUET` | `0` | Emit parquet snapshots |
 | `SCALABLE_CACHE_REMOTE` | *(unset)* | Remote cache URI (S3/GCS) |
 | `SCALABLE_DEFAULT_STORAGE` | *(unset)* | Default artifact storage URI |
-| `SCALABLE_AI_BACKEND` | `none` | AI backend (`none`, `openai`, `ollama`) |
-| `SCALABLE_AI_MODEL` | *(unset)* | Model name for AI backend |
-| `SCALABLE_AI_ENDPOINT` | *(unset)* | API endpoint for AI backend |
 | `SCALABLE_ML` | `1` | Enable ML features |
 | `SCALABLE_ML_CACHE_DIR` | `.scalable/models` | ML model cache directory |
 | `SCALABLE_EMULATION` | `0` | Enable model emulation |
 | `SCALABLE_EMULATOR_DIR` | `.scalable/emulators` | Emulator registry directory |
 | `SCALABLE_EMULATION_CONFIDENCE` | `0.9` | Emulation confidence threshold |
+
+### Advanced AI Overrides
+
+These `SCALABLE_AI_*` variables take priority over the generic `AI_*` equivalents.
+Use only when you need Scalable-specific config separate from other tools:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SCALABLE_AI_BACKEND` | *(from AI_PROVIDER)* | AI backend override |
+| `SCALABLE_AI_MODEL` | *(from LLM_MODEL_NAME)* | Model name override |
+| `SCALABLE_AI_ENDPOINT` | *(from AI_BASE_URL)* | API endpoint override |
+| `SCALABLE_AI_API_KEY` | *(from AI_API_KEY)* | API key override |
 
 ## How to Contribute
 

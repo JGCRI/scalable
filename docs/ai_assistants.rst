@@ -20,11 +20,63 @@ Design Philosophy
 Configuration
 -------------
 
-AI features are controlled via environment variables:
+AI features are configured via a ``.env`` file in your project root (loaded
+automatically with override priority) or via environment variables.
 
-* ``SCALABLE_AI_BACKEND`` — Backend selection (``none``, ``openai``, ``ollama``). Default: ``none``.
-* ``SCALABLE_AI_MODEL`` — Model name for the selected backend.
-* ``SCALABLE_AI_ENDPOINT`` — API endpoint override for the backend.
+**Recommended generic variables** (provider-agnostic):
+
+* ``AI_PROVIDER`` — Provider selection. Options: ``openai``, ``anthropic``, ``google``, ``xai``, ``groq``, ``ollama``. Default: ``none``.
+* ``AI_API_KEY`` — Universal API key (works for any provider requiring auth).
+* ``LLM_MODEL_NAME`` — Model identifier for the selected provider.
+* ``AI_BASE_URL`` — Custom API endpoint (required for proxies; xAI and Ollama auto-configure).
+
+**Supported providers and example models:**
+
+.. list-table::
+   :header-rows: 1
+   :widths: 15 15 40
+
+   * - Provider
+     - ``AI_PROVIDER``
+     - Example models
+   * - OpenAI
+     - ``openai``
+     - ``gpt-4o``, ``gpt-4o-mini``, ``o1``, ``o1-mini``
+   * - Anthropic
+     - ``anthropic``
+     - ``claude-opus-4-20250514``, ``claude-sonnet-4-20250514``, ``claude-haiku-3-20250414``
+   * - Google Gemini
+     - ``google``
+     - ``gemini-2.0-flash``, ``gemini-1.5-pro``, ``gemini-1.5-flash``
+   * - xAI (Grok)
+     - ``xai``
+     - ``grok-3``, ``grok-2``
+   * - Groq
+     - ``groq``
+     - ``llama-3.1-70b-versatile``, ``mixtral-8x7b-32768``
+   * - Ollama (local)
+     - ``ollama``
+     - ``llama3``, ``mistral``, ``codellama``
+
+Example ``.env`` file:
+
+.. code-block:: bash
+
+   AI_PROVIDER=openai
+   AI_API_KEY=sk-your-key-here
+   LLM_MODEL_NAME=gpt-4o
+   # AI_BASE_URL=https://custom-endpoint.example.com/v1
+
+**Advanced: SCALABLE_AI_* overrides** (take priority over generic variables):
+
+* ``SCALABLE_AI_BACKEND`` — Backend selection override.
+* ``SCALABLE_AI_MODEL`` — Model name override.
+* ``SCALABLE_AI_ENDPOINT`` — API endpoint override.
+* ``SCALABLE_AI_API_KEY`` — API key override.
+
+**Provider-specific API keys** (optional, override ``AI_API_KEY`` per-provider):
+
+* ``OPENAI_API_KEY``, ``ANTHROPIC_API_KEY``, ``GOOGLE_API_KEY``, ``XAI_API_KEY``, ``GROQ_API_KEY``
 
 Install the AI extra for enhanced output formatting::
 
