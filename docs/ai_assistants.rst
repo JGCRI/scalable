@@ -23,6 +23,27 @@ Configuration
 AI features are configured via a ``.env`` file in your project root (loaded
 automatically with override priority) or via environment variables.
 
+By default, Scalable loads a ``.env`` file from the **current working directory**
+at import time. If your script or notebook changes directories (e.g.,
+``os.chdir()`` to a temp folder), use :func:`~scalable.common.load_env` to
+explicitly load credentials from a specific path::
+
+    from scalable.common import load_env
+
+    # Load from an absolute path before changing directories
+    load_env("/path/to/your/project/.env")
+
+    # Or load from a relative path (resolved against CWD at call time)
+    load_env("../notebooks/.env")
+
+.. tip::
+
+   For Jupyter notebooks in the ``notebooks/`` directory, place a ``.env``
+   file there (copy from ``.env.example`` in the project root). The AI tutorial
+   notebook (Tutorial 10) calls ``load_env()`` automatically at startup — just
+   ensure the ``.env`` file exists in the notebooks directory or update the
+   path in the first code cell.
+
 **Recommended generic variables** (provider-agnostic):
 
 * ``AI_PROVIDER`` — Provider selection. Options: ``openai``, ``anthropic``, ``google``, ``xai``, ``groq``, ``ollama``. Default: ``none``.
@@ -171,6 +192,32 @@ Options:
 
 Python API
 ----------
+
+Loading Environment Configuration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Use :func:`~scalable.common.load_env` to load a ``.env`` file from a custom
+location. This is especially useful in notebooks and scripts that change the
+working directory::
+
+    from scalable.common import load_env
+
+    # Load from the notebooks directory (before os.chdir)
+    load_env("./notebooks/.env")
+
+    # Or equivalently via the top-level package import:
+    from scalable import load_env
+    load_env("/absolute/path/to/.env")
+
+Parameters:
+
+* ``dotenv_path`` — Path to the ``.env`` file. Defaults to ``<cwd>/.env``.
+* ``override`` — Whether to override existing env vars (default: ``True``).
+
+Returns the refreshed :data:`~scalable.common.settings` singleton.
+
+Assistant Functions
+~~~~~~~~~~~~~~~~~~~
 
 All assistant functions are available programmatically::
 
