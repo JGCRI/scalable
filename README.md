@@ -16,6 +16,7 @@ Scalable is a Python framework for orchestrating containerized, distributed work
 - [Installation](#installation)
 - [System Requirements](#system-requirements)
 - [Quick Start](#quick-start)
+- [Configuration (`.env` File)](#configuration-env-file)
 - [Usage](#usage)
   - [Manifest-Driven Workflows](#manifest-driven-workflows)
   - [Session API](#session-api)
@@ -117,6 +118,88 @@ python3 <filename>.py
 ### SSH Recommendation
 
 Bootstrap performs multiple SSH operations. For best reliability and usability, configure key-based passwordless SSH authentication in advance.
+
+## Configuration (`.env` File)
+
+Scalable uses a **`.env` file** in your project's working directory to centralize
+runtime configuration — particularly AI provider credentials, cache paths, and
+telemetry settings.
+
+### How It Works
+
+When any part of the Scalable library is imported (or any CLI command is run),
+the module [`scalable.common`](scalable/common.py:39) automatically loads a
+`.env` file from **the current working directory** (`$CWD/.env`) using
+[python-dotenv](https://pypi.org/project/python-dotenv/) with `override=True`.
+This means values in `.env` take precedence over pre-existing system environment
+variables.
+
+### Setup Steps
+
+1. **Copy the example file** from the repository root into your project directory:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Edit `.env`** and fill in your values (at minimum, set `AI_PROVIDER` and
+   `AI_API_KEY` if you want AI features):
+
+   ```bash
+   AI_PROVIDER=openai
+   AI_API_KEY=sk-your-key-here
+   LLM_MODEL_NAME=gpt-4o
+   ```
+
+3. **Run Scalable** from the directory containing `.env`:
+
+   ```bash
+   cd /path/to/your/project   # directory with .env
+   scalable validate ./scalable.yaml
+   scalable compose "Run GCAM then Stitches"
+   ```
+
+   Or in Python:
+
+   ```python
+   # The .env is loaded automatically on import
+   from scalable import ScalableSession
+   ```
+
+### Where to Place the `.env` File
+
+| Scenario | Location |
+|----------|----------|
+| CLI usage | The directory you `cd` into before running `scalable` commands |
+| Python scripts | The directory from which you launch `python your_script.py` |
+| Jupyter notebooks | The notebook's working directory (check with `os.getcwd()`) |
+
+> **Tip:** If your working directory differs from where `.env` lives (e.g., in
+> notebooks that `os.chdir()` into temp directories), use the programmatic
+> helper:
+>
+> ```python
+> from scalable.common import load_env
+> load_env("/absolute/path/to/your/.env")
+> ```
+
+### Override Priority
+
+Environment variable resolution follows this priority (highest → lowest):
+
+1. `SCALABLE_AI_*` variables (e.g., `SCALABLE_AI_BACKEND`) — Scalable-specific overrides
+2. Generic `AI_*` / `LLM_*` variables (e.g., `AI_PROVIDER`, `LLM_MODEL_NAME`) — from `.env`
+3. Provider-specific keys (e.g., `OPENAI_API_KEY`) — used as fallback for `AI_API_KEY`
+4. Built-in defaults (e.g., `AI_PROVIDER=none`, `SCALABLE_CACHE_DIR=./cache`)
+
+### Security
+
+> ⚠️ **Never commit `.env` to version control.** The repository `.gitignore`
+> already excludes `.env`. The included `.env.example` is safe to commit and
+> serves as a template.
+
+See the full [Environment Variables](#environment-variables) reference below for
+all supported settings.
 
 ## Usage
 
