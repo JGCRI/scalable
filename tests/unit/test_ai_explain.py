@@ -8,7 +8,6 @@ import pytest
 
 from scalable.ai.plan_explain import ExplanationResult, explain_plan
 
-
 SAMPLE_PLAN = {
     "version": 1,
     "target": "local",
