@@ -25,8 +25,20 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass, field
+from pathlib import Path
+
+from dotenv import load_dotenv
 
 __all__ = ["logger", "settings", "Settings", "SEED", "cachedir", "DEFAULT_SEED"]
+
+# ---------------------------------------------------------------------------
+# Load .env file with override=True so that .env values take precedence over
+# any pre-existing system environment variables. This allows users to manage
+# all AI provider configuration in a single .env file.
+# ---------------------------------------------------------------------------
+_dotenv_path = Path.cwd() / ".env"
+if _dotenv_path.is_file():
+    load_dotenv(_dotenv_path, override=True)
 
 DEFAULT_SEED: int = 987654321
 DEFAULT_CACHE_DIR: str = "./cache"
@@ -87,14 +99,32 @@ class Settings:
         default_factory=lambda: os.environ.get("SCALABLE_RUNS_DIR_REMOTE")
     )
     # Phase 4 AI additions
+    # Generic env vars (AI_PROVIDER, LLM_MODEL_NAME, AI_BASE_URL, AI_API_KEY)
+    # serve as fallbacks for the SCALABLE_AI_* variants, allowing users to
+    # configure a single set of env vars that work across providers.
     ai_backend: str = field(
-        default_factory=lambda: os.environ.get("SCALABLE_AI_BACKEND", "none")
+        default_factory=lambda: os.environ.get(
+            "SCALABLE_AI_BACKEND",
+            os.environ.get("AI_PROVIDER", "none"),
+        )
     )
     ai_model: str | None = field(
-        default_factory=lambda: os.environ.get("SCALABLE_AI_MODEL")
+        default_factory=lambda: os.environ.get(
+            "SCALABLE_AI_MODEL",
+            os.environ.get("LLM_MODEL_NAME"),
+        )
     )
     ai_endpoint: str | None = field(
-        default_factory=lambda: os.environ.get("SCALABLE_AI_ENDPOINT")
+        default_factory=lambda: os.environ.get(
+            "SCALABLE_AI_ENDPOINT",
+            os.environ.get("AI_BASE_URL"),
+        )
+    )
+    ai_api_key: str | None = field(
+        default_factory=lambda: os.environ.get(
+            "SCALABLE_AI_API_KEY",
+            os.environ.get("AI_API_KEY"),
+        )
     )
     # Phase 5 ML/Emulation additions
     ml_model_cache_dir: str = field(

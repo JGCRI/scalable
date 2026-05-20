@@ -6,10 +6,11 @@ The backend system supports:
 * ``openai`` — OpenAI-compatible API (requires ``openai`` package)
 * ``anthropic`` — Anthropic Claude models (requires ``anthropic`` package)
 * ``google`` — Google Gemini models (requires ``google-generativeai`` package)
+* ``xai`` — xAI Grok models (OpenAI-compatible, requires ``openai`` package)
 * ``groq`` — Groq inference (requires ``groq`` package)
 * ``ollama`` — local Ollama server (requires running Ollama instance)
 
-Backend selection is controlled by ``SCALABLE_AI_BACKEND`` env var.
+Backend selection is controlled by ``SCALABLE_AI_BACKEND`` or ``AI_PROVIDER`` env var.
 
 .. note::
     The PydanticAI-based agent system in :mod:`scalable.ai.agents` is the
@@ -20,9 +21,10 @@ Backend selection is controlled by ``SCALABLE_AI_BACKEND`` env var.
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any, Protocol, runtime_checkable
 
-from scalable.common import settings
+import scalable.common as _common
 
 logger = logging.getLogger(__name__)
 
@@ -92,9 +94,9 @@ class OpenAIBackend:
         endpoint: str | None = None,
         api_key: str | None = None,
     ) -> None:
-        self._model = model or getattr(settings, "ai_model", None) or "gpt-4o"
-        self._endpoint = endpoint or getattr(settings, "ai_endpoint", None)
-        self._api_key = api_key
+        self._model = model or getattr(_common.settings, "ai_model", None) or "gpt-4o"
+        self._endpoint = endpoint or getattr(_common.settings, "ai_endpoint", None)
+        self._api_key = api_key or getattr(_common.settings, "ai_api_key", None)
 
     def complete(
         self,
@@ -135,7 +137,11 @@ class OpenAIBackend:
     def available(self) -> bool:
         try:
             import openai  # type: ignore[import-untyped] # noqa: F401
-            return True
+            return bool(
+                os.environ.get("OPENAI_API_KEY")
+                or self._api_key
+                or getattr(_common.settings, "ai_api_key", None)
+            )
         except ImportError:
             return False
 
@@ -151,8 +157,8 @@ class OllamaBackend:
         model: str | None = None,
         endpoint: str | None = None,
     ) -> None:
-        self._model = model or getattr(settings, "ai_model", None) or "llama3"
-        self._endpoint = endpoint or getattr(settings, "ai_endpoint", None) or "http://localhost:11434"
+        self._model = model or getattr(_common.settings, "ai_model", None) or "llama3"
+        self._endpoint = endpoint or getattr(_common.settings, "ai_endpoint", None) or "http://localhost:11434"
 
     def complete(
         self,
@@ -210,8 +216,8 @@ class AnthropicBackend:
         model: str | None = None,
         api_key: str | None = None,
     ) -> None:
-        self._model = model or getattr(settings, "ai_model", None) or "claude-sonnet-4-20250514"
-        self._api_key = api_key
+        self._model = model or getattr(_common.settings, "ai_model", None) or "claude-sonnet-4-20250514"
+        self._api_key = api_key or getattr(_common.settings, "ai_api_key", None)
 
     def complete(
         self,
@@ -250,10 +256,12 @@ class AnthropicBackend:
 
     def available(self) -> bool:
         try:
-            import os
-
             import anthropic  # type: ignore[import-untyped]  # noqa: F401
-            return bool(os.environ.get("ANTHROPIC_API_KEY") or self._api_key)
+            return bool(
+                os.environ.get("ANTHROPIC_API_KEY")
+                or self._api_key
+                or getattr(_common.settings, "ai_api_key", None)
+            )
         except ImportError:
             return False
 
@@ -269,8 +277,8 @@ class GoogleBackend:
         model: str | None = None,
         api_key: str | None = None,
     ) -> None:
-        self._model = model or getattr(settings, "ai_model", None) or "gemini-1.5-pro"
-        self._api_key = api_key
+        self._model = model or getattr(_common.settings, "ai_model", None) or "gemini-2.0-flash"
+        self._api_key = api_key or getattr(_common.settings, "ai_api_key", None)
 
     def complete(
         self,
@@ -308,10 +316,77 @@ class GoogleBackend:
 
     def available(self) -> bool:
         try:
-            import os
-
             import google.generativeai  # type: ignore[import-untyped]  # noqa: F401
-            return bool(os.environ.get("GOOGLE_API_KEY") or self._api_key)
+            return bool(
+                os.environ.get("GOOGLE_API_KEY")
+                or self._api_key
+                or getattr(_common.settings, "ai_api_key", None)
+            )
+        except ImportError:
+            return False
+
+
+class XAIBackend:
+    """xAI Grok backend (OpenAI-compatible, requires ``openai`` package)."""
+
+    name: str = "xai"
+
+    _DEFAULT_ENDPOINT: str = "https://api.x.ai/v1"
+
+    def __init__(
+        self,
+        *,
+        model: str | None = None,
+        endpoint: str | None = None,
+        api_key: str | None = None,
+    ) -> None:
+        self._model = model or getattr(_common.settings, "ai_model", None) or "grok-3"
+        self._endpoint = endpoint or getattr(_common.settings, "ai_endpoint", None) or self._DEFAULT_ENDPOINT
+        self._api_key = api_key or getattr(_common.settings, "ai_api_key", None)
+
+    def complete(
+        self,
+        prompt: str,
+        *,
+        system: str | None = None,
+        temperature: float = 0.0,
+        max_tokens: int = 4096,
+    ) -> str:
+        try:
+            import openai  # type: ignore[import-untyped]
+        except ImportError as exc:
+            raise ImportError(
+                "xAI backend requires the 'openai' package (OpenAI-compatible). "
+                "Install with: pip install openai"
+            ) from exc
+
+        kwargs: dict[str, Any] = {"base_url": self._endpoint}
+        api_key = self._api_key or os.environ.get("XAI_API_KEY")
+        if api_key:
+            kwargs["api_key"] = api_key
+
+        client = openai.OpenAI(**kwargs)
+        messages: list[dict[str, str]] = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+
+        response = client.chat.completions.create(
+            model=self._model,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+        return response.choices[0].message.content or ""
+
+    def available(self) -> bool:
+        try:
+            import openai  # type: ignore[import-untyped]  # noqa: F401
+            return bool(
+                os.environ.get("XAI_API_KEY")
+                or self._api_key
+                or getattr(_common.settings, "ai_api_key", None)
+            )
         except ImportError:
             return False
 
@@ -321,6 +396,7 @@ _BACKEND_REGISTRY: dict[str, type] = {
     "openai": OpenAIBackend,
     "anthropic": AnthropicBackend,
     "google": GoogleBackend,
+    "xai": XAIBackend,
     "ollama": OllamaBackend,
 }
 
@@ -342,7 +418,7 @@ def get_ai_backend(*, force_name: str | None = None) -> AIBackend:
     """
     global _cached_backend
 
-    name = force_name or getattr(settings, "ai_backend", "none") or "none"
+    name = force_name or getattr(_common.settings, "ai_backend", "none") or "none"
 
     if _cached_backend is not None and getattr(_cached_backend, "name", None) == name:
         return _cached_backend

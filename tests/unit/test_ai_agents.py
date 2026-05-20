@@ -261,7 +261,7 @@ class TestResolveModelString:
         assert resolve_model_string("anthropic") == "anthropic:claude-sonnet-4-20250514"
 
     def test_google_default(self):
-        assert resolve_model_string("google") == "google:gemini-1.5-pro"
+        assert resolve_model_string("google") == "google:gemini-2.0-flash"
 
     def test_full_model_string_passthrough(self):
         assert resolve_model_string("openai:custom-model") == "openai:custom-model"
@@ -940,4 +940,4 @@ class TestBackendAnthropicGoogle:
     def test_google_default_model(self):
         from scalable.ai.backend import GoogleBackend
         b = GoogleBackend()
-        assert b._model == "gemini-1.5-pro"
+        assert b._model == "gemini-2.0-flash"
