@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scalable"
-version = "2.0.0a5"
+version = "2.0.0"
 description = "Assist with running models on job queing systems like Slurm"
 authors = [
     { name = "Shashank Lamba" },

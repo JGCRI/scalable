@@ -42,6 +42,14 @@ Contents
    license
    how_to_contribute
 
+.. _tutorials_section:
+
+.. toctree::
+   :caption: Tutorials
+   :maxdepth: 2
+
+   tutorials/index
+
 .. _api_section:
 
 .. toctree::

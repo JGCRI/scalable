@@ -1,5 +1,5 @@
 Deterministic Resource Advising
-==============================
+================================
 
 Scalable provides a deterministic :class:`~scalable.advising.ResourceAdvisor`
 that derives conservative resource recommendations from historical run
