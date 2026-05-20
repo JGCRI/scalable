@@ -218,7 +218,7 @@ Scalable separates **what** runs from **where** it runs:
    or a gas turbine. The switch is the abstraction layer.
 
    In Scalable, the provider abstraction means your workflow code
-   (``session.submit()``) works identically regardless of whether tasks run
+   (``client.submit()``) works identically regardless of whether tasks run
    locally, on Slurm, or in AWS.
 
 
@@ -258,11 +258,13 @@ The simplest provider runs everything on your machine:
 
    from scalable import ScalableSession
 
-   session = ScalableSession.from_manifest("./scalable.yaml", target="local")
+   session = ScalableSession.from_yaml("./scalable.yaml", target="local")
+   plan = session.plan()
+   client = session.start(plan)
 
    # Submit work — it runs on local workers
-   futures = [session.submit(my_func, i, task="run_analysis") for i in range(20)]
-   results = session.gather(futures)
+   futures = [client.submit(my_func, i, tag="analysis") for i in range(20)]
+   results = client.gather(futures)
    session.close()
 
 .. admonition:: Under the Hood
@@ -386,7 +388,7 @@ You decide the worker count upfront. Simple and predictable.
 
    from scalable import ScalableSession
 
-   session = ScalableSession.from_manifest(
+   session = ScalableSession.from_yaml(
        "./scalable.yaml",
        target="cloud",
        objectives={"budget_usd": 50.0, "deadline_hours": 2.0},
@@ -416,7 +418,9 @@ Every scaling decision is recorded in telemetry:
 
    from scalable import ScalableSession
 
-   session = ScalableSession.from_manifest("./scalable.yaml", target="local")
+   session = ScalableSession.from_yaml("./scalable.yaml", target="local")
+   plan = session.plan()
+   client = session.start(plan)
 
    # After your run, check what happened
    # Telemetry records scaling events:

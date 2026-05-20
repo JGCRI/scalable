@@ -204,19 +204,21 @@ When a function raises an exception on a worker:
 
    from scalable import ScalableSession
 
-   session = ScalableSession.from_manifest("./scalable.yaml", target="local")
+   session = ScalableSession.from_yaml("./scalable.yaml", target="local")
+   plan = session.plan()
+   client = session.start(plan)
 
    def risky_function(x):
        if x == 13:
            raise ValueError(f"Unlucky number: {x}")
        return x * 2
 
-   futures = [session.submit(risky_function, i, task="run_analysis")
+   futures = [client.submit(risky_function, i, tag="analysis")
               for i in range(20)]
 
    # This will raise ValueError for x=13
    try:
-       results = session.gather(futures)
+       results = client.gather(futures)
    except ValueError as e:
        print(f"A task failed: {e}")
 
@@ -230,12 +232,14 @@ Scalable supports automatic retries for transient failures:
 
    from scalable import ScalableSession
 
-   session = ScalableSession.from_manifest("./scalable.yaml", target="local")
+   session = ScalableSession.from_yaml("./scalable.yaml", target="local")
+   plan = session.plan()
+   client = session.start(plan)
 
    # Configure retries
    futures = []
    for i in range(20):
-       future = session.submit(
+       future = client.submit(
            sometimes_fails,
            i,
            task="run_analysis",
@@ -301,10 +305,12 @@ Step 3: Partial Success
 
    from scalable import ScalableSession
 
-   session = ScalableSession.from_manifest("./scalable.yaml", target="local")
+   session = ScalableSession.from_yaml("./scalable.yaml", target="local")
+   plan = session.plan()
+   client = session.start(plan)
 
    # Submit many tasks
-   futures = [session.submit(maybe_fails, i, task="run_analysis")
+   futures = [client.submit(maybe_fails, i, tag="analysis")
               for i in range(100)]
 
    # Gather with partial success handling
@@ -321,14 +327,14 @@ Step 3: Partial Success
    print(f"Failed: {len(failures)}")
 
    # You can retry just the failures
-   retry_futures = [session.submit(maybe_fails, f["index"], task="run_analysis")
+   retry_futures = [client.submit(maybe_fails, f["index"], tag="analysis")
                     for f in failures]
 
 .. admonition:: Under the Hood: Futures and Error Isolation
    :class: hint
 
    Each future is independent. A failure in one future doesn't affect
-   others. This is why ``session.submit()`` returns individual futures
+   others. This is why ``client.submit()`` returns individual futures
    rather than running everything as a single batch — it gives you
    fine-grained control over error handling.
 
@@ -434,12 +440,14 @@ A complete fault-tolerant pattern:
 
 
    def run_workflow():
-       session = ScalableSession.from_manifest("./scalable.yaml", target="local")
+       session = ScalableSession.from_yaml("./scalable.yaml", target="local")
+   plan = session.plan()
+   client = session.start(plan)
 
        # Submit all tasks
        task_map = {}
        for i in range(100):
-           future = session.submit(
+           future = client.submit(
                run_simulation,
                scenario_id=i,
                task="run_analysis",

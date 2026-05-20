@@ -439,11 +439,11 @@ A workflow using ML optimization and emulation:
        ...
 
    # 3. Run with ML-optimized resources
-   session = ScalableSession.from_manifest("./scalable.yaml", target="local")
+   session = ScalableSession.from_yaml("./scalable.yaml", target="local")
 
-   futures = [session.submit(run_gridlabd, i, task="run_gridlabd")
+   futures = [client.submit(run_gridlabd, i, tag="gridlabd")
               for i in range(100)]
-   results = session.gather(futures)
+   results = client.gather(futures)
 
    # Some calls used the emulator (fast), others ran the full model
    # Telemetry records which path each call took

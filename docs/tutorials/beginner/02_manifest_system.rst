@@ -415,7 +415,7 @@ When you write Python code like:
 
 .. code-block:: python
 
-   session.submit(my_function, args, task="run_gridlabd")
+   client.submit(my_function, args, tag="gridlabd")
 
 Scalable looks up the ``run_gridlabd`` task, finds it uses the ``gridlabd``
 component, and schedules it on a worker with 8 CPUs and 32G memory.
@@ -530,16 +530,17 @@ Python:
 
 .. code-block:: python
 
-   from scalable.manifest import parse_manifest, validate_manifest
+   from scalable.manifest.parser import load_manifest
+   from scalable.manifest.validate import validate_manifest
 
    # Parse the YAML into a structured object
-   manifest = parse_manifest("./scalable.yaml")
+   manifest = load_manifest("./scalable.yaml")
 
    # Validate returns a list of errors (empty = valid)
-   errors = validate_manifest(manifest)
+   report = validate_manifest(manifest)
 
-   if errors:
-       for err in errors:
+   if not report.ok:
+       for issue in report.errors:
            print(f"ERROR: {err}")
    else:
        print("✓ Manifest is valid")

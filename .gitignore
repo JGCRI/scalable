@@ -6,6 +6,9 @@ plans/
 .rooignore
 .env
 notebooks/.ipynb_checkpoints/
+notebooks/beginner/.ipynb_checkpoints/
+notebooks/intermediate/.ipynb_checkpoints/
+notebooks/advanced/.ipynb_checkpoints/
 
 # -----------------------------
 # Python bytecode / caches

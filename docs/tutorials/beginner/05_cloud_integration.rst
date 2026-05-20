@@ -352,7 +352,7 @@ Step 3: The Artifact Store
 
    from scalable import ScalableSession
 
-   session = ScalableSession.from_manifest("./scalable.yaml", target="aws")
+   session = ScalableSession.from_yaml("./scalable.yaml", target="aws")
 
    # After computation, store artifacts
    session.store_artifact("results/scenario_42.json", result_data)

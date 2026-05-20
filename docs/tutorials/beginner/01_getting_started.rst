@@ -466,19 +466,21 @@ Now let's write the Python function that does actual work. Create
    def main():
        """Run the workflow using a ScalableSession."""
        # Create a session from our manifest
-       session = ScalableSession.from_manifest(
+       session = ScalableSession.from_yaml(
            "./scalable.yaml",
            target="local",
        )
+       plan = session.plan()
+       client = session.start(plan)
 
        # Submit 6 tasks to be executed in parallel
        futures = []
        for i in range(6):
-           future = session.submit(analyze_scenario, i, task="run_analysis")
+           future = client.submit(analyze_scenario, i, tag="analysis")
            futures.append(future)
 
        # Gather results (blocks until all tasks complete)
-       results = session.gather(futures)
+       results = client.gather(futures)
 
        print(f"Completed {len(results)} scenarios!")
        for r in results:
@@ -493,7 +495,7 @@ Now let's write the Python function that does actual work. Create
 
 Let's understand what this code does:
 
-.. admonition:: Under the Hood: What happens when you call ``session.submit()``
+.. admonition:: Under the Hood: What happens when you call ``client.submit()``
    :class: hint
 
    1. Your function (``analyze_scenario``) and its arguments (``scenario_id``)
@@ -513,10 +515,10 @@ Let's understand what this code does:
    :class: tip
 
    A **future** is a promise of a result that hasn't been computed yet. When
-   you call ``session.submit()``, the task starts running in the background
+   you call ``client.submit()``, the task starts running in the background
    and you immediately get back a future object.
 
-   Later, when you call ``session.gather(futures)``, Python waits until all
+   Later, when you call ``client.gather(futures)``, Python waits until all
    the futures have their results ready, then returns them.
 
    **Analogy:** Ordering food at a counter — you get a receipt number (future)
