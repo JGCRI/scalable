@@ -26,11 +26,11 @@ Prerequisites
 Scenario
 --------
 
-You are building a climate modeling pipeline with two stages: a computationally
-expensive simulation (GCAM) and a lighter post-processing step (Stitches). The
-pipeline must run locally during development, on an HPC cluster for production,
-and eventually in the cloud. The manifest system lets you describe all three
-targets in a single file.
+You are building an energy modeling pipeline with two stages: a computationally
+expensive simulation (GridLAB-D) and a lighter post-processing step (demand
+aggregation). The pipeline must run locally during development, on an HPC
+cluster for production, and eventually in the cloud. The manifest system lets
+you describe all three targets in a single file.
 
 Step 1: Manifest Schema Overview
 ---------------------------------
@@ -60,13 +60,13 @@ Step 2: The Project Block
 .. code-block:: yaml
 
    project:
-     name: climate-pipeline
+     name: energy-forecast
      default_storage: ./outputs
      local_cache: ./cache
 
 ``name``
   Identifies the project in telemetry run IDs (e.g.,
-  ``run-20260520T...-climate-pipeline-a1b2c3d4``). Use lowercase with hyphens.
+  ``run-20260520T...-energy-forecast-a1b2c3d4``). Use lowercase with hyphens.
 
 ``default_storage``
   Base URI for artifact output. Can be a local path, S3 URI
@@ -107,7 +107,7 @@ Targets are named execution environments. You can define as many as you need:
        instance_type: m5.xlarge
        worker_cpu: 4096
        worker_mem: 16384
-       image: 123456789.dkr.ecr.us-east-1.amazonaws.com/climate:latest
+       image: 123456789.dkr.ecr.us-east-1.amazonaws.com/energy-model:latest
        adaptive:
          minimum: 1
          maximum: 10
@@ -143,18 +143,18 @@ Components are resource profiles for your workloads:
 .. code-block:: yaml
 
    components:
-     gcam:
-       image: ghcr.io/jgcri/gcam:7.0
+     gridlabd:
+       image: ghcr.io/gridlab-d/gridlabd:5.0
        runtime: apptainer
        cpus: 8
        memory: 32G
        mounts:
-         /data/gcam: /gcam-core
+         /data/gridlabd: /gridlabd-core
          /shared/outputs: /outputs
        env:
-         GCAM_DATA: /gcam-core/data
-       tags: [iam, climate]
-       preload_script: ./scripts/gcam_preload.sh
+         GRIDLABD_DATA: /gridlabd-core/data
+       tags: [iam, energy]
+       preload_script: ./scripts/gridlabd_preload.sh
 
      postprocess:
        cpus: 2
@@ -235,7 +235,7 @@ Manifests support ``${VAR}`` and ``${VAR:-default}`` syntax for portability:
 .. code-block:: yaml
 
    project:
-     name: ${PROJECT_NAME:-climate-demo}
+     name: ${PROJECT_NAME:-energy-demo}
      default_storage: ${ARTIFACT_BUCKET:-./outputs}
 
    targets:
@@ -399,7 +399,7 @@ Here is a production-ready manifest combining all concepts:
 
    version: 1
    project:
-     name: climate-pipeline
+     name: energy-forecast
      default_storage: ${ARTIFACT_STORAGE:-./outputs}
 
    targets:
@@ -434,13 +434,13 @@ Here is a production-ready manifest combining all concepts:
          maximum: 20
 
    components:
-     gcam:
-       image: ghcr.io/jgcri/gcam:7.0
+     gridlabd:
+       image: ghcr.io/gridlab-d/gridlabd:5.0
        cpus: 4
        memory: 16G
-       tags: [iam, climate]
+       tags: [iam, energy]
        env:
-         GCAM_DATA: /gcam-core/data
+         GRIDLABD_DATA: /gridlabd-core/data
 
      postprocess:
        cpus: 2
@@ -448,8 +448,8 @@ Here is a production-ready manifest combining all concepts:
        tags: [analysis]
 
    tasks:
-     run_gcam:
-       component: gcam
+     run_gridlabd:
+       component: gridlabd
        cache: true
        outputs:
          database: dir
@@ -461,7 +461,7 @@ Here is a production-ready manifest combining all concepts:
    overlays:
      hpc-prod:
        components:
-         gcam:
+         gridlabd:
            cpus: 16
            memory: 64G
          postprocess:
@@ -470,7 +470,7 @@ Here is a production-ready manifest combining all concepts:
 
      hpc-debug:
        components:
-         gcam:
+         gridlabd:
            cpus: 2
            memory: 4G
          postprocess:

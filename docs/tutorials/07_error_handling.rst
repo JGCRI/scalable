@@ -27,11 +27,11 @@ Prerequisites
 Scenario
 --------
 
-Your production pipeline runs 200 climate scenarios overnight. Some scenarios
-fail due to transient issues (network timeouts pulling data, OOM on edge-case
-inputs, worker preemption on shared HPC clusters). You need a workflow that
-tolerates partial failures, recovers what it can, and provides clear
-diagnostics for what went wrong.
+Your production pipeline runs 200 energy demand scenarios overnight. Some
+scenarios fail due to transient issues (network timeouts pulling data, OOM on
+edge-case inputs, worker preemption on shared HPC clusters). You need a
+workflow that tolerates partial failures, recovers what it can, and provides
+clear diagnostics for what went wrong.
 
 Step 1: Understanding Error Propagation
 -----------------------------------------
@@ -290,7 +290,7 @@ analyzes telemetry and provides human-readable explanations:
 
 .. code-block:: text
 
-   Diagnosis for run-20260520T...-climate-pipeline-a1b2c3d4:
+   Diagnosis for run-20260520T...-energy-forecast-a1b2c3d4:
 
    ⚠ 13 failures detected across 3 categories:
 

@@ -28,9 +28,9 @@ Prerequisites
 Scenario
 --------
 
-Your team is onboarding a new model (Stitches) into the climate pipeline.
-You need to configure its component definition, write task bindings, and
-eventually migrate the entire pipeline from Slurm to Kubernetes. The AI
+Your team is onboarding a new model (WaterShed) into the water resource
+pipeline. You need to configure its component definition, write task bindings,
+and eventually migrate the entire pipeline from Slurm to Kubernetes. The AI
 assistants automate tedious configuration tasks and provide expert guidance
 without requiring deep Scalable expertise.
 
@@ -79,36 +79,36 @@ component configuration:
 
 .. code-block:: bash
 
-   scalable init-component ./path/to/stitches --name stitches --no-ai
+   scalable init-component ./path/to/watershed --name watershed --no-ai
 
 .. code-block:: text
 
-   Analyzing ./path/to/stitches...
+   Analyzing ./path/to/watershed...
    Detected:
      Language: R (via rpy2)
-     Dependencies: stitches, dplyr, tidyr
-     Entry point: ./run_stitches.R
+     Dependencies: watershed, dplyr, tidyr
+     Entry point: ./run_watershed.R
      Estimated resources: 6 CPUs, 50G memory
 
    Generated component configuration:
 
    components:
-     stitches:
-       image: ghcr.io/jgcri/stitches:latest
+     watershed:
+       image: ghcr.io/hydro-lab/watershed:latest
        cpus: 6
        memory: 50G
-       tags: [climate, downscaling]
+       tags: [water, hydrology]
        env:
          R_LIBS_USER: /opt/R/library
 
    Suggested task binding:
 
    tasks:
-     run_stitches:
-       component: stitches
+     run_watershed:
+       component: watershed
        cache: true
 
-   Written to: ./stitches/scalable-component.yaml
+   Written to: ./watershed/scalable-component.yaml
 
 **What the analyzer checks:**
 
@@ -124,8 +124,8 @@ Python API:
    from scalable.ai import onboard_component
 
    result = onboard_component(
-       "./path/to/stitches",
-       name="stitches",
+       "./path/to/watershed",
+       name="watershed",
        no_ai=True,
    )
 
@@ -145,7 +145,7 @@ After a failed run, use the diagnostic assistant to identify root causes:
 .. code-block:: text
 
    ═══════════════════════════════════════════════════════════
-   Diagnosis: run-20260520T041500Z-climate-pipeline-f8e2a1b3
+   Diagnosis: run-20260520T041500Z-energy-forecast-f8e2a1b3
    ═══════════════════════════════════════════════════════════
 
    Status: failed (13 task failures)
@@ -159,7 +159,7 @@ After a failed run, use the diagnostic assistant to identify root causes:
      input_grid_cells > 500.
 
    SECONDARY: Network timeouts (3 of 13 failures)
-     Pattern: External data API (api.climate-data.org) returning 503
+     Pattern: External data API (api.energy-data.org) returning 503
      between 04:15-04:20 UTC.
      Evidence: All timeout failures cluster within a 5-minute window.
 
@@ -209,7 +209,7 @@ Make execution plans understandable for non-technical stakeholders:
    Plan Explanation
    ═════════════════
 
-   This plan will execute the "climate-pipeline" project on AWS (Fargate)
+   This plan will execute the "energy-forecast" project on AWS (Fargate)
    in the us-east-1 region.
 
    What will happen:
@@ -246,8 +246,8 @@ from descriptions:
 
 .. code-block:: bash
 
-   scalable compose "Run GCAM reference scenario for SSP2, \
-     then run Stitches to downscale daily climate data, \
+   scalable compose "Run GridLAB-D power flow simulation for region A, \
+     then run WaterShed to model downstream water demand, \
      then aggregate results by region and produce summary plots"
 
 .. code-block:: text
@@ -258,20 +258,20 @@ from descriptions:
    # workflow.py
    from scalable import ScalableSession, cacheable
 
-   @cacheable(return_type=dict, ssp=str)
-   def run_gcam_reference(ssp: str) -> dict:
-       """Run GCAM reference scenario for the given SSP."""
-       # TODO: Implement GCAM execution logic
-       return {"database_path": f"./output/gcam_{ssp}/"}
+   @cacheable(return_type=dict, region=str)
+   def run_gridlabd_simulation(region: str) -> dict:
+       """Run GridLAB-D power flow simulation for the given region."""
+       # TODO: Implement GridLAB-D execution logic
+       return {"database_path": f"./output/gridlabd_{region}/"}
 
-   @cacheable(return_type=dict, gcam_output=str)
-   def run_stitches_downscale(gcam_output: str) -> dict:
-       """Downscale GCAM output to daily climate using Stitches."""
-       # TODO: Implement Stitches execution logic
-       return {"daily_climate_path": f"./output/stitches/{gcam_output}"}
+   @cacheable(return_type=dict, gridlabd_output=str)
+   def run_watershed_model(gridlabd_output: str) -> dict:
+       """Model downstream water demand from energy output."""
+       # TODO: Implement WaterShed execution logic
+       return {"water_demand_path": f"./output/watershed/{gridlabd_output}"}
 
-   @cacheable(return_type=dict, climate_path=str)
-   def aggregate_and_plot(climate_path: str) -> dict:
+   @cacheable(return_type=dict, demand_path=str)
+   def aggregate_and_plot(demand_path: str) -> dict:
        """Aggregate by region and produce summary plots."""
        # TODO: Implement aggregation logic
        return {"summary_path": "./output/summary/"}
@@ -280,20 +280,20 @@ from descriptions:
        session = ScalableSession.from_yaml("./scalable.yaml", target="local")
        client = session.start()
 
-       # Stage 1: GCAM
-       gcam_result = client.submit(run_gcam_reference, "SSP2", tag="gcam").result()
+       # Stage 1: GridLAB-D
+       gridlabd_result = client.submit(run_gridlabd_simulation, "region_A", tag="gridlabd").result()
 
-       # Stage 2: Stitches downscaling
-       stitches_result = client.submit(
-           run_stitches_downscale,
-           gcam_result["database_path"],
-           tag="stitches",
+       # Stage 2: WaterShed modeling
+       watershed_result = client.submit(
+           run_watershed_model,
+           gridlabd_result["database_path"],
+           tag="watershed",
        ).result()
 
        # Stage 3: Aggregation
        final = client.submit(
            aggregate_and_plot,
-           stitches_result["daily_climate_path"],
+           watershed_result["water_demand_path"],
            tag="postprocess",
        ).result()
 
@@ -307,25 +307,25 @@ from descriptions:
    Suggested manifest additions:
 
    components:
-     gcam:
+     gridlabd:
        cpus: 8
        memory: 32G
-       tags: [iam, climate]
-     stitches:
+       tags: [iam, energy]
+     watershed:
        cpus: 6
        memory: 50G
-       tags: [climate, downscaling]
+       tags: [water, hydrology]
      postprocess:
        cpus: 2
        memory: 8G
        tags: [analysis]
 
    tasks:
-     run_gcam_reference:
-       component: gcam
+     run_gridlabd_simulation:
+       component: gridlabd
        cache: true
-     run_stitches_downscale:
-       component: stitches
+     run_watershed_model:
+       component: watershed
        cache: true
      aggregate_and_plot:
        component: postprocess
@@ -338,7 +338,7 @@ Python API for programmatic composition:
    from scalable.ai import compose_workflow
 
    result = compose_workflow(
-       "Run GCAM for SSP1-5, then Stitches for each, then aggregate"
+       "Run GridLAB-D for regions A-E, then WaterShed for each, then aggregate"
    )
 
    print(result.workflow_code)
@@ -377,20 +377,20 @@ Move your workflow from one provider to another:
    targets:
      k8s:
        provider: kubernetes
-       namespace: climate-prod
-       image: gcr.io/my-project/climate-model:latest
+       namespace: energy-prod
+       image: gcr.io/my-project/energy-model:latest
        adaptive:
          minimum: 2
          maximum: 20
 
    components:
-     gcam:
-       image: gcr.io/my-project/gcam:7.0
+     gridlabd:
+       image: gcr.io/my-project/gridlabd:5.0
        cpus: 8
        memory: 32G
-       tags: [iam, climate]
+       tags: [iam, energy]
        env:
-         GCAM_DATA: /data/gcam
+         GRIDLABD_DATA: /data/gridlabd
 
      postprocess:
        image: gcr.io/my-project/postprocess:latest
@@ -490,9 +490,9 @@ For richer, context-aware responses, enable an LLM backend:
    export OPENAI_API_KEY=sk-...
 
    # Now compose generates more detailed, context-aware workflows
-   scalable compose "Build a multi-model ensemble that runs GCAM, Hector, \
-     and MAGICC in parallel, compares their climate projections, and \
-     produces a weighted average based on historical skill scores"
+   scalable compose "Build a multi-model ensemble that runs GridLAB-D, \
+     WaterShed, and LandUseModel in parallel, compares their resource \
+     projections, and produces a weighted average based on historical skill scores"
 
 LLM-enhanced mode adds:
 
@@ -515,7 +515,7 @@ Always validate AI-generated configurations before running:
    from scalable import ScalableSession
 
    # Generate workflow
-   result = compose_workflow("Run GCAM for all SSPs then aggregate")
+   result = compose_workflow("Run GridLAB-D for all regions then aggregate")
 
    # Write generated manifest additions
    # (merge with your existing scalable.yaml)

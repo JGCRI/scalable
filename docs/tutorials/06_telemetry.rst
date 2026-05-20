@@ -26,10 +26,10 @@ Prerequisites
 Scenario
 --------
 
-Your team runs the climate pipeline multiple times per week. You need to
-track performance trends, identify slow tasks, monitor resource utilization,
-and justify cloud spending to stakeholders. Scalable's built-in telemetry
-provides all this data without external observability infrastructure.
+Your team runs the energy forecasting pipeline multiple times per week. You
+need to track performance trends, identify slow tasks, monitor resource
+utilization, and justify cloud spending to stakeholders. Scalable's built-in
+telemetry provides all this data without external observability infrastructure.
 
 Step 1: Telemetry Architecture
 -------------------------------
@@ -40,7 +40,7 @@ automatically records structured events to disk:
 .. code-block:: text
 
    .scalable/runs/
-   └── run-20260520T035200Z-climate-pipeline-a1b2c3d4/
+   └── run-20260520T035200Z-energy-forecast-a1b2c3d4/
        ├── run.json           # Run metadata (start time, target, manifest lock)
        ├── manifest.yaml      # Snapshot of the manifest used
        ├── plan.json          # Execution plan snapshot
@@ -68,8 +68,8 @@ The ``run.json`` file contains the run's identity and configuration:
 .. code-block:: json
 
    {
-     "run_id": "run-20260520T035200Z-climate-pipeline-a1b2c3d4",
-     "project_name": "climate-pipeline",
+     "run_id": "run-20260520T035200Z-energy-forecast-a1b2c3d4",
+     "project_name": "energy-forecast",
      "target_name": "local",
      "provider_name": "local",
      "manifest_lock": "sha256:a3b8f1...",
@@ -105,7 +105,7 @@ Analyzing task durations:
    import pandas as pd
    from pathlib import Path
 
-   run_dir = Path(".scalable/runs/run-20260520T035200Z-climate-pipeline-a1b2c3d4")
+   run_dir = Path(".scalable/runs/run-20260520T035200Z-energy-forecast-a1b2c3d4")
 
    tasks = []
    with open(run_dir / "tasks.jsonl") as f:
@@ -199,7 +199,7 @@ The quickest way to review a run:
 .. code-block:: text
 
    ═══════════════════════════════════════════════════════════
-   Run Report: run-20260520T035200Z-climate-pipeline-a1b2c3d4
+   Run Report: run-20260520T035200Z-energy-forecast-a1b2c3d4
    ═══════════════════════════════════════════════════════════
    Status: completed
    Target: local (provider: local)
@@ -229,7 +229,7 @@ Export as JSON for downstream processing:
 .. code-block:: json
 
    {
-     "run_id": "run-20260520T035200Z-climate-pipeline-a1b2c3d4",
+     "run_id": "run-20260520T035200Z-energy-forecast-a1b2c3d4",
      "status": "completed",
      "duration_seconds": 390,
      "tasks": {"submitted": 50, "succeeded": 50, "failed": 0},

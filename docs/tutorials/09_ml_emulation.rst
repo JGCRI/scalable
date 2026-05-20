@@ -252,22 +252,22 @@ functions as candidates for surrogate model replacement:
 
 
    @emulatable(
-       tag="gcam",
-       inputs=["carbon_price", "population", "gdp"],
-       outputs=["emissions", "energy_price"],
+       tag="gridlabd",
+       inputs=["fuel_cost", "population", "gdp"],
+       outputs=["demand_mw", "energy_price"],
        uncertainty="required",
        fallback="full_model",
        domain={
-           "carbon_price": (0, 500),
+           "fuel_cost": (0, 500),
            "population": (7e9, 12e9),
            "gdp": (50e12, 200e12),
        },
        confidence_threshold=0.9,
    )
-   def run_gcam_scenario(carbon_price, population, gdp):
-       """Run a full GCAM scenario — takes 30+ minutes."""
-       # ... expensive climate model execution ...
-       return {"emissions": 35.2, "energy_price": 0.12}
+   def run_energy_scenario(fuel_cost, population, gdp):
+       """Run a full energy demand scenario — takes 30+ minutes."""
+       # ... expensive energy model execution ...
+       return {"demand_mw": 35.2, "energy_price": 0.12}
 
 Decorator parameters:
 
@@ -313,7 +313,7 @@ grid, then train a surrogate:
    # Generate training data (Latin Hypercube or similar)
    np.random.seed(42)
    training_inputs = {
-       "carbon_price": np.random.uniform(0, 500, size=100),
+       "fuel_cost": np.random.uniform(0, 500, size=100),
        "population": np.random.uniform(7e9, 12e9, size=100),
        "gdp": np.random.uniform(50e12, 200e12, size=100),
    }
@@ -321,8 +321,8 @@ grid, then train a surrogate:
    # Run the full model for each sample (expensive!)
    training_outputs = []
    for i in range(100):
-       result = run_gcam_scenario(
-           carbon_price=training_inputs["carbon_price"][i],
+       result = run_energy_scenario(
+           fuel_cost=training_inputs["fuel_cost"][i],
            population=training_inputs["population"][i],
            gdp=training_inputs["gdp"][i],
        )
@@ -331,7 +331,7 @@ grid, then train a surrogate:
    # Register the trained emulator
    registry = EmulatorRegistry(".scalable/emulators")
    registry.register(
-       function_name="run_gcam_scenario",
+       function_name="run_energy_scenario",
        training_inputs=training_inputs,
        training_outputs=training_outputs,
        model_type="gaussian_process",  # Provides uncertainty estimates
@@ -354,18 +354,18 @@ the emulator and full model based on confidence:
 
    # High-confidence prediction (within training domain)
    result = dispatch.predict(
-       "run_gcam_scenario",
-       inputs={"carbon_price": 100, "population": 8e9, "gdp": 80e12},
+       "run_energy_scenario",
+       inputs={"fuel_cost": 100, "population": 8e9, "gdp": 80e12},
    )
    print(f"Source: {result.source}")        # "emulator"
    print(f"Confidence: {result.confidence:.3f}")  # 0.95
-   print(f"Prediction: {result.values}")    # {'emissions': 34.8, 'energy_price': 0.11}
-   print(f"Uncertainty: {result.uncertainty}")  # {'emissions': ±1.2, 'energy_price': ±0.02}
+   print(f"Prediction: {result.values}")    # {'demand_mw': 34.8, 'energy_price': 0.11}
+   print(f"Uncertainty: {result.uncertainty}")  # {'demand_mw': ±1.2, 'energy_price': ±0.02}
 
    # Low-confidence prediction (edge of domain)
    result = dispatch.predict(
-       "run_gcam_scenario",
-       inputs={"carbon_price": 490, "population": 11.5e9, "gdp": 190e12},
+       "run_energy_scenario",
+       inputs={"fuel_cost": 490, "population": 11.5e9, "gdp": 190e12},
    )
    print(f"Source: {result.source}")        # "full_model" (fell back)
    print(f"Confidence: {result.confidence:.3f}")  # 0.72 (below threshold)
@@ -407,7 +407,7 @@ the full model:
 
    learner = ActiveLearner(
        registry=registry,
-       function_name="run_gcam_scenario",
+       function_name="run_energy_scenario",
        acquisition="uncertainty",  # Sample where emulator is least confident
        batch_size=10,
    )
@@ -416,14 +416,14 @@ the full model:
    next_points = learner.suggest()
    print(f"Suggested {len(next_points)} points for full model evaluation:")
    for point in next_points[:3]:
-       print(f"  carbon_price={point['carbon_price']:.0f}, "
+       print(f"  fuel_cost={point['fuel_cost']:.0f}, "
              f"population={point['population']:.2e}, "
              f"gdp={point['gdp']:.2e}")
 
    # Run full model on suggested points
    new_results = []
    for point in next_points:
-       result = run_gcam_scenario(**point)
+       result = run_energy_scenario(**point)
        new_results.append(result)
 
    # Update the emulator with new data
@@ -449,18 +449,18 @@ Integrate emulation into your pipeline for massive speedups:
 
 
    @emulatable(
-       tag="gcam",
-       inputs=["carbon_price", "population"],
-       outputs=["emissions"],
+       tag="gridlabd",
+       inputs=["fuel_cost", "population"],
+       outputs=["demand_mw"],
        uncertainty="required",
        fallback="full_model",
        confidence_threshold=0.9,
    )
-   @cacheable(return_type=dict, carbon_price=float, population=float)
-   def run_scenario(carbon_price: float, population: float) -> dict:
+   @cacheable(return_type=dict, fuel_cost=float, population=float)
+   def run_scenario(fuel_cost: float, population: float) -> dict:
        """Full model — 30 min per call."""
        # ... expensive computation ...
-       return {"emissions": carbon_price * 0.1 + population * 1e-10}
+       return {"demand_mw": fuel_cost * 0.1 + population * 1e-10}
 
 
    def run_pipeline():
@@ -474,12 +474,12 @@ Integrate emulation into your pipeline for massive speedups:
        emulated_count = 0
        full_model_count = 0
 
-       for cp in range(0, 500, 10):
+       for fc in range(0, 500, 10):
            for pop in [8e9, 9e9, 10e9]:
                # Try emulator first
                result = dispatch.predict(
                    "run_scenario",
-                   inputs={"carbon_price": cp, "population": pop},
+                   inputs={"fuel_cost": fc, "population": pop},
                )
 
                if result.source == "emulator":
@@ -487,7 +487,7 @@ Integrate emulation into your pipeline for massive speedups:
                    emulated_count += 1
                else:
                    # Fall back to full model via distributed workers
-                   fut = client.submit(run_scenario, cp, pop, tag="gcam")
+                   fut = client.submit(run_scenario, fc, pop, tag="gridlabd")
                    results.append(fut.result())
                    full_model_count += 1
 

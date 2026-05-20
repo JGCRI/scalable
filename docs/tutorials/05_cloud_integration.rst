@@ -28,10 +28,10 @@ Prerequisites
 Scenario
 --------
 
-Your climate pipeline works locally but needs to scale to 50+ concurrent
-scenarios for a production run. Your organization uses AWS for burst compute
-and GCS for long-term data storage. You need to deploy the same workflow to
-cloud infrastructure with cost visibility.
+Your energy forecasting pipeline works locally but needs to scale to 50+
+concurrent scenarios for a production run. Your organization uses AWS for burst
+compute and GCS for long-term data storage. You need to deploy the same
+workflow to cloud infrastructure with cost visibility.
 
 Step 1: AWS Target Configuration
 ----------------------------------
@@ -44,7 +44,7 @@ The AWS provider uses ``dask-cloudprovider`` to launch Dask workers on Fargate
    # scalable.yaml
    version: 1
    project:
-     name: climate-model-aws
+     name: energy-model-aws
      default_storage: s3://${S3_BUCKET}/scalable-runs/
 
    targets:
@@ -72,7 +72,7 @@ The AWS provider uses ``dask-cloudprovider`` to launch Dask workers on Fargate
        image: ${ECR_IMAGE_GCAM}
        cpus: 4
        memory: 16G
-       tags: [iam, climate]
+       tags: [iam, energy]
 
      postprocess:
        cpus: 2
@@ -135,12 +135,12 @@ Before running, ensure these AWS resources exist:
 
 .. code-block:: bash
 
-   aws ecr create-repository --repository-name climate-model
+   aws ecr create-repository --repository-name energy-model
    # Push your image
-   docker build -t climate-model:latest .
-   docker tag climate-model:latest 123456789.dkr.ecr.us-east-1.amazonaws.com/climate-model:latest
+   docker build -t energy-model:latest .
+   docker tag energy-model:latest 123456789.dkr.ecr.us-east-1.amazonaws.com/energy-model:latest
    aws ecr get-login-password | docker login --username AWS --password-stdin 123456789.dkr.ecr.us-east-1.amazonaws.com
-   docker push 123456789.dkr.ecr.us-east-1.amazonaws.com/climate-model:latest
+   docker push 123456789.dkr.ecr.us-east-1.amazonaws.com/energy-model:latest
 
 **2. VPC + Subnets:**
 
@@ -239,7 +239,7 @@ compute:
        cluster_type: cloud_run
        worker_cpu: 4
        worker_mem: 16Gi
-       image: gcr.io/${GCP_PROJECT_ID}/climate-model:latest
+       image: gcr.io/${GCP_PROJECT_ID}/energy-model:latest
        service_account: ${GCP_SERVICE_ACCOUNT}
        adaptive:
          minimum: 1
@@ -256,7 +256,7 @@ GCP-specific setup:
    gcloud auth application-default login
 
    # Push image to GCR
-   gcloud builds submit --tag gcr.io/my-project/climate-model:latest .
+   gcloud builds submit --tag gcr.io/my-project/energy-model:latest .
 
    # Create GCS bucket for artifacts
    gsutil mb -l us-central1 gs://my-bucket/
@@ -365,7 +365,7 @@ machines share results:
 .. code-block:: yaml
 
    project:
-     name: climate-pipeline
+     name: energy-forecast
      default_storage: s3://my-bucket/outputs/
 
 Now:
@@ -386,15 +386,15 @@ For production deployments, maintain a ``.env`` template:
 
    # .env.cloud (do not commit secrets — use secrets manager)
    AWS_REGION=us-east-1
-   S3_BUCKET=climate-prod-artifacts
-   ECR_IMAGE=123456789.dkr.ecr.us-east-1.amazonaws.com/climate:latest
-   ECR_IMAGE_GCAM=123456789.dkr.ecr.us-east-1.amazonaws.com/gcam:7.0
+   S3_BUCKET=energy-prod-artifacts
+   ECR_IMAGE=123456789.dkr.ecr.us-east-1.amazonaws.com/energy-model:latest
+   ECR_IMAGE_GCAM=123456789.dkr.ecr.us-east-1.amazonaws.com/gridlabd:5.0
    EXECUTION_ROLE_ARN=arn:aws:iam::123456789:role/ecsTaskExecutionRole
    TASK_ROLE_ARN=arn:aws:iam::123456789:role/scalableTaskRole
    SUBNET_A=subnet-abc123
    SUBNET_B=subnet-def456
    SG_ID=sg-xyz789
-   SCALABLE_CACHE_REMOTE=s3://climate-prod-artifacts/cache/
+   SCALABLE_CACHE_REMOTE=s3://energy-prod-artifacts/cache/
 
 Load before running:
 
@@ -415,7 +415,7 @@ Troubleshooting
 **Fargate task fails with "CannotPullContainerError"**
   The execution role lacks ECR permissions, the image URI is wrong, or the
   image doesn't exist in the specified region. Verify with:
-  ``aws ecr describe-images --repository-name climate-model``.
+  ``aws ecr describe-images --repository-name energy-model``.
 
 **Workers can't connect to scheduler**
   Security group must allow inbound TCP on the Dask scheduler port (8786)

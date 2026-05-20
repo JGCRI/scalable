@@ -31,8 +31,9 @@ Scenario
 --------
 
 Your organization runs a shared Kubernetes cluster for all scientific
-workloads. You need to deploy the climate pipeline as a Dask cluster within
-your team's namespace, with resource quotas enforced by platform engineering.
+workloads. You need to deploy the energy forecasting pipeline as a Dask
+cluster within your team's namespace, with resource quotas enforced by
+platform engineering.
 The deployment must support both development (small, fast iterations) and
 production (large-scale, fault-tolerant) modes.
 
@@ -69,14 +70,14 @@ Step 2: Configure the Kubernetes Target
    # scalable.yaml
    version: 1
    project:
-     name: climate-pipeline-k8s
+     name: energy-forecast-k8s
      default_storage: gs://${GCS_BUCKET}/scalable-runs/
 
    targets:
      k8s-dev:
        provider: kubernetes
-       namespace: climate-dev
-       image: gcr.io/${GCP_PROJECT}/climate-model:${IMAGE_TAG:-latest}
+       namespace: energy-dev
+       image: gcr.io/${GCP_PROJECT}/energy-model:${IMAGE_TAG:-latest}
        adaptive:
          minimum: 1
          maximum: 5
@@ -84,21 +85,21 @@ Step 2: Configure the Kubernetes Target
 
      k8s-prod:
        provider: kubernetes
-       namespace: climate-prod
-       image: gcr.io/${GCP_PROJECT}/climate-model:${IMAGE_TAG}
+       namespace: energy-prod
+       image: gcr.io/${GCP_PROJECT}/energy-model:${IMAGE_TAG}
        adaptive:
          minimum: 4
          maximum: 40
        overlay: k8s-prod-resources
 
    components:
-     gcam:
-       image: gcr.io/${GCP_PROJECT}/gcam:7.0
+     gridlabd:
+       image: gcr.io/${GCP_PROJECT}/gridlabd:5.0
        cpus: 8
        memory: 32G
-       tags: [iam, climate]
+       tags: [iam, energy]
        env:
-         GCAM_DATA: /data/gcam
+         GRIDLABD_DATA: /data/gridlabd
 
      postprocess:
        image: gcr.io/${GCP_PROJECT}/postprocess:latest
@@ -144,12 +145,12 @@ Create isolated namespaces for development and production:
 .. code-block:: bash
 
    # Development namespace
-   kubectl create namespace climate-dev
-   kubectl label namespace climate-dev team=climate env=dev
+   kubectl create namespace energy-dev
+   kubectl label namespace energy-dev team=energy env=dev
 
    # Production namespace
-   kubectl create namespace climate-prod
-   kubectl label namespace climate-prod team=climate env=prod
+   kubectl create namespace energy-prod
+   kubectl label namespace energy-prod team=energy env=prod
 
 Apply resource quotas to prevent runaway usage:
 
@@ -159,8 +160,8 @@ Apply resource quotas to prevent runaway usage:
    apiVersion: v1
    kind: ResourceQuota
    metadata:
-     name: climate-pipeline-quota
-     namespace: climate-prod
+     name: energy-forecast-quota
+     namespace: energy-prod
    spec:
      hard:
        requests.cpu: "160"
@@ -185,14 +186,14 @@ If your container registry requires authentication:
      --docker-server=gcr.io \
      --docker-username=_json_key \
      --docker-password="$(cat service-account-key.json)" \
-     --namespace climate-prod
+     --namespace energy-prod
 
    # For ECR (AWS Elastic Container Registry)
    kubectl create secret docker-registry ecr-secret \
      --docker-server=123456789.dkr.ecr.us-east-1.amazonaws.com \
      --docker-username=AWS \
      --docker-password="$(aws ecr get-login-password)" \
-     --namespace climate-prod
+     --namespace energy-prod
 
 The Kubernetes provider automatically attaches these secrets to worker pods
 when the image URI matches the registry.
@@ -203,7 +204,7 @@ Step 5: Run a Development Workflow
 .. code-block:: bash
 
    export GCP_PROJECT=my-gcp-project
-   export GCS_BUCKET=climate-artifacts
+   export GCS_BUCKET=energy-artifacts
    export IMAGE_TAG=dev-$(git rev-parse --short HEAD)
 
    # Validate
@@ -215,7 +216,7 @@ Step 5: Run a Development Workflow
 .. code-block:: text
 
    Plan created for target 'k8s-dev' (provider: kubernetes)
-   Namespace: climate-dev
+   Namespace: energy-dev
    Workers:
      gcam: 2 pods (2 cpu, 8G memory)
      postprocess: 1 pod (1 cpu, 4G memory)
@@ -240,7 +241,7 @@ Run the workflow:
 **What happens under the hood:**
 
 1. The :class:`~scalable.providers.kubernetes.KubernetesProvider` creates a
-   ``DaskCluster`` custom resource in the ``climate-dev`` namespace.
+   ``DaskCluster`` custom resource in the ``energy-dev`` namespace.
 2. The Dask Kubernetes Operator provisions scheduler and worker pods.
 3. Worker pods are labeled with component tags for affinity scheduling.
 4. The adaptive scaler monitors task backlog and scales pods up/down within
@@ -256,25 +257,25 @@ Watch Kubernetes events in real-time:
 .. code-block:: bash
 
    # Watch pods in the namespace
-   kubectl get pods -n climate-dev -w
+   kubectl get pods -n energy-dev -w
 
 .. code-block:: text
 
    NAME                                READY   STATUS    RESTARTS   AGE
-   dask-scheduler-climate-dev-0        1/1     Running   0          30s
-   dask-worker-gcam-0                  1/1     Running   0          25s
-   dask-worker-gcam-1                  1/1     Running   0          25s
+   dask-scheduler-energy-dev-0         1/1     Running   0          30s
+   dask-worker-gridlabd-0              1/1     Running   0          25s
+   dask-worker-gridlabd-1              1/1     Running   0          25s
    dask-worker-postprocess-0           1/1     Running   0          25s
 
    # Scale-up event
-   dask-worker-gcam-2                  0/1     Pending   0          0s
-   dask-worker-gcam-2                  1/1     Running   0          15s
+   dask-worker-gridlabd-2              0/1     Pending   0          0s
+   dask-worker-gridlabd-2              1/1     Running   0          15s
 
 Check the Dask dashboard (port-forward the scheduler):
 
 .. code-block:: bash
 
-   kubectl port-forward -n climate-dev svc/dask-scheduler-climate-dev 8787:8787
+   kubectl port-forward -n energy-dev svc/dask-scheduler-energy-dev 8787:8787
    # Open http://localhost:8787 in your browser
 
 Step 7: Production Deployment
@@ -299,7 +300,7 @@ simultaneously:
    kind: PodDisruptionBudget
    metadata:
      name: dask-workers-pdb
-     namespace: climate-prod
+     namespace: energy-prod
    spec:
      minAvailable: "50%"
      selector:
@@ -318,10 +319,10 @@ jobs:
    apiVersion: scheduling.k8s.io/v1
    kind: PriorityClass
    metadata:
-     name: climate-production
+     name: energy-production
    value: 1000
    globalDefault: false
-   description: "Priority for production climate pipeline runs"
+   description: "Priority for production energy forecasting runs"
 
 Step 8: Handling Pod Evictions
 -------------------------------
@@ -392,7 +393,7 @@ Automate Kubernetes deployments from your CI pipeline:
 
          - uses: google-github-actions/get-gke-credentials@v2
            with:
-             cluster_name: climate-cluster
+             cluster_name: energy-cluster
              location: us-central1
 
          - name: Install Scalable
@@ -422,8 +423,8 @@ For local Kubernetes development without a cloud cluster:
    helm install dask-operator dask/dask-kubernetes-operator
 
    # Build and load image locally
-   docker build -t climate-model:local .
-   minikube image load climate-model:local
+   docker build -t energy-model:local .
+   minikube image load energy-model:local
 
    # Use local image in manifest
    export IMAGE_TAG=local

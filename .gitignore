@@ -5,6 +5,7 @@ capabilities/
 plans/
 .rooignore
 .env
+notebooks/.ipynb_checkpoints/
 
 # -----------------------------
 # Python bytecode / caches

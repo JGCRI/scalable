@@ -68,7 +68,7 @@ Recommended Learning Path
      - Manifest schema, targets, overlays, validation
    * - 3
      - :ref:`tutorial_scaling_strategies`
-     - Providers, manual/adaptive/policy scaling
+     - Providers, manual/adaptive/objective scaling
    * - 4
      - :ref:`tutorial_caching`
      - @cacheable, FileType/DirType, remote cache
@@ -128,8 +128,8 @@ Throughout these tutorials:
 * All code examples use Python 3.11+ syntax.
 * Shell commands assume a Unix-like environment (macOS/Linux). Windows
   equivalents are noted where they differ.
-* The project name ``climate-pipeline`` and component names ``gcam``,
-  ``stitches``, ``postprocess`` appear consistently across tutorials as a
+* The project name ``energy-forecast`` and component names ``gridlabd``,
+  ``watershed``, ``postprocess`` appear consistently across tutorials as a
   running example.
 * Environment variables use the ``${VAR:-default}`` pattern for portability.
 * Expected output blocks show representative output — exact values (timestamps,

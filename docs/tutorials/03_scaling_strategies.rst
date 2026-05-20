@@ -13,7 +13,7 @@ By the end of this tutorial you will:
   backends.
 * Configure and use the Local, Slurm, and Cloud providers.
 * Choose appropriate scaling strategies for different workload profiles.
-* Implement manual scaling, adaptive scaling, and policy-driven planning.
+* Implement manual scaling, adaptive scaling, and objective-driven planning.
 * Monitor scaling decisions through the Session API.
 
 Prerequisites
@@ -27,10 +27,10 @@ Prerequisites
 Scenario
 --------
 
-Your climate pipeline has grown. Development happens locally with 2–4 workers.
-Production runs on an HPC cluster with 64+ workers. Burst capacity uses cloud
-auto-scaling. You need a unified scaling approach that works across all three
-environments.
+Your energy forecasting pipeline has grown. Development happens locally with
+2–4 workers. Production runs on an HPC cluster with 64+ workers. Burst
+capacity uses cloud auto-scaling. You need a unified scaling approach that
+works across all three environments.
 
 Step 1: The Provider Architecture
 ----------------------------------
@@ -206,7 +206,7 @@ availability.
 Step 4: Session-Based Scaling with Objectives
 -----------------------------------------------
 
-The Session API supports policy-driven planning that automatically determines
+The Session API supports objective-driven planning that automatically determines
 worker counts:
 
 .. code-block:: python

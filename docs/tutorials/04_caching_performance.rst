@@ -26,10 +26,10 @@ Prerequisites
 Scenario
 --------
 
-Your pipeline executes expensive climate simulations that take 30+ minutes per
-scenario. During development you frequently restart runs after fixing
-downstream bugs. Without caching, every restart recomputes scenarios that
-already succeeded. The ``@cacheable`` decorator lets completed tasks skip
+Your pipeline executes expensive energy demand simulations that take 30+
+minutes per scenario. During development you frequently restart runs after
+fixing downstream bugs. Without caching, every restart recomputes scenarios
+that already succeeded. The ``@cacheable`` decorator lets completed tasks skip
 execution on retry.
 
 Step 1: Basic Caching with @cacheable
@@ -46,10 +46,10 @@ arguments, and returns cached results when available:
 
    @cacheable(return_type=dict, scenario_id=int)
    def run_simulation(scenario_id: int) -> dict:
-       """Expensive computation — runs a climate scenario."""
+       """Expensive computation — runs an energy demand scenario."""
        import time
        time.sleep(30)  # Simulating expensive work
-       return {"scenario": scenario_id, "emissions": scenario_id * 1.5}
+       return {"scenario": scenario_id, "demand_mw": scenario_id * 1.5}
 
 First call:
 
@@ -58,7 +58,7 @@ First call:
    result = run_simulation(42)
    # Takes 30 seconds — cache MISS
    print(result)
-   # {'scenario': 42, 'emissions': 63.0}
+   # {'scenario': 42, 'demand_mw': 63.0}
 
 Second call with the same argument:
 
@@ -67,7 +67,7 @@ Second call with the same argument:
    result = run_simulation(42)
    # Returns instantly — cache HIT
    print(result)
-   # {'scenario': 42, 'emissions': 63.0}
+   # {'scenario': 42, 'demand_mw': 63.0}
 
 **How it works:**
 
@@ -160,7 +160,7 @@ example after fixing a bug in the computation logic:
    def run_simulation(scenario_id: int) -> dict:
        """Always recompute — ignores cached results."""
        # Fixed version of the computation
-       return {"scenario": scenario_id, "emissions": scenario_id * 1.7}
+       return {"scenario": scenario_id, "demand_mw": scenario_id * 1.7}
 
 Setting ``recompute=True`` forces the function to execute every time. The
 result still gets written to the cache, so subsequent calls (once you remove
@@ -328,7 +328,7 @@ logic changes:
 
    @cacheable(return_type=dict, params=dict)
    def run_gcam_v3(params: dict) -> dict:
-       # v3: fixed carbon price calculation
+       # v3: fixed fuel cost calculation
        ...
 
 **Strategy 4: Delete the cache directory**
