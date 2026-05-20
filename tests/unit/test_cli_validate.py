@@ -72,10 +72,10 @@ def test_cli_validate_schema_error_returns_nonzero(tmp_path: Path, capsys) -> No
     assert payload["errors"][0]["code"] == "E_MANIFEST"
 
 
-def test_cli_stub_command_returns_pointer_message(capsys) -> None:
-    code = main(["diagnose"])
+def test_cli_diagnose_no_longer_stub(capsys) -> None:
+    """Phase 4 implemented diagnose; it no longer returns stub exit code 2."""
+    code = main(["diagnose", "--runs-dir", "/nonexistent", "--latest", "--no-ai"])
 
-    captured = capsys.readouterr()
-    assert code == 2
-    assert "planned for Phase 4" in captured.err
+    # diagnose is now implemented; returns 1 on error (no runs found), not 2
+    assert code == 1
 
