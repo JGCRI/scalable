@@ -72,30 +72,3 @@ Contents
    caching
    functions
 
-.. _how_tos_section:
-
-.. toctree::
-   :caption: How-tos
-   :maxdepth: 1
-
-   cache_hash
-   container
-   rpy2
-
-.. _demos_section:
-
-.. toctree::
-   :caption: Demos
-   :maxdepth: 1
-
-   demo
-   helps_demo
-
-.. _common_issues_section:
-
-.. toctree::
-   :caption: Common Issues
-   :maxdepth: 1
-
-   issues
-
