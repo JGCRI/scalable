@@ -369,7 +369,6 @@ class ScalableAgent(Generic[T]):
         AgentResult[T]
             Validated output.
         """
-        effective_config = config or self.config
         effective_deps = deps or AgentDeps()
 
         model_str = self._get_model_string()

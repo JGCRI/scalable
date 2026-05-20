@@ -10,7 +10,7 @@ import logging
 from typing import Any
 
 from ..prompts.compose import COMPOSE_PROMPT, SYSTEM_PROMPT
-from .base import AgentConfig, AgentDeps, AgentResult, ScalableAgent
+from .base import AgentConfig, AgentDeps, ScalableAgent
 from .models import ComposeOutput, WorkflowComponent
 
 logger = logging.getLogger(__name__)
@@ -205,7 +205,7 @@ class ComposeAgent(ScalableAgent[ComposeOutput]):
         execution_order = [c.name for c in components]
 
         # Set dependencies
-        for i, comp in enumerate(components[1:], 1):
+        for comp in components[1:]:
             comp.dependencies = [components[0].name]
 
         # Parallelism: first component alone, rest in parallel

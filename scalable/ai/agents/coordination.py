@@ -15,7 +15,7 @@ reasoning chains and collaborative workflows.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, TypeVar
 
 from pydantic import BaseModel
