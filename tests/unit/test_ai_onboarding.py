@@ -54,7 +54,7 @@ class TestOnboardComponent:
 
         # The YAML portion should be parseable (after stripping comments)
         lines = result.component_yaml.split("\n")
-        yaml_lines = [l for l in lines if not l.startswith("#")]
+        yaml_lines = [line for line in lines if not line.startswith("#")]
         yaml_content = "\n".join(yaml_lines)
         parsed = yaml.safe_load(yaml_content)
         assert parsed is not None
